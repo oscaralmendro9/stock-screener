@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Chip, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
 import { useRuntimeActivity } from '../../hooks/useRuntimeActivity';
 
 // Header status is best-effort chrome; let route-critical data requests start first.
 const HEADER_ACTIVITY_DELAY_MS = 1500;
+// Status, not price direction, so "ready" stays neutral rather than gain-green.
+const BADGE_TONES = {
+  default: 'neutral',
+  info: 'accent',
+  secondary: 'accent',
+  success: 'neutral',
+  warning: 'warning',
+};
 const WARNING_MARKET_STATUSES = new Set(['failed', 'stale', 'stuck']);
 
 function buildSummary(activity, { isPending = false, isError = false } = {}) {
@@ -101,75 +110,23 @@ export default function RuntimeActivityStatusButton({ compact = false }) {
   });
 
   return (
-    <Button
-      color="inherit"
-      component={RouterLink}
+    <RouterLink
       to="/operations"
       // Compact mode shows only the badge, so the title and detail move to the label.
       aria-label={compact ? `${summary.title}: ${summary.detail}` : undefined}
       title={compact ? `${summary.title} · ${summary.detail}` : undefined}
-      sx={{
-        minWidth: 0,
-        px: compact ? 0.75 : 1,
-        py: 0.25,
-        borderRadius: 1.5,
-        textTransform: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        maxWidth: 280,
-        border: 1,
-        borderColor: 'divider',
-        backgroundColor: 'action.hover',
-        '&:hover': {
-          backgroundColor: 'action.selected',
-        },
-      }}
-    >
-      <Chip
-        label={summary.badge}
-        size="small"
-        color={summary.badgeColor}
-        sx={{
-          height: 18,
-          fontSize: '11px',
-          fontWeight: 700,
-          '& .MuiChip-label': {
-            px: 0.75,
-          },
-        }}
-      />
-      {!compact && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflow: 'hidden' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'inherit',
-              fontWeight: 700,
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              maxWidth: 220,
-            }}
-          >
-            {summary.title}
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              maxWidth: 220,
-            }}
-          >
-            {summary.detail}
-          </Typography>
-        </Box>
+      className={cn(
+        'tw flex h-11 max-w-72 shrink-0 items-center gap-2 rounded-md border border-border bg-surface-subtle text-foreground outline-none transition-colors duration-150 ease-out hover:bg-border/40 focus-visible:ring-2 focus-visible:ring-ring md:h-9',
+        compact ? 'px-2' : 'px-2.5',
       )}
-    </Button>
+    >
+      <Badge tone={BADGE_TONES[summary.badgeColor]} className="font-bold">{summary.badge}</Badge>
+      {!compact && (
+        <span className="flex min-w-0 flex-col text-xs leading-tight">
+          <span className="truncate font-bold">{summary.title}</span>
+          <span className="truncate text-muted-foreground">{summary.detail}</span>
+        </span>
+      )}
+    </RouterLink>
   );
 }

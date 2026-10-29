@@ -44,10 +44,14 @@ html[data-color-mode='light'] {
   color-scheme: light;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Layered so Tailwind utilities (later layer) can set margin and padding;
+   unlayered, this reset would beat every one of them. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 body {

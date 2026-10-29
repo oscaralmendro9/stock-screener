@@ -6,6 +6,27 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+/* Scoped stand-in for preflight: only inside `.tw` containers (the shell,
+   sheets, menus), so unmigrated MUI pages keep their browser defaults. */
+@layer base {
+  :where(.tw a, a.tw) {
+    color: inherit;
+    text-decoration: inherit;
+  }
+  :where(.tw button, .tw input, .tw select, button.tw) {
+    font: inherit;
+    color: inherit;
+    background-color: transparent;
+    border: 0;
+  }
+  :where(.tw ul, .tw ol) {
+    list-style: none;
+  }
+  :where(.tw svg) {
+    display: block;
+  }
+}
+
 /* Dark mode follows the same attribute the MUI theme and color-mode.js use. */
 @custom-variant dark (&:where([data-color-mode='dark'], [data-color-mode='dark'] *));
 

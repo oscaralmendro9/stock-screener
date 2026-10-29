@@ -402,7 +402,7 @@ describe('Layout', () => {
       renderAt('/validation');
 
       const nav = screen.getByRole('navigation', { name: 'Main' });
-      expect(within(nav).getByRole('button', { name: 'More' })).toHaveClass('Mui-selected');
+      expect(within(nav).getByRole('button', { name: 'More' })).toHaveAttribute('data-active', 'true');
     });
 
     it('collapses the runtime status to its badge but keeps the full label', () => {

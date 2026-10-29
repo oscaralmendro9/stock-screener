@@ -33,8 +33,7 @@ test.describe('Social Signals', () => {
     await evidence.getByRole('button', { name: 'Close' }).click();
     await expect(evidence).toBeHidden();
 
-    await page.getByLabel('Market selector').click();
-    await page.getByRole('option', { name: /Japan/ }).click();
+    await page.getByLabel('Market selector').selectOption('JP');
     await expect(page).toHaveURL(/market=JP/);
     await page.getByRole('button', { name: 'Send visible to Scan' }).first().click();
     await expect(page).toHaveURL(/\/scan\?.*market=JP.*symbols=/);

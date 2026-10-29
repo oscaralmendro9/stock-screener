@@ -89,8 +89,13 @@ test('market switching resets stock filters and preserves layout preferences', a
   await page.getByLabel('Search symbol or company').fill('US00001');
   await page.getByRole('button',{name:'Clusters',exact:true}).click();
   const label = testInfo.project.name === 'static' ? 'Static market selector' : 'Market selector';
-  await page.getByLabel(label,{exact:true}).click();
-  await page.getByRole('option',{name:testInfo.project.name === 'static' ? /HK/ : /Hong Kong/}).click();
+  if (testInfo.project.name === 'static') {
+    await page.getByLabel(label,{exact:true}).click();
+    await page.getByRole('option',{name:/HK/}).click();
+  } else {
+    // The live shell's market selector is a native <select>.
+    await page.getByLabel(label,{exact:true}).selectOption('HK');
+  }
   await expect(page.getByRole('heading',{name:'HK Stock Matrix'})).toBeVisible();
   await expect(page.getByLabel('Search symbol or company')).toHaveValue('');
   await expect(page.getByRole('button',{name:'Clusters',exact:true})).toHaveAttribute('aria-pressed','true');

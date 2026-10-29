@@ -1,33 +1,19 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  AppBar,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Divider,
-  Drawer,
-  Fab,
-  InputBase,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
-  Menu,
-  MenuItem,
-  Toolbar,
-  IconButton,
-  useTheme,
-} from '@mui/material';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
-import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import CheckIcon from '@mui/icons-material/Check';
-import HistoryIcon from '@mui/icons-material/History';
-import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+import { Bot, CandlestickChart, Check, History, LoaderCircle, LogOut, Sparkles, UserRound } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/ui/dropdown-menu';
+import { Drawer } from '@mui/material';
 import MarketSelector from './MarketSelector';
 import RuntimeActivityStatusButton from './RuntimeActivityStatusButton';
 import {
@@ -36,8 +22,10 @@ import {
   ColorModeListItem,
   DesktopNav,
   MobileBottomNav,
+  SheetDivider,
+  SheetItem,
 } from './AppNav';
-import { CORE_NAV_ITEMS, mobileNavOffset, safeGutters, useIsMobileShell } from './shellNav';
+import { CORE_NAV_ITEMS, SAFE_GUTTER_CLASSES, useIsMobileShell } from './shellNav';
 import { useRuntime } from '../../contexts/RuntimeContext';
 import { useMarket, useMarketForCapability } from '../../contexts/MarketContext';
 import { usePipeline } from '../../contexts/usePipeline';
@@ -58,9 +46,9 @@ const PipelineProgressCard = lazy(() => import('../PipelineProgressCard'));
 
 function DrawerLoadingFallback() {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <CircularProgress size={24} />
-    </Box>
+    <div role="status" aria-label="Loading assistant" className="grid h-full place-items-center">
+      <LoaderCircle aria-hidden="true" className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none" />
+    </div>
   );
 }
 
@@ -89,30 +77,21 @@ function useProfileOptions() {
   return { activeProfile, profileOptions, setActiveProfile };
 }
 
-function StrategyProfileMenu({ anchorEl, onClose }) {
+// Mounted only while the menu is open, so profiles load on demand.
+function StrategyProfileMenuItems() {
   const { activeProfile, profileOptions, setActiveProfile } = useProfileOptions();
 
   return (
-    <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-    >
-      {profileOptions.map((profile) => (
-        <MenuItem
-          key={profile.profile}
-          selected={profile.profile === activeProfile}
-          onClick={() => {
-            setActiveProfile(profile.profile);
-            onClose();
-          }}
-        >
-          <ListItemText primary={profile.label} />
-        </MenuItem>
-      ))}
-    </Menu>
+    <>
+      <DropdownMenuLabel>Strategy profile</DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={activeProfile} onValueChange={setActiveProfile}>
+        {profileOptions.map((profile) => (
+          <DropdownMenuRadioItem key={profile.profile} value={profile.profile}>
+            {profile.label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
   );
 }
 
@@ -122,49 +101,42 @@ function MobileProfileItems({ onDone }) {
 
   return (
     <>
-      <ListSubheader disableSticky sx={{ lineHeight: '32px', bgcolor: 'transparent' }}>Strategy profile</ListSubheader>
-      {profileOptions.map((profile) => (
-        <ListItemButton
-          key={profile.profile}
-          selected={profile.profile === activeProfile}
-          onClick={() => {
-            setActiveProfile(profile.profile);
-            onDone();
-          }}
-        >
-          <ListItemIcon>{profile.profile === activeProfile ? <CheckIcon /> : <PersonIcon />}</ListItemIcon>
-          <ListItemText primary={profile.label} />
-        </ListItemButton>
-      ))}
+      <li className="px-4 pt-2 pb-1 text-xs font-medium text-muted-foreground">Strategy profile</li>
+      {profileOptions.map((profile) => {
+        const selected = profile.profile === activeProfile;
+        return (
+          <SheetItem
+            key={profile.profile}
+            icon={selected ? <Check aria-hidden="true" /> : <UserRound aria-hidden="true" />}
+            label={profile.label}
+            selected={selected}
+            aria-pressed={selected}
+            onClick={() => {
+              setActiveProfile(profile.profile);
+              onDone();
+            }}
+          />
+        );
+      })}
     </>
   );
 }
 
 function StrategyProfileControl() {
   const { activeProfile } = useStrategyProfile();
-  const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
-  const profileMenuOpen = Boolean(profileMenuAnchor);
+  const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <IconButton
-        onClick={(event) => setProfileMenuAnchor(event.currentTarget)}
-        title={`Profile: ${activeProfile}`}
-        aria-label="Select strategy profile"
-        aria-haspopup="menu"
-        aria-expanded={profileMenuOpen}
-        size="small"
-        sx={{ color: 'text.secondary' }}
-      >
-        <PersonIcon fontSize="small" />
-      </IconButton>
-      {profileMenuOpen && (
-        <StrategyProfileMenu
-          anchorEl={profileMenuAnchor}
-          onClose={() => setProfileMenuAnchor(null)}
-        />
-      )}
-    </>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" title={`Profile: ${activeProfile}`} aria-label="Select strategy profile" className="text-muted-foreground">
+          <UserRound aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {open && <StrategyProfileMenuItems />}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -227,37 +199,26 @@ function TickerSearch() {
   };
 
   return (
-    <InputBase
+    <input
+      type="search"
       value={tickerInput}
       onChange={(e) => setTickerInput(e.target.value)}
       onKeyDown={handleTickerSubmit}
       onFocus={() => loadQuietly(loadStockDetails)}
       placeholder="Ticker"
-      size="small"
-      inputProps={{ 'aria-label': 'Go to ticker', enterKeyHint: 'go', autoCapitalize: 'characters' }}
-      sx={{
-        px: 1.25,
-        height: 32,
-        width: { xs: 88, md: 160 },
-        // 16px on phones: iOS Safari zooms into inputs below that.
-        fontSize: { xs: '16px', md: '14px' },
-        backgroundColor: 'action.hover',
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 2,
-        '&.Mui-focused': { borderColor: 'primary.main' },
-        '& input::placeholder': {
-          color: 'text.secondary',
-          opacity: 1,
-        },
-      }}
+      aria-label="Go to ticker"
+      enterKeyHint="go"
+      autoCapitalize="characters"
+      autoComplete="off"
+      spellCheck={false}
+      // 16px on phones: iOS Safari zooms into inputs below that.
+      className="h-11 w-24 min-w-0 rounded-md border border-border bg-surface-subtle px-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-ring/40 md:h-8 md:w-40 md:text-sm"
     />
   );
 }
 
 function Layout({ children }) {
   const location = useLocation();
-  const theme = useTheme();
   const isMobile = useIsMobileShell();
   const { auth, features, isLoggingOut, logout, marketCatalog, primaryMarket } = useRuntime();
   const { selectedMarket } = useMarket();
@@ -275,62 +236,62 @@ function Layout({ children }) {
 
   const navItems = [
     ...CORE_NAV_ITEMS,
-    { path: '/validation', label: 'Backtest', icon: <HistoryIcon /> },
-    ...(optionsAvailable ? [{ path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChartIcon /> }] : []),
-    ...(features.themes ? [{ path: '/themes', label: 'Themes', icon: <AutoAwesomeIcon /> }] : []),
-    ...(features.chatbot ? [{ path: '/chatbot', label: 'Assistant', icon: <SmartToyIcon /> }] : []),
+    { path: '/validation', label: 'Backtest', icon: <History aria-hidden="true" /> },
+    ...(optionsAvailable ? [{ path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChart aria-hidden="true" /> }] : []),
+    ...(features.themes ? [{ path: '/themes', label: 'Themes', icon: <Sparkles aria-hidden="true" /> }] : []),
+    ...(features.chatbot ? [{ path: '/chatbot', label: 'Assistant', icon: <Bot aria-hidden="true" /> }] : []),
   ];
 
   const mobileExtras = (close) => (
     <>
       <MobileProfileItems onDone={close} />
-      <Divider sx={{ my: 0.5 }} />
+      <SheetDivider />
       <ColorModeListItem onDone={close} />
       {canSignOut && (
-        <ListItemButton disabled={isLoggingOut} onClick={() => { close(); logout(); }}>
-          <ListItemIcon><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Sign out" />
-        </ListItemButton>
+        <SheetItem
+          icon={<LogOut aria-hidden="true" />}
+          label="Sign out"
+          disabled={isLoggingOut}
+          onClick={() => { close(); logout(); }}
+        />
       )}
     </>
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar
-          variant="dense"
-          sx={{ ...safeGutters, minHeight: 52, gap: { xs: 1, md: 1.5 }, overflowX: 'auto', '& > *': { flexShrink: 0 } }}
-        >
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="tw border-b border-border bg-surface">
+        <div className={cn('flex min-h-13 items-center gap-2 overflow-x-auto md:gap-3 [&>*]:shrink-0', SAFE_GUTTER_CLASSES)}>
           <BrandMark label={isMobile ? null : 'Stock Scanner'} />
           <RuntimeActivityStatusButton compact={isMobile} />
           <MarketSelector />
-          <Box sx={{ flexGrow: 1 }} />
+          <div className="flex-1" />
           <TickerSearch />
           {!isMobile && (
             <>
-              <Box sx={{ flexGrow: 1 }} />
+              <div className="flex-1" />
               <DesktopNav items={navItems} onIntent={prefetchPage} />
               <StrategyProfileControl />
               {canSignOut && (
-                <Button
-                  size="small"
-                  onClick={() => logout()}
-                  disabled={isLoggingOut}
-                  sx={{ color: 'text.secondary', fontSize: '12px' }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => logout()} disabled={isLoggingOut} className="text-xs text-muted-foreground">
                   Sign out
                 </Button>
               )}
               <ColorModeButton />
             </>
           )}
-        </Toolbar>
-      </AppBar>
+        </div>
+      </header>
 
-      <Container maxWidth="xl" sx={{ ...safeGutters, mt: 1, mb: 1, flex: 1, pb: { xs: mobileNavOffset(8), md: 0 } }}>
+      <main
+        className={cn(
+          'mx-auto my-2 w-full max-w-[1536px] flex-1',
+          SAFE_GUTTER_CLASSES,
+          isMobile && 'pb-[calc(64px+env(safe-area-inset-bottom))]',
+        )}
+      >
         {children}
-      </Container>
+      </main>
 
       {isMobile && <MobileBottomNav items={navItems} extras={mobileExtras} onIntent={prefetchPage} />}
 
@@ -338,30 +299,27 @@ function Layout({ children }) {
 
       {assistantAvailable && location.pathname !== '/chatbot' && (
         <>
-          <Fab
-            color="secondary"
+          <button
+            type="button"
             aria-label="Open assistant"
             onClick={() => setAssistantOpen(true)}
-            size={isMobile ? 'medium' : 'large'}
-            sx={{
-              position: 'fixed',
-              right: { xs: 16, md: 24 },
-              bottom: { xs: mobileNavOffset(16), md: 24 },
-              zIndex: theme.zIndex.drawer - 1,
-            }}
+            className={cn(
+              'tw fixed z-nav grid cursor-pointer place-items-center rounded-full bg-accent text-accent-foreground shadow-lg outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 motion-reduce:transition-none',
+              isMobile
+                ? 'right-[max(16px,env(safe-area-inset-right))] bottom-[calc(72px+env(safe-area-inset-bottom))] size-12'
+                : 'right-6 bottom-6 size-14',
+            )}
           >
-            <SmartToyIcon />
-          </Fab>
+            <Bot aria-hidden="true" className="size-6" />
+          </button>
 
+          {/* Stays an MUI Drawer until AssistantChat migrates: its content opens
+              MUI dialogs, and a Radix modal around them would block their clicks. */}
           <Drawer
             anchor="right"
             open={assistantOpen}
             onClose={() => setAssistantOpen(false)}
-            PaperProps={{
-              sx: {
-                width: { xs: '100%', sm: 440 },
-              },
-            }}
+            PaperProps={{ sx: { width: { xs: '100%', sm: 440 } } }}
           >
             {assistantOpen && (
               <Suspense fallback={<DrawerLoadingFallback />}>
@@ -371,7 +329,7 @@ function Layout({ children }) {
           </Drawer>
         </>
       )}
-    </Box>
+    </div>
   );
 }
 

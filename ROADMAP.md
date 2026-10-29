@@ -14,7 +14,9 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] Tailwind v4 alongside MUI, tokens, `@/` alias, `components.json`, base primitives in `frontend/src/ui`
 
 ## Phase 1 — New shell
-- [ ] Tailwind app shell: top nav on desktop, bottom tab bar on phones, market selector, color mode
+- [x] Tailwind app shell: top nav on desktop, bottom tab bar + "More" sheet on phones, native market selector, Radix profile menu, color mode
+- [ ] Static-site header (`static/StaticLayout.jsx`) still MUI; it already reuses the new nav, brand and sheet
+- [ ] Assistant drawer stays an MUI `Drawer` until `AssistantChat` migrates (its MUI dialogs can't open inside a Radix modal)
 - [ ] Global symbol search (stocks, futures, options underlyings)
 - [ ] Spanish/English i18n
 

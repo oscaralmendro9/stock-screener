@@ -51,4 +51,12 @@ and inputs instead of white; focus ring uses `accent` instead of white.
 
 1. New code uses Tailwind + `frontend/src/ui/*` (shadcn-style, `components.json`).
 2. Pages migrate one at a time; a migrated page imports nothing from `@mui/*`.
-3. Tailwind preflight is off until the last MUI page is gone.
+3. Tailwind preflight is off until the last MUI page is gone. Instead, a
+   scoped reset applies inside elements with the `tw` class (links, buttons,
+   inputs, lists); put `tw` on the root of every migrated surface.
+4. The global `*` reset in `index.css` lives in `@layer base`; unlayered it
+   would override every Tailwind margin/padding utility.
+5. Never nest one primitive system's modal inside another's (Radix around
+   MUI dialogs blocks their clicks). Migrate a modal and its contents together.
+6. The live market selector is a native `<select>`: tests drive it with
+   `selectOptions` / `selectOption`, not by clicking an option.

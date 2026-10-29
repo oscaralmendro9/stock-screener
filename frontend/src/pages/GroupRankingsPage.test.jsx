@@ -22,8 +22,10 @@ function renderGroupRankingsPage() {
 }
 
 async function selectGlobalMarket(user, optionName) {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: /market selector/i }));
-  await user.click(await screen.findByRole('option', { name: optionName }));
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: /market selector/i }),
+    await screen.findByRole('option', { name: optionName }),
+  );
 }
 
 const getGroupMatrix = vi.fn();
