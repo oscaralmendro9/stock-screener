@@ -16,3 +16,19 @@ def test_cot_schedule_runs_weekdays_at_1700_eastern():
         "queue": SHARED_DATA_FETCH_QUEUE
     }
     assert "app.interfaces.tasks.cot_tasks" in celery_app.conf.include
+
+
+def test_futures_refresh_runs_weekdays_after_the_settlement_window():
+    entry = celery_app.conf.beat_schedule["futures-refresh-weekday"]
+    schedule = entry["schedule"]
+
+    assert entry["task"] == "app.interfaces.tasks.futures_tasks.refresh_futures"
+    assert entry["options"]["queue"] == SHARED_DATA_FETCH_QUEUE
+    assert schedule._orig_hour == 17
+    assert schedule._orig_minute == 20
+    assert schedule._orig_day_of_week == "1-5"
+    assert str(schedule.tz) == "America/New_York"
+    assert celery_app.conf.task_routes[entry["task"]] == {
+        "queue": SHARED_DATA_FETCH_QUEUE
+    }
+    assert "app.interfaces.tasks.futures_tasks" in celery_app.conf.include

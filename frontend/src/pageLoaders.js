@@ -11,6 +11,8 @@ export const loadChatbotPage = () => import('./pages/ChatbotPage');
 export const loadOperationsPage = () => import('./pages/OperationsPage');
 export const loadOptionsPage = () => import('./pages/OptionsPage');
 export const loadOptionsSymbolPage = () => import('./pages/OptionsSymbolPage');
+export const loadFuturesPage = () => import('./pages/FuturesPage');
+export const loadFuturesDetailPage = () => import('./pages/FuturesDetailPage');
 
 const PATH_LOADERS = {
   '/': loadMarketScanPage,
@@ -22,6 +24,7 @@ const PATH_LOADERS = {
   '/chatbot': loadChatbotPage,
   '/operations': loadOperationsPage,
   '/options': loadOptionsPage,
+  '/futures': loadFuturesPage,
 };
 
 export function loaderForPath(pathname) {
@@ -29,5 +32,6 @@ export function loaderForPath(pathname) {
   const path = pathname.toLowerCase().replace(/\/+$/, '') || '/';
   if (path.startsWith('/stocks/')) return loadStockDetails;
   if (path.startsWith('/options/')) return loadOptionsSymbolPage;
+  if (path.startsWith('/futures/')) return loadFuturesDetailPage;
   return PATH_LOADERS[path] ?? null;
 }

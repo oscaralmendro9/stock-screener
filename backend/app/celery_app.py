@@ -101,6 +101,7 @@ celery_app = Celery(
         'app.interfaces.tasks.feature_store_tasks',  # Daily feature snapshot
         'app.interfaces.tasks.options_analytics_tasks',  # US options follow-on
         'app.interfaces.tasks.cot_tasks',  # Global CFTC positioning refresh
+        'app.interfaces.tasks.futures_tasks',  # Futures dashboard price refresh
         'app.interfaces.tasks.social_signal_tasks',  # Social collection/analysis
     ]
 )
@@ -449,6 +450,9 @@ celery_app.conf.task_routes[
 celery_app.conf.task_routes[
     'app.interfaces.tasks.cot_tasks.refresh_cot'
 ] = {'queue': SHARED_DATA_FETCH_QUEUE}
+celery_app.conf.task_routes[
+    'app.interfaces.tasks.futures_tasks.refresh_futures'
+] = {'queue': SHARED_DATA_FETCH_QUEUE}
 celery_app.conf.task_routes.update({
     task_name: {'queue': market_jobs_queue_for_market("US")}
     for task_name in _MARKET_JOB_TASKS
@@ -584,6 +588,18 @@ def _build_cache_warmup_beat_schedule(enabled_markets: list[str]) -> dict:
             'schedule': crontab(
                 hour=17,
                 minute=0,
+                day_of_week='1-5',
+                app=_IBD_CLASSIFICATION_SYNC_SCHEDULE_APP,
+            ),
+            'options': {'queue': SHARED_DATA_FETCH_QUEUE},
+            'kwargs': {'origin': 'scheduled'},
+        },
+        # Futures settle 4:00-5:00 PM ET; CME Globex reopens at 6:00 PM.
+        'futures-refresh-weekday': {
+            'task': 'app.interfaces.tasks.futures_tasks.refresh_futures',
+            'schedule': crontab(
+                hour=17,
+                minute=20,
                 day_of_week='1-5',
                 app=_IBD_CLASSIFICATION_SYNC_SCHEDULE_APP,
             ),

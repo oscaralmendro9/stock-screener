@@ -38,6 +38,8 @@ import {
   loadOperationsPage,
   loadOptionsPage,
   loadOptionsSymbolPage,
+  loadFuturesPage,
+  loadFuturesDetailPage,
   loadScanPage,
   loadStockDetails,
   loadThemesPage,
@@ -60,6 +62,8 @@ const ChatbotPage = lazy(loadChatbotPage);
 const OperationsPage = lazy(loadOperationsPage);
 const OptionsPage = lazy(loadOptionsPage);
 const OptionsSymbolPage = lazy(loadOptionsSymbolPage);
+const FuturesPage = lazy(loadFuturesPage);
+const FuturesDetailPage = lazy(loadFuturesDetailPage);
 const StaticAppShell = lazy(() => import('./static/StaticAppShell'));
 
 // Fetch the landing page's code alongside /app-capabilities rather than after
@@ -281,6 +285,8 @@ function AppShell() {
               {features.chatbot && <Route path="/chatbot" element={<ChatbotPage />} />}
               <Route path="/options" element={<LiveOptionsRoute />} />
               <Route path="/options/:symbol" element={<LiveOptionsRoute detail />} />
+              <Route path="/futures" element={<FuturesPage />} />
+              <Route path="/futures/:symbol" element={<FuturesDetailPage />} />
               <Route path="/stocks/:ticker" element={<StockDetails />} />
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="*" element={<RedirectHomeOnceConfirmed />} />

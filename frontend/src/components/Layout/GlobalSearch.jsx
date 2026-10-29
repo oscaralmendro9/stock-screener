@@ -6,6 +6,7 @@ import { Command } from 'cmdk';
 import { ArrowRight, LoaderCircle, Search } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { futuresKeys, getFuturesContracts } from '../../api/futures';
 import { searchStocks } from '../../api/stocks';
 import { loadStockDetails } from '../../pageLoaders';
 
@@ -16,6 +17,26 @@ const TICKER_PATTERN = /^[A-Z0-9.\-^=]{1,15}$/;
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 const loadQuietly = (loader) => loader?.().catch(() => {});
+
+const MAX_FUTURES_RESULTS = 5;
+
+// Root prefix ("GC" → GC=F) or name words ("gold", "crude").
+function matchFutures(contracts, query) {
+  if (!contracts || !query) return [];
+  const q = query.toLowerCase().replace(/=f$/, '');
+  const rank = (contract) => {
+    const root = contract.root.toLowerCase();
+    if (root === q) return 0;
+    if (root.startsWith(q)) return 1;
+    return contract.name.toLowerCase().includes(q) ? 2 : null;
+  };
+  return contracts
+    .map((contract) => ({ contract, rank: rank(contract) }))
+    .filter((item) => item.rank !== null)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, MAX_FUTURES_RESULTS)
+    .map((item) => item.contract);
+}
 
 function useDebouncedValue(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -82,9 +103,23 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
     navigate(path);
   };
 
+  // The tracked futures list is small and static; filter it here.
+  const futuresContracts = useQuery({
+    queryKey: futuresKeys.contracts,
+    queryFn: getFuturesContracts,
+    enabled: open,
+    staleTime: Infinity,
+    retry: false,
+  });
+
   const symbols = debounced === trimmed ? (results.data ?? []) : [];
+  const futures = matchFutures(futuresContracts.data, trimmed);
   const upper = trimmed.toUpperCase();
-  const typedTicker = TICKER_PATTERN.test(upper) && !symbols.some((row) => row.symbol === upper) ? upper : null;
+  const typedTicker = TICKER_PATTERN.test(upper)
+    && !symbols.some((row) => row.symbol === upper)
+    && !futures.some((contract) => contract.root === upper || contract.symbol === upper)
+    ? upper
+    : null;
   const matchingPages = trimmed
     ? pages.filter((page) => page.label.toLowerCase().includes(trimmed.toLowerCase()))
     : pages;
@@ -94,10 +129,11 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
   // the highlight, so Enter never opens a stale "Open <TICKER>" row.
   const itemValues = [
     ...symbols.map((row) => `symbol:${row.symbol}`),
+    ...futures.map((contract) => `futures:${contract.root}`),
     ...(typedTicker ? [`ticker:${typedTicker}`] : []),
     ...matchingPages.map((page) => `page:${page.path}`),
   ];
-  const resultsKey = `${trimmed}|${symbols.map((row) => row.symbol).join(',')}`;
+  const resultsKey = `${trimmed}|${symbols.map((row) => row.symbol).join(',')}|${futures.map((contract) => contract.root).join(',')}`;
   const highlighted = highlight.results === resultsKey && itemValues.includes(highlight.value)
     ? highlight.value
     : itemValues[0] ?? '';
@@ -178,6 +214,23 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
                 </Command.Group>
               )}
 
+              {futures.length > 0 && (
+                <Command.Group heading="Futures" className={groupClass}>
+                  {futures.map((contract) => (
+                    <Command.Item
+                      key={contract.root}
+                      value={`futures:${contract.root}`}
+                      onSelect={() => go(`/futures/${encodeURIComponent(contract.root)}`)}
+                      className={itemClass}
+                    >
+                      <span className="w-20 shrink-0 font-semibold tabular-nums">{contract.root}</span>
+                      <span className="min-w-0 flex-1 truncate">{contract.name}</span>
+                      <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">{contract.category_label}</span>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+              )}
+
               {typedTicker && (
                 <Command.Group heading="Ticker" className={groupClass}>
                   <Command.Item
@@ -214,7 +267,7 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
                 </Command.Group>
               )}
 
-              {trimmed && !searching && symbols.length === 0 && !typedTicker && matchingPages.length === 0 && (
+              {trimmed && !searching && symbols.length === 0 && futures.length === 0 && !typedTicker && matchingPages.length === 0 && (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">No symbols or pages match “{trimmed}”.</p>
               )}
             </Command.List>

@@ -11,6 +11,11 @@ vi.mock('../../api/stocks', async (importOriginal) => ({
   ...(await importOriginal()),
   searchStocks,
 }));
+const getFuturesContracts = vi.hoisted(() => vi.fn());
+vi.mock('../../api/futures', async (importOriginal) => ({
+  ...(await importOriginal()),
+  getFuturesContracts,
+}));
 
 function CurrentPath() {
   return <output aria-label="path">{useLocation().pathname}</output>;
@@ -33,6 +38,32 @@ function renderSearch() {
 describe('GlobalSearch', () => {
   beforeEach(() => {
     searchStocks.mockReset().mockResolvedValue([]);
+    getFuturesContracts.mockReset().mockResolvedValue([
+      { symbol: 'GC=F', root: 'GC', name: 'Gold', exchange: 'COMEX', category: 'metals', category_label: 'Metals' },
+      { symbol: 'CL=F', root: 'CL', name: 'WTI Crude Oil', exchange: 'NYMEX', category: 'energy', category_label: 'Energy' },
+    ]);
+  });
+
+  it('finds futures by root or name and opens the contract page', async () => {
+    const user = userEvent.setup();
+    renderSearch();
+
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(screen.getByPlaceholderText('Ticker or company name'), 'crude');
+    await user.click(await screen.findByRole('option', { name: /CL.*WTI Crude Oil/ }));
+
+    expect(screen.getByLabelText('path')).toHaveTextContent('/futures/CL');
+  });
+
+  it('prefers the futures contract over a raw ticker for a futures root', async () => {
+    const user = userEvent.setup();
+    renderSearch();
+
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(screen.getByPlaceholderText('Ticker or company name'), 'gc');
+
+    expect(await screen.findByRole('option', { name: /GC.*Gold/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Open GC' })).not.toBeInTheDocument();
   });
 
   it('opens with Ctrl+K and finds a symbol by company name', async () => {

@@ -254,6 +254,48 @@ def get_cot_queries(session: Session):
     return CotQueryService(SqlCotRepository(session), SqlCotPriceReader(session))
 
 
+def _cot_positioning_by_slug(session: Session):
+    """COT focal positioning keyed by instrument slug; empty when unpublished."""
+    from app.use_cases.cot.queries import (
+        CotInstrumentUnavailable,
+        CotPublicationUnavailable,
+    )
+    from app.use_cases.futures.dashboard import CotPositioning
+
+    try:
+        snapshot = get_cot_queries(session).snapshot()
+    except (CotPublicationUnavailable, CotInstrumentUnavailable):
+        return {}
+    return {
+        row.slug: CotPositioning(
+            slug=row.slug,
+            participant_label=row.focal_label,
+            report_date=row.report_date,
+            net=row.net,
+            net_pct_open_interest=row.net_pct_open_interest,
+            percentile_3y=row.percentile_3y,
+        )
+        for row in snapshot.rows
+    }
+
+
+def get_futures_dashboard_query(session: Session):
+    from app.use_cases.futures.dashboard import FuturesDashboardQuery
+
+    runtime = resolve_runtime_services()
+    return FuturesDashboardQuery(
+        runtime.cache_bundle().price,
+        cot_positioning=lambda: _cot_positioning_by_slug(session),
+    )
+
+
+def get_refresh_futures_use_case():
+    from app.use_cases.futures.refresh import RefreshFuturesPrices
+
+    runtime = resolve_runtime_services()
+    return RefreshFuturesPrices(runtime.cache_bundle().price)
+
+
 def _social_provider_factories(sessions, *, official_client=None, cooldown_gate=None):
     import httpx
     from app.config import settings

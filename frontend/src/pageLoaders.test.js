@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   loadBreadthPage,
+  loadFuturesDetailPage,
+  loadFuturesPage,
   loadMarketScanPage,
   loadOptionsSymbolPage,
   loadScanPage,
@@ -16,6 +18,8 @@ describe('loaderForPath', () => {
     ['/breadth', loadBreadthPage],
     ['/stocks/AAPL', loadStockDetails],
     ['/options/AAPL', loadOptionsSymbolPage],
+    ['/futures', loadFuturesPage],
+    ['/futures/ES', loadFuturesDetailPage],
     // The router renders these too: it ignores a trailing slash and case.
     ['/scan/', loadScanPage],
     ['/Breadth', loadBreadthPage],

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { matchPath, useLocation } from 'react-router-dom';
-import { Bot, CandlestickChart, Check, History, LoaderCircle, LogOut, Sparkles, UserRound } from 'lucide-react';
+import { Bot, CandlestickChart, Check, Gauge, History, LoaderCircle, LogOut, Sparkles, UserRound } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/ui/button';
@@ -205,6 +205,7 @@ function Layout({ children }) {
 
   const navItems = [
     ...CORE_NAV_ITEMS,
+    { path: '/futures', label: 'Futures', matchPrefix: true, icon: <Gauge aria-hidden="true" /> },
     { path: '/validation', label: 'Backtest', icon: <History aria-hidden="true" /> },
     ...(optionsAvailable ? [{ path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChart aria-hidden="true" /> }] : []),
     ...(features.themes ? [{ path: '/themes', label: 'Themes', icon: <Sparkles aria-hidden="true" /> }] : []),

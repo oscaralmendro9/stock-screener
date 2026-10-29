@@ -21,10 +21,13 @@ Tailwind + shadcn following `DESIGN.md`.
 - [~] Spanish/English i18n — dropped for now: the app stays in English
 
 ## Phase 2 — Futures module
-- [ ] Futures registry built from the existing COT registry (`backend/app/domain/cot/registry.py`) and its Yahoo `=F` symbols
-- [ ] Provider port for futures prices (yfinance continuous contracts first)
-- [ ] `/futures` dashboard: by category (indices, rates, energy, metals, grains, softs, FX, crypto) with performance, trend and COT positioning
-- [ ] `/futures/:symbol` detail: chart, COT history, seasonality
+- [x] Futures registry (45 contracts, 9 categories) linked to the COT registry: `backend/app/domain/futures/`
+- [x] Price metrics (1D/1W/1M/3M/YTD, 52W range, 50/200 trend, 20D realized vol, 3M sparkline) as pure functions
+- [x] `GET /v1/futures` (cache-only), `GET /v1/futures/contracts`, `GET /v1/futures/{symbol}/history`, `POST /v1/futures/refresh`
+- [x] Celery `refresh_futures` on the shared data-fetch queue, weekdays 17:20 ET
+- [x] `/futures` dashboard and `/futures/:symbol` detail (candles, stats, COT chart); futures in the search palette
+- [ ] Seasonality and term structure (needs dated contracts, not just continuous front-month)
+- [ ] Static-site export of the futures dashboard
 
 ## Phase 3 — Options beyond the current cohort
 - [ ] Options chain viewer for any optionable US symbol on demand
