@@ -85,6 +85,9 @@ function FilterPanel({
         sx={{
           display: 'flex',
           alignItems: 'center',
+          // Phones: controls wrap to a second line instead of overlapping.
+          flexWrap: 'wrap',
+          rowGap: 1,
           cursor: 'pointer',
           userSelect: 'none',
         }}

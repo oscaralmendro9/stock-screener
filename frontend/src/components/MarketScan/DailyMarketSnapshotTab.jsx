@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import QueryErrorAlert from '../common/QueryErrorAlert';
 import {
-  Alert,
   Box,
   CircularProgress,
   Grid,
@@ -121,7 +121,13 @@ function DailyMarketSnapshotTab({ showSocialSignals = false, onOpenSocialSignals
   }
 
   if (snapshotQuery.isError) {
-    return <Alert severity="error">Failed to load the daily snapshot.</Alert>;
+    return (
+      <QueryErrorAlert
+        title="Failed to load the daily snapshot"
+        error={snapshotQuery.error}
+        onRetry={() => snapshotQuery.refetch()}
+      />
+    );
   }
 
   const handleRowClick = (symbol, navigationSymbols = topResultSymbols) => {

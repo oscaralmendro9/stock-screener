@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import QueryErrorAlert from '../components/common/QueryErrorAlert';
 import {
-  Alert,
   Box,
   CircularProgress,
   Paper,
@@ -20,7 +20,7 @@ function ValidationPage() {
   const [sourceKind, setSourceKind] = useState('scan_pick');
   const [lookbackDays, setLookbackDays] = useState(90);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['validationOverview', sourceKind, lookbackDays],
     queryFn: () => getValidationOverview(sourceKind, lookbackDays),
     staleTime: 60_000,
@@ -36,7 +36,7 @@ function ValidationPage() {
   }
 
   if (error) {
-    return <Alert severity="error">Failed to load validation overview: {error.message}</Alert>;
+    return <QueryErrorAlert title="Failed to load validation overview" error={error} onRetry={refetch} />;
   }
 
   return (

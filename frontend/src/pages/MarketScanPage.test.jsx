@@ -73,7 +73,7 @@ describe('MarketScanPage capability gating', () => {
       'Daily Snapshot', 'Key Markets', 'COT Positioning', 'Themes', 'Watchlists', 'Stockbee MM',
     ]);
     expect(cotRenderSpy).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('tab', { name: 'COT Positioning' }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'COT Positioning' }));
     expect(await screen.findByText('cot-positioning-tab')).toBeInTheDocument();
     expect(cotRenderSpy).toHaveBeenCalledTimes(1);
   });
@@ -117,7 +117,7 @@ describe('MarketScanPage capability gating', () => {
     expect(screen.queryByText('key-markets')).not.toBeInTheDocument();
     expect(keyMarketsRenderSpy).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Key Markets' }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Key Markets' }));
 
     expect(await screen.findByText('key-markets')).toBeInTheDocument();
     expect(keyMarketsRenderSpy).toHaveBeenCalled();

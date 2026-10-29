@@ -225,7 +225,8 @@ describe('DailyMarketSnapshotTab', () => {
 
     renderWithProviders(<DailyMarketSnapshotTab />);
 
-    expect(await screen.findByText('Failed to load the daily snapshot.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load the daily snapshot: snapshot failed');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('uses USD-normalized market cap and keeps modal navigation scoped to visible rows', async () => {

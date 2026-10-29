@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import QueryErrorAlert from '../components/common/QueryErrorAlert';
 import {
   Container,
   Typography,
@@ -546,6 +547,7 @@ function GroupRankingsPage() {
     data: rankings,
     isLoading: isLoadingRankings,
     error: errorRankings,
+    refetch: refetchRankings,
   } = useQuery({
     queryKey: ['groupRankings', selectedMarket, groupsAsOfDate],
     queryFn: () => getCurrentRankings(197, selectedMarket, ...groupAsOfArgs),
@@ -753,7 +755,7 @@ function GroupRankingsPage() {
           onSelectGroup={(name) => rrgScope === 'groups' && setSelectedGroup(name)}
         />
       ) : errorRankings ? (
-        <Alert severity="error">Error loading rankings: {errorRankings.message}</Alert>
+        <QueryErrorAlert title="Error loading rankings" error={errorRankings} onRetry={refetchRankings} />
       ) : isLoadingRankings ? (
         <TableSkeleton label="Loading group rankings" rows={12} columns={8} />
       ) : (

@@ -1,11 +1,15 @@
 /**
- * Market Scan page with vertical side tabs for different scan views.
+ * Market Scan page: sub-views as a vertical tab rail on desktop and a
+ * scrollable tab row on phones, so content keeps the full phone width.
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Box, CircularProgress, Tabs, Tab, Paper } from '@mui/material';
+import { LoaderCircle } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
 import DailyMarketSnapshotTab from '../components/MarketScan/DailyMarketSnapshotTab';
 import { useRuntime } from '../contexts/RuntimeContext';
-import { mobileNavOffset } from '../components/Layout/shellNav';
+import { useIsMobileShell } from '../components/Layout/shellNav';
 
 const KeyMarketsTab = lazy(() => import('../components/MarketScan/KeyMarketsTab'));
 const CotPositioningTab = lazy(() => import('../features/cot/CotPositioningTab'));
@@ -16,9 +20,9 @@ const SocialSignalsTab = lazy(() => import('../features/socialSignals/SocialSign
 
 function LazyTabFallback() {
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-      <CircularProgress size={24} />
-    </Box>
+    <div role="status" aria-label="Loading" className="grid h-full place-items-center">
+      <LoaderCircle aria-hidden="true" className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none" />
+    </div>
   );
 }
 
@@ -32,6 +36,7 @@ function renderLazyTab(TabComponent) {
 
 function MarketScanPage() {
   const { features } = useRuntime();
+  const isMobile = useIsMobileShell();
   const [selectedTab, setSelectedTab] = useState(0);
   // Daily Snapshot first: it renders from one cached payload, while Key
   // Markets mounts the TradingView widget (~180 external requests) — only
@@ -59,52 +64,45 @@ function MarketScanPage() {
     }
   }, [selectedTab, subTabs.length]);
 
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        // Phones also lose the bottom nav bar's height (Layout pads the page for it).
-        height: { xs: `calc(100dvh - 70px - ${mobileNavOffset(8)})`, md: 'calc(100vh - 70px)' },
-      }}
-    >
-      {/* Left sidebar with vertical tabs */}
-      <Paper
-        elevation={1}
-        sx={{
-          width: 120,
-          flexShrink: 0,
-          borderRight: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Tabs
-          orientation="vertical"
-          value={selectedTab}
-          onChange={(e, v) => setSelectedTab(v)}
-          sx={{
-            '& .MuiTab-root': {
-              alignItems: 'flex-start',
-              textAlign: 'left',
-              minHeight: 36,
-              px: 1.5,
-              fontSize: '12px',
-            },
-          }}
-        >
-          {subTabs.map((tab) => (
-            <Tab
-              key={tab.id}
-              label={tab.label}
-            />
-          ))}
-        </Tabs>
-      </Paper>
+  const active = subTabs[selectedTab] ?? subTabs[0];
 
-      {/* Main content area */}
-      <Box sx={{ flex: 1, overflow: 'hidden', p: 1 }}>
-        {subTabs[selectedTab]?.render()}
-      </Box>
-    </Box>
+  return (
+    <Tabs
+      value={active.id}
+      onValueChange={(id) => setSelectedTab(subTabs.findIndex((tab) => tab.id === id))}
+      orientation={isMobile ? 'horizontal' : 'vertical'}
+      className={cn(
+        'tw flex gap-2',
+        // Tab content fills a fixed-height pane (charts and the Stockbee frame
+        // size to it). Phones also lose the bottom bar the layout pads for.
+        isMobile
+          ? 'h-[calc(100dvh-70px-64px-env(safe-area-inset-bottom))] flex-col'
+          : 'h-[calc(100dvh-70px)]',
+      )}
+    >
+      <TabsList
+        aria-label="Market views"
+        className={cn(
+          'shrink-0 rounded-lg border border-border',
+          isMobile
+            ? '-mx-1 w-auto justify-start overflow-x-auto'
+            : 'w-40 flex-col items-stretch justify-start self-start',
+        )}
+      >
+        {subTabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className={cn('shrink-0 whitespace-nowrap', !isMobile && 'justify-start')}
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value={active.id} className="min-h-0 min-w-0 flex-1 overflow-hidden outline-none">
+        {active.render()}
+      </TabsContent>
+    </Tabs>
   );
 }
 

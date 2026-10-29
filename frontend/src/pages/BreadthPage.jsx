@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import QueryErrorAlert from '../components/common/QueryErrorAlert';
 import {
-  Alert,
   Box,
   Chip,
   CircularProgress,
@@ -67,6 +67,7 @@ function BreadthPage() {
     data: currentBreadth,
     isLoading: isLoadingCurrent,
     error: errorCurrent,
+    refetch: refetchCurrent,
   } = useQuery({
     queryKey: ['breadth', 'current', selectedMarket],
     queryFn: () => getCurrentBreadth(selectedMarket),
@@ -139,9 +140,11 @@ function BreadthPage() {
   if (errorCurrent) {
     return (
       <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
-        <Alert severity="error">
-          Error loading {selectedMarket} breadth data: {errorCurrent.message}
-        </Alert>
+        <QueryErrorAlert
+          title={`Error loading ${selectedMarket} breadth data`}
+          error={errorCurrent}
+          onRetry={refetchCurrent}
+        />
       </Container>
     );
   }

@@ -111,6 +111,11 @@ export default defineConfig(({ mode }) => {
         '@tanstack/react-query',
         '@tanstack/react-virtual',
         'recharts',
+        // CommonJS runtimes imported only by the generated virtual:options-validators
+        // module, which the dependency scanner never sees; pre-bundle them up front
+        // instead of re-optimizing (and reloading) the first time /options opens.
+        'ajv/dist/runtime/ucs2length.js',
+        'ajv-formats/dist/formats.js',
       ],
     },
   };

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import QueryErrorAlert from '../common/QueryErrorAlert';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Accordion,
@@ -150,7 +151,7 @@ function StockDetails() {
   const [peerModalOpen, setPeerModalOpen] = useState(false);
   const [validationLookbackDays, setValidationLookbackDays] = useState(365);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['stockDecisionDashboard', symbol, requestProfile],
     queryFn: () => getStockDecisionDashboard(symbol, requestProfile),
     enabled: Boolean(symbol && requestProfile),
@@ -190,9 +191,7 @@ function StockDetails() {
 
   if (error) {
     return (
-      <Alert severity="error">
-        Failed to load stock workspace: {error.message}
-      </Alert>
+      <QueryErrorAlert title={`Failed to load ${symbol}`} error={error} onRetry={refetch} />
     );
   }
 

@@ -96,7 +96,7 @@ function FilterPresets({
           disabled={isLoading}
         >
           <MenuItem value="">
-            <em style={{ color: '#999' }}>Select Preset</em>
+            <Box component="em" sx={{ color: 'text.secondary' }}>Select Preset</Box>
           </MenuItem>
           {presets.map((preset) => (
             <MenuItem key={preset.id} value={preset.id}>
@@ -114,6 +114,7 @@ function FilterPresets({
             variant="outlined"
             onClick={onSavePreset}
             disabled={isSaving}
+            aria-label="Save as new preset"
             sx={{
               minWidth: 32,
               height: 28,
