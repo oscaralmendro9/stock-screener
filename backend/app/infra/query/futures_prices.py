@@ -1,4 +1,4 @@
-"""Cache-only daily bars for the futures dashboard.
+"""Cache-only daily bars for the futures dashboard and on-demand option chains.
 
 Adapts ``PriceCacheService`` frames (pandas) to the domain's ``DailyBar``
 so the domain and use-case layers stay free of pandas. Never calls a price
@@ -51,3 +51,8 @@ class CachedFuturesBarsReader:
     def bars_many(self, symbols: Sequence[str]) -> dict[str, list[DailyBar]]:
         frames = self._price_cache.get_many_cached_only(list(symbols), period=self._period)
         return {symbol: frame_to_bars(frames.get(symbol)) for symbol in symbols}
+
+
+def cached_closes(price_cache, symbol: str, period: str = "1y") -> list[float]:
+    """Daily closes from the price cache only, oldest first; [] when uncached."""
+    return [bar.close for bar in frame_to_bars(price_cache.get_cached_only(symbol, period=period))]

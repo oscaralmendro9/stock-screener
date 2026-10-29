@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Command } from 'cmdk';
-import { ArrowRight, LoaderCircle, Search } from 'lucide-react';
+import { ArrowRight, Layers, LoaderCircle, Search } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { futuresKeys, getFuturesContracts } from '../../api/futures';
@@ -120,6 +120,8 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
     && !futures.some((contract) => contract.root === upper || contract.symbol === upper)
     ? upper
     : null;
+  // Any ticker-shaped query can open its option chain (fetched on demand).
+  const chainTicker = TICKER_PATTERN.test(upper) && !upper.endsWith('=F') ? upper : null;
   const matchingPages = trimmed
     ? pages.filter((page) => page.label.toLowerCase().includes(trimmed.toLowerCase()))
     : pages;
@@ -131,6 +133,7 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
     ...symbols.map((row) => `symbol:${row.symbol}`),
     ...futures.map((contract) => `futures:${contract.root}`),
     ...(typedTicker ? [`ticker:${typedTicker}`] : []),
+    ...(chainTicker ? [`chain:${chainTicker}`] : []),
     ...matchingPages.map((page) => `page:${page.path}`),
   ];
   const resultsKey = `${trimmed}|${symbols.map((row) => row.symbol).join(',')}|${futures.map((contract) => contract.root).join(',')}`;
@@ -231,16 +234,28 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
                 </Command.Group>
               )}
 
-              {typedTicker && (
+              {(typedTicker || chainTicker) && (
                 <Command.Group heading="Ticker" className={groupClass}>
-                  <Command.Item
-                    value={`ticker:${typedTicker}`}
-                    onSelect={() => go(`/stocks/${encodeURIComponent(typedTicker)}`)}
-                    className={itemClass}
-                  >
-                    <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground" />
-                    <span>Open <span className="font-semibold">{typedTicker}</span></span>
-                  </Command.Item>
+                  {typedTicker && (
+                    <Command.Item
+                      value={`ticker:${typedTicker}`}
+                      onSelect={() => go(`/stocks/${encodeURIComponent(typedTicker)}`)}
+                      className={itemClass}
+                    >
+                      <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground" />
+                      <span>Open <span className="font-semibold">{typedTicker}</span></span>
+                    </Command.Item>
+                  )}
+                  {chainTicker && (
+                    <Command.Item
+                      value={`chain:${chainTicker}`}
+                      onSelect={() => go(`/chain/${encodeURIComponent(chainTicker)}`)}
+                      className={itemClass}
+                    >
+                      <Layers aria-hidden="true" className="size-4 text-muted-foreground" />
+                      <span>Options chain for <span className="font-semibold">{chainTicker}</span></span>
+                    </Command.Item>
+                  )}
                 </Command.Group>
               )}
 
@@ -267,7 +282,7 @@ export default function GlobalSearch({ pages = [], compact = false, onPageIntent
                 </Command.Group>
               )}
 
-              {trimmed && !searching && symbols.length === 0 && futures.length === 0 && !typedTicker && matchingPages.length === 0 && (
+              {trimmed && !searching && symbols.length === 0 && futures.length === 0 && !typedTicker && !chainTicker && matchingPages.length === 0 && (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">No symbols or pages match “{trimmed}”.</p>
               )}
             </Command.List>

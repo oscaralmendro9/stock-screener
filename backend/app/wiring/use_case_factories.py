@@ -297,6 +297,32 @@ def get_refresh_futures_use_case():
     return RefreshFuturesPrices(runtime.cache_bundle().price)
 
 
+_on_demand_options_chain = None
+
+
+def get_on_demand_options_chain():
+    """Process-scoped, so its short-lived chain cache is shared by requests."""
+    global _on_demand_options_chain
+    if _on_demand_options_chain is None:
+        from app.config import settings
+        from app.infra.providers.yahoo_options import YahooOptionsProvider
+        from app.infra.query.futures_prices import cached_closes
+        from app.use_cases.options_analytics.on_demand import OnDemandOptionsChain
+
+        runtime = resolve_runtime_services()
+        requests_per_second = max(float(settings.yfinance_rate_limit), 0.01)
+        provider = YahooOptionsProvider(
+            rate_limiter=lambda: runtime.rate_limiter().wait(
+                "yfinance:options", min_interval_s=1.0 / requests_per_second
+            ),
+        )
+        _on_demand_options_chain = OnDemandOptionsChain(
+            provider,
+            lambda symbol: cached_closes(runtime.cache_bundle().price, symbol),
+        )
+    return _on_demand_options_chain
+
+
 def _social_provider_factories(sessions, *, official_client=None, cooldown_gate=None):
     import httpx
     from app.config import settings

@@ -302,6 +302,13 @@ function StockDetails() {
             symbols={data.symbol}
             trigger={<Chip color="primary" clickable label="Add to Watchlist" />}
           />
+          <Chip
+            component={RouterLink}
+            to={`/chain/${encodeURIComponent(data.symbol)}`}
+            clickable
+            variant="outlined"
+            label="Options chain"
+          />
           {decision.rating && (
             <Chip
               label={decision.rating}

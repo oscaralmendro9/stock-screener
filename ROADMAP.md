@@ -30,9 +30,16 @@ Tailwind + shadcn following `DESIGN.md`.
 - [ ] Static-site export of the futures dashboard
 
 ## Phase 3 — Options beyond the current cohort
-- [ ] Options chain viewer for any optionable US symbol on demand
-- [ ] Greeks, IV smile/term structure, GEX reusing `use_cases/options_analytics`
+- [x] On-demand chain for any optionable symbol: `GET /v1/options/{symbol}/chain` (provider read, per-process cache)
+- [x] Delta per contract, IV smile, GEX by strike and the Command Center metrics, reusing `domain/options_analytics`
+- [x] `/chain/:symbol` page; entry points in the search palette and the stock page
 - [ ] Provider port so non-US chains can plug in a paid source
+- [ ] IV term structure across expirations
+
+## UI/UX pass (done)
+- [x] Audit of Daily → Scan → stock detail at 390px and 1440px with the UI skills
+- [x] Daily tabs responsive (row on phones, rail on desktop); readable error states with Retry; Scan filter header wraps
+- [ ] `RuntimeProvider` subscribes to every query-cache event, which triggers a dev-only "update while rendering" warning; narrowing it broke a startup test, so it needs its own change
 
 ## Phase 4 — Page migration
 - [ ] Daily → Scan → Stock detail → Breadth → Groups → Options → the rest

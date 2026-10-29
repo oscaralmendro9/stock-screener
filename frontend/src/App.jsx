@@ -40,6 +40,7 @@ import {
   loadOptionsSymbolPage,
   loadFuturesPage,
   loadFuturesDetailPage,
+  loadOptionsChainPage,
   loadScanPage,
   loadStockDetails,
   loadThemesPage,
@@ -64,6 +65,7 @@ const OptionsPage = lazy(loadOptionsPage);
 const OptionsSymbolPage = lazy(loadOptionsSymbolPage);
 const FuturesPage = lazy(loadFuturesPage);
 const FuturesDetailPage = lazy(loadFuturesDetailPage);
+const OptionsChainPage = lazy(loadOptionsChainPage);
 const StaticAppShell = lazy(() => import('./static/StaticAppShell'));
 
 // Fetch the landing page's code alongside /app-capabilities rather than after
@@ -287,6 +289,7 @@ function AppShell() {
               <Route path="/options/:symbol" element={<LiveOptionsRoute detail />} />
               <Route path="/futures" element={<FuturesPage />} />
               <Route path="/futures/:symbol" element={<FuturesDetailPage />} />
+              <Route path="/chain/:symbol" element={<OptionsChainPage />} />
               <Route path="/stocks/:ticker" element={<StockDetails />} />
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="*" element={<RedirectHomeOnceConfirmed />} />
