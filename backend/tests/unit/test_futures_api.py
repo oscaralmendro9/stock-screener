@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException, Response
 
 from app.domain.futures.contracts import contract_by_symbol
+from app.infra.query.futures_prices import CachedFuturesBarsReader
 from app.use_cases.futures.dashboard import CotPositioning, FuturesDashboardQuery
 from app.use_cases.futures.refresh import RefreshFuturesPrices
 
@@ -48,7 +49,7 @@ ZT = contract_by_symbol("ZT")
 
 def test_dashboard_groups_contracts_and_lists_the_ones_still_loading():
     cache = FakeCache({"ES=F": _frame([100.0, 102.0]), "GC=F": _frame([10.0, 9.0], start="2025-01-03")})
-    view = FuturesDashboardQuery(cache, contracts=(ES, GC, ZT)).execute()
+    view = FuturesDashboardQuery(CachedFuturesBarsReader(cache), contracts=(ES, GC, ZT)).execute()
 
     assert [category.category.value for category in view.categories] == ["equity_index", "rates", "metals"]
     rows = {row.contract.symbol: row for category in view.categories for row in category.rows}
@@ -69,7 +70,7 @@ def test_dashboard_attaches_cot_positioning_by_slug_only_where_linked():
     )
     cache = FakeCache({"ES=F": _frame([1.0, 2.0]), "ZT=F": _frame([1.0, 2.0])})
     view = FuturesDashboardQuery(
-        cache, cot_positioning=lambda: {"sp-500": positioning}, contracts=(ES, ZT)
+        CachedFuturesBarsReader(cache), cot_positioning=lambda: {"sp-500": positioning}, contracts=(ES, ZT)
     ).execute()
 
     rows = {row.contract.symbol: row for category in view.categories for row in category.rows}
@@ -79,7 +80,7 @@ def test_dashboard_attaches_cot_positioning_by_slug_only_where_linked():
 
 
 def test_empty_cache_gives_an_empty_dashboard_not_an_error():
-    view = FuturesDashboardQuery(FakeCache(), contracts=(ES, GC)).execute()
+    view = FuturesDashboardQuery(CachedFuturesBarsReader(FakeCache()), contracts=(ES, GC)).execute()
 
     assert view.as_of is None
     assert view.missing_symbols == ("ES=F", "GC=F")
@@ -133,7 +134,7 @@ def test_dashboard_route_serializes_metrics_and_requires_revalidation(monkeypatc
     monkeypatch.setattr(
         module,
         "get_futures_dashboard_query",
-        lambda _db: FuturesDashboardQuery(cache, contracts=(ES, ZT)),
+        lambda _db: FuturesDashboardQuery(CachedFuturesBarsReader(cache), contracts=(ES, ZT)),
     )
     response = Response()
 

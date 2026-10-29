@@ -11,10 +11,16 @@ from app.domain.futures.contracts import (
     contract_by_symbol,
     normalize_futures_symbol,
 )
-from app.domain.futures.metrics import compute_futures_metrics
+from app.domain.futures.metrics import DailyBar, compute_futures_metrics
+from app.infra.query.futures_prices import frame_to_bars
 
 
 def _frame(closes, start="2025-01-02"):
+    """Daily bars as the price cache stores them, read through the adapter."""
+    return frame_to_bars(_dataframe(closes, start))
+
+
+def _dataframe(closes, start="2025-01-02"):
     index = pd.bdate_range(start, periods=len(closes))
     closes = pd.Series(closes, index=index, dtype=float)
     return pd.DataFrame(
@@ -64,7 +70,7 @@ def test_unknown_symbol_is_none():
 
 def test_no_usable_close_gives_no_metrics():
     assert compute_futures_metrics(None) is None
-    assert compute_futures_metrics(pd.DataFrame()) is None
+    assert compute_futures_metrics([]) is None
     assert compute_futures_metrics(_frame([float("nan"), 0.0])) is None
 
 
@@ -78,7 +84,7 @@ def test_changes_count_sessions_back_from_the_last_bar():
     assert metrics.change_1w == pytest.approx(last / closes[-6] - 1)
     assert metrics.change_1m == pytest.approx(last / closes[-22] - 1)
     assert metrics.change_3m == pytest.approx(last / closes[-64] - 1)
-    assert metrics.as_of == _frame(closes).index[-1].date()
+    assert metrics.as_of == _dataframe(closes).index[-1].date()
 
 
 def test_short_history_leaves_long_lookbacks_empty_instead_of_guessing():
@@ -142,9 +148,18 @@ def test_sparkline_holds_the_last_three_months_of_closes():
     assert metrics.sparkline[-1] == closes[-1]
 
 
-def test_unsorted_frames_are_read_in_date_order():
-    frame = _frame([100.0, 101.0, 105.0]).iloc[::-1]
-    metrics = compute_futures_metrics(frame)
+def test_unsorted_bars_are_read_in_date_order():
+    metrics = compute_futures_metrics(list(reversed(_frame([100.0, 101.0, 105.0]))))
 
     assert metrics.last == 105.0
     assert metrics.change_1d == pytest.approx(105 / 101 - 1)
+
+
+def test_adapter_keeps_missing_highs_and_lows_optional():
+    frame = _dataframe([100.0, 101.0])
+    frame.loc[frame.index[0], "High"] = float("nan")
+    bars = frame_to_bars(frame.drop(columns=["Low"]))
+
+    assert bars[0] == DailyBar(day=frame.index[0].date(), close=100.0, high=None, low=None)
+    assert bars[1].high == pytest.approx(101.0 * 1.01)
+    assert frame_to_bars(None) == []

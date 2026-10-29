@@ -11,11 +11,10 @@ contract and the dashboard shows it rather than implying a settled close.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-
-import pandas as pd
+from typing import Protocol
 
 from app.domain.futures.contracts import (
     CATEGORY_LABELS,
@@ -23,9 +22,13 @@ from app.domain.futures.contracts import (
     FuturesCategory,
     FuturesContract,
 )
-from app.domain.futures.metrics import FuturesMetrics, compute_futures_metrics
+from app.domain.futures.metrics import DailyBar, FuturesMetrics, compute_futures_metrics
 
-PRICE_PERIOD = "2y"
+
+class FuturesBarsReader(Protocol):
+    """Cached daily bars per symbol; must not call a price provider."""
+
+    def bars_many(self, symbols: Sequence[str]) -> Mapping[str, Sequence[DailyBar]]: ...
 
 
 @dataclass(frozen=True)
@@ -63,25 +66,22 @@ class FuturesDashboardView:
 class FuturesDashboardQuery:
     def __init__(
         self,
-        price_cache,
+        bars_reader: FuturesBarsReader,
         cot_positioning: Callable[[], Mapping[str, CotPositioning]] | None = None,
         contracts: Iterable[FuturesContract] = FUTURES_CONTRACTS,
     ) -> None:
-        self._price_cache = price_cache
+        self._bars_reader = bars_reader
         self._cot_positioning = cot_positioning
         self._contracts = tuple(contracts)
 
     def execute(self) -> FuturesDashboardView:
-        frames: Mapping[str, pd.DataFrame | None] = self._price_cache.get_many_cached_only(
-            [contract.symbol for contract in self._contracts],
-            period=PRICE_PERIOD,
-        )
+        bars = self._bars_reader.bars_many([contract.symbol for contract in self._contracts])
         positioning = self._cot_positioning() if self._cot_positioning else {}
 
         rows_by_category: dict[FuturesCategory, list[FuturesRow]] = {}
         missing: list[str] = []
         for contract in self._contracts:
-            metrics = compute_futures_metrics(frames.get(contract.symbol))
+            metrics = compute_futures_metrics(bars.get(contract.symbol))
             if metrics is None:
                 missing.append(contract.symbol)
             rows_by_category.setdefault(contract.category, []).append(

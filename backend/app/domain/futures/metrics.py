@@ -1,17 +1,17 @@
-"""Price metrics for a futures contract, computed from daily OHLCV bars.
+"""Price metrics for a futures contract, computed from daily bars.
 
-Pure functions over a pandas frame (``Close`` required; ``High``/``Low``
-used for the 52-week range when present). Lookbacks are in sessions, not
-calendar days, so holidays do not shift them.
+Pure functions over a sequence of ``DailyBar`` (stdlib only, per the domain
+layer rule). Lookbacks are in sessions, not calendar days, so holidays do
+not shift them.
 """
 
 from __future__ import annotations
 
 import math
+import statistics
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-
-import pandas as pd
 
 SESSIONS_1W = 5
 SESSIONS_1M = 21
@@ -19,6 +19,14 @@ SESSIONS_3M = 63
 SESSIONS_52W = 252
 SPARKLINE_SESSIONS = 63
 VOL_WINDOW = 20
+
+
+@dataclass(frozen=True)
+class DailyBar:
+    day: date
+    close: float
+    high: float | None = None
+    low: float | None = None
 
 
 @dataclass(frozen=True)
@@ -41,23 +49,23 @@ class FuturesMetrics:
     sparkline: tuple[float, ...]
 
 
-def _finite(value) -> float | None:
-    if value is None:
-        return None
-    value = float(value)
-    return value if math.isfinite(value) else None
+def _usable(value: float | None) -> bool:
+    return value is not None and math.isfinite(value) and value > 0
 
 
 def _pct(current: float, base: float | None) -> float | None:
     if base is None or base == 0:
         return None
-    return _finite(current / base - 1.0)
+    change = current / base - 1.0
+    return change if math.isfinite(change) else None
 
 
-def _close_sessions_ago(closes: pd.Series, sessions: int) -> float | None:
-    if len(closes) <= sessions:
-        return None
-    return _finite(closes.iloc[-1 - sessions])
+def _close_sessions_ago(closes: Sequence[float], sessions: int) -> float | None:
+    return closes[-1 - sessions] if len(closes) > sessions else None
+
+
+def _mean_of_last(closes: Sequence[float], count: int) -> float | None:
+    return statistics.fmean(closes[-count:]) if len(closes) >= count else None
 
 
 def _trend(last: float, sma_50: float | None, sma_200: float | None) -> str | None:
@@ -70,38 +78,35 @@ def _trend(last: float, sma_50: float | None, sma_200: float | None) -> str | No
     return "mixed"
 
 
-def compute_futures_metrics(frame: pd.DataFrame | None) -> FuturesMetrics | None:
+def compute_futures_metrics(bars: Sequence[DailyBar] | None) -> FuturesMetrics | None:
     """Return metrics for the latest bar, or None when there is no usable close."""
-    if frame is None or frame.empty or "Close" not in frame:
-        return None
-    data = frame.sort_index()
-    closes = pd.to_numeric(data["Close"], errors="coerce").dropna()
-    closes = closes[closes > 0]
-    if closes.empty:
+    usable = sorted((bar for bar in bars or () if _usable(bar.close)), key=lambda bar: bar.day)
+    if not usable:
         return None
 
-    last = float(closes.iloc[-1])
-    last_ts = pd.Timestamp(closes.index[-1])
-    as_of = last_ts.date()
+    closes = [bar.close for bar in usable]
+    last = closes[-1]
+    as_of = usable[-1].day
 
-    prior_year = closes[[ts.year < last_ts.year for ts in pd.DatetimeIndex(closes.index)]]
-    year_base = _finite(prior_year.iloc[-1]) if not prior_year.empty else None
+    prior_year = [bar.close for bar in usable if bar.day.year < as_of.year]
+    year_base = prior_year[-1] if prior_year else None
 
-    window = data.loc[closes.index[-SESSIONS_52W:]]
-    if len(closes) >= SESSIONS_52W:
-        highs = pd.to_numeric(window["High"], errors="coerce") if "High" in window else closes[-SESSIONS_52W:]
-        lows = pd.to_numeric(window["Low"], errors="coerce") if "Low" in window else closes[-SESSIONS_52W:]
-        high_52w = _finite(max(highs.max(), last))
-        low_52w = _finite(min(lows[lows > 0].min(), last))
+    if len(usable) >= SESSIONS_52W:
+        window = usable[-SESSIONS_52W:]
+        highs = [bar.high if _usable(bar.high) else bar.close for bar in window]
+        lows = [bar.low if _usable(bar.low) else bar.close for bar in window]
+        high_52w = max(max(highs), last)
+        low_52w = min(min(lows), last)
     else:
         high_52w = low_52w = None
 
-    sma_50 = _finite(closes.iloc[-50:].mean()) if len(closes) >= 50 else None
-    sma_200 = _finite(closes.iloc[-200:].mean()) if len(closes) >= 200 else None
+    sma_50 = _mean_of_last(closes, 50)
+    sma_200 = _mean_of_last(closes, 200)
 
     if len(closes) > VOL_WINDOW:
-        log_returns = (closes / closes.shift(1)).apply(math.log).iloc[-VOL_WINDOW:]
-        realized_vol = _finite(log_returns.std(ddof=1) * math.sqrt(252))
+        recent = closes[-VOL_WINDOW - 1:]
+        log_returns = [math.log(b / a) for a, b in zip(recent, recent[1:])]
+        realized_vol = statistics.stdev(log_returns) * math.sqrt(252)
     else:
         realized_vol = None
 
@@ -121,5 +126,5 @@ def compute_futures_metrics(frame: pd.DataFrame | None) -> FuturesMetrics | None
         sma_200=sma_200,
         trend=_trend(last, sma_50, sma_200),
         realized_vol_20d=realized_vol,
-        sparkline=tuple(round(float(value), 6) for value in closes.iloc[-SPARKLINE_SESSIONS:]),
+        sparkline=tuple(round(value, 6) for value in closes[-SPARKLINE_SESSIONS:]),
     )

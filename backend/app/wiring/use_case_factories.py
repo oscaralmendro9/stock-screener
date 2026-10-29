@@ -280,11 +280,12 @@ def _cot_positioning_by_slug(session: Session):
 
 
 def get_futures_dashboard_query(session: Session):
+    from app.infra.query.futures_prices import CachedFuturesBarsReader
     from app.use_cases.futures.dashboard import FuturesDashboardQuery
 
     runtime = resolve_runtime_services()
     return FuturesDashboardQuery(
-        runtime.cache_bundle().price,
+        CachedFuturesBarsReader(runtime.cache_bundle().price),
         cot_positioning=lambda: _cot_positioning_by_slug(session),
     )
 
