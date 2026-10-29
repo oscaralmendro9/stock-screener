@@ -1,0 +1,86 @@
+/* Tailwind runs alongside MUI while pages migrate (see DESIGN.md).
+   Preflight is left out on purpose: MUI's CssBaseline and index.css still own
+   the element reset, and preflight would restyle unmigrated MUI pages.
+   Add `@import "tailwindcss/preflight.css" layer(base);` once MUI is gone. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Dark mode follows the same attribute the MUI theme and color-mode.js use. */
+@custom-variant dark (&:where([data-color-mode='dark'], [data-color-mode='dark'] *));
+
+/* Semantic tokens. Values mirror PALETTES in src/theme.js so migrated and
+   MUI pages read as one product; change both together. Gain/loss colors are
+   reserved for price direction and always ship with a sign or arrow. */
+:root,
+[data-color-mode='light'] {
+  --background: #f5f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #f2f4f7;
+  --foreground: #111827;
+  --muted-foreground: #5f6b7f;
+  --disabled-foreground: #98a2b3;
+  --border: #e3e6ec;
+  --accent: #3b5bdb;
+  --accent-foreground: #ffffff;
+  --gain: #0c7d56;
+  --loss: #c92a37;
+  --loss-foreground: #ffffff;
+  --warning: #b45309;
+  --ring: #3b5bdb;
+}
+
+[data-color-mode='dark'] {
+  --background: #0b0d12;
+  --surface: #12151c;
+  --surface-subtle: #181c25;
+  --foreground: #e7e9ee;
+  --muted-foreground: #8b93a7;
+  --disabled-foreground: #5b6378;
+  --border: #242a37;
+  --accent: #7b93ff;
+  --accent-foreground: #0b0d12;
+  --gain: #2ebd85;
+  --loss: #f6465d;
+  --loss-foreground: #0b0d12;
+  --warning: #f59f00;
+  --ring: #7b93ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-loss-foreground: var(--loss-foreground);
+  --color-warning: var(--warning);
+  --color-ring: var(--ring);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* Fixed z-index scale (baseline-ui: no arbitrary z-*). */
+@utility z-nav {
+  z-index: 30;
+}
+@utility z-overlay {
+  z-index: 40;
+}
+@utility z-modal {
+  z-index: 50;
+}
+@utility z-toast {
+  z-index: 60;
+}

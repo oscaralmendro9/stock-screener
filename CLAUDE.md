@@ -358,3 +358,10 @@ test(canslim): add unit tests for EPS calculation
 
 **Scopes** (optional): `api`, `scanner`, `chatbot`, `frontend`, `celery`, `db`, `cache`, `themes`, `signals`
 
+
+## UI work (fork additions)
+
+- Read `DESIGN.md` before any UI change; it overrides `design-system/mercados/MASTER.md`.
+- Use the installed skills in `.claude/skills`: `ui-ux-pro-max` for design decisions, `baseline-ui` / `fixing-accessibility` / `fixing-motion-performance` as review checklists.
+- New UI code uses Tailwind + `frontend/src/ui/*` (import via `@/`), not MUI. Do not add Tailwind preflight while MUI pages remain.
+- Plan and status of the fork live in `ROADMAP.md`.
