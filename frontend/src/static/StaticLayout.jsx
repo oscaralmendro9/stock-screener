@@ -1,32 +1,21 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  AppBar,
-  Box,
-  Button,
-  Chip,
-  Container,
-  FormControl,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  Toolbar,
-} from '@mui/material';
 import { useLocation } from 'react-router-dom';
-import { CandlestickChart } from 'lucide-react';
-import GitHubIcon from '@mui/icons-material/GitHub';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { CandlestickChart, Lock } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { GithubMark } from '@/ui/icons';
 import {
   BrandMark,
   ColorModeButton,
   ColorModeListItem,
   DesktopNav,
   MobileBottomNav,
+  SheetItem,
 } from '../components/Layout/AppNav';
-import { CORE_NAV_ITEMS, mobileNavOffset, safeGutters, useIsMobileShell } from '../components/Layout/shellNav';
+import { MarketSelectField } from '../components/Layout/MarketSelector';
+import { CORE_NAV_ITEMS, SAFE_GUTTER_CLASSES, useIsMobileShell } from '../components/Layout/shellNav';
 import { useStaticMarket } from './StaticMarketContext';
 import {
   getStaticSupportedMarkets,
@@ -44,13 +33,13 @@ import { isStaticOptionsAvailable } from '../features/options/optionsAvailabilit
 const publicationStatus = (publication, now) => {
   if (!publication) return null;
   const session = publication.session_date;
-  if (publication.state === 'unknown' || !session) return { label: 'Status unknown', color: 'default' };
+  if (publication.state === 'unknown' || !session) return { label: 'Status unknown', tone: 'neutral' };
   const deadline = publication.late_after ? Date.parse(publication.late_after) : NaN;
-  if (publication.state === 'stale') return { label: `Late · ${session}`, color: 'warning' };
+  if (publication.state === 'stale') return { label: `Late · ${session}`, tone: 'warning' };
   // No deadline means nothing could turn this late: unknown, never Current forever.
-  if (!Number.isFinite(deadline)) return { label: 'Status unknown', color: 'default' };
-  if (now > deadline) return { label: `Late · ${session}`, color: 'warning' };
-  return { label: `Current · ${session}`, color: 'success' };
+  if (!Number.isFinite(deadline)) return { label: 'Status unknown', tone: 'neutral' };
+  if (now > deadline) return { label: `Late · ${session}`, tone: 'warning' };
+  return { label: `Current · ${session}`, tone: 'neutral' };
 };
 
 const useMinuteClock = () => {
@@ -87,137 +76,126 @@ function StaticLayout({ children }) {
       : [pageLabel, titleMarket, SITE_NAME].filter(Boolean).join(' · ');
   }, [pathname, pageLabel, titleMarket]);
 
+  const selectValue = selectedUnavailable ? selectedMarket : marketEntry.market;
+  const marketName = (market) => manifestQuery.data?.markets?.[market]?.display_name || market;
+  const withFlag = (market, text) => {
+    const flag = marketFlag(market);
+    return flag ? `${flag}  ${text}` : text;
+  };
+  const marketOptions = [
+    ...supportedMarkets.map((market) => ({ value: market, label: withFlag(market, marketName(market)) })),
+    ...getStaticUnavailableMarkets(manifestQuery.data).map((market) => ({
+      value: market,
+      label: withFlag(market, `${market} — unavailable`),
+      disabled: true,
+    })),
+  ];
+  // Phones show flag + code ("🇭🇰 HK") so the status badge still fits at 360px.
+  const selectDisplay = isMobile || selectedUnavailable
+    ? `${marketFlag(selectValue)} ${selectedUnavailable ? `${selectValue} — unavailable` : selectValue}`.trim()
+    : withFlag(selectValue, marketName(selectValue)).replace('  ', ' ');
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar
-          variant="dense"
-          sx={{ ...safeGutters, minHeight: 52, gap: { xs: 1, md: 1.5 }, overflowX: 'auto', '& > *': { flexShrink: 0 } }}
-        >
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="tw border-b border-border bg-surface">
+        <div className={cn('flex min-h-13 items-center gap-2 overflow-x-auto md:gap-3 [&>*]:shrink-0', SAFE_GUTTER_CLASSES)}>
           <BrandMark label={isMobile ? null : SITE_NAME} />
           {isMobile ? (
-            <LockOutlinedIcon role="img" aria-label="Read-only" titleAccess="Read-only" sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Lock role="img" aria-label="Read-only" className="size-[18px] text-muted-foreground" />
           ) : (
-            <Chip label="Read-only" size="small" variant="outlined" />
+            <Badge className="border border-border bg-transparent">Read-only</Badge>
           )}
-          <FormControl size="small" sx={{ minWidth: { xs: 0, md: 140 } }}>
-            <Select
-              value={selectedUnavailable ? selectedMarket : marketEntry.market}
-              onChange={(event) => setSelectedMarket(event.target.value)}
-              displayEmpty
-              // Phones show flag + code ("🇭🇰 HK") so the status chip still fits at 360px.
-              renderValue={isMobile ? (market) => `${marketFlag(market)} ${market}`.trim() : undefined}
-              sx={{ height: 32, fontSize: '13px', fontWeight: 600, borderRadius: 2 }}
-              inputProps={{ 'aria-label': 'Static market selector' }}
-            >
-              {supportedMarkets.map((market) => {
-                const label = manifestQuery.data?.markets?.[market]?.display_name || market;
-                const flag = marketFlag(market);
-                return (
-                  <MenuItem key={market} value={market}>
-                    {flag ? `${flag}  ${label}` : label}
-                  </MenuItem>
-                );
-              })}
-              {getStaticUnavailableMarkets(manifestQuery.data).map((market) => {
-                const flag = marketFlag(market);
-                const label = `${market} — unavailable`;
-                return (
-                  <MenuItem key={market} value={market} disabled>
-                    {flag ? `${flag}  ${label}` : label}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
+          <MarketSelectField
+            label="Static market selector"
+            value={selectValue}
+            onChange={setSelectedMarket}
+            options={marketOptions}
+            display={selectDisplay}
+            className="md:min-w-36"
+          />
           {status && (
-            <Chip
-              label={status.label}
-              color={status.color}
-              variant="outlined"
-              size="small"
+            <Badge
+              tone={status.tone}
               role="status"
               aria-label={`${marketEntry.market} data status: ${status.label}`}
-            />
+              className="border border-border"
+            >
+              {status.label}
+            </Badge>
           )}
           {!isMobile && (
             <>
-              <Box sx={{ flexGrow: 1 }} />
+              <div className="flex-1" />
               <DesktopNav items={navItems} />
-              <Button
-                href={REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                size="small"
-                color="inherit"
-                variant="outlined"
-                startIcon={<GitHubIcon />}
-                aria-label="Star on GitHub (opens in a new tab)"
-                // Icon-only until lg: the bar already scrolls sideways around 900-1200px.
-                sx={{ textTransform: 'none', borderRadius: 2, minWidth: 0, '& .MuiButton-startIcon': { mr: { md: 0, lg: 1 } } }}
-              >
-                <Box component="span" sx={{ display: { md: 'none', lg: 'inline' } }}>Star on GitHub</Box>
+              <Button asChild variant="secondary" size="sm">
+                <a
+                  href={REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Star on GitHub (opens in a new tab)"
+                >
+                  <GithubMark aria-hidden="true" />
+                  {/* Icon-only until lg: the bar already scrolls sideways around 900-1200px. */}
+                  <span className="hidden lg:inline">Star on GitHub</span>
+                </a>
               </Button>
               <ColorModeButton />
             </>
           )}
-        </Toolbar>
-      </AppBar>
+        </div>
+      </header>
 
-      <Container maxWidth="xl" sx={{ ...safeGutters, mt: 1.5, mb: 1.5, flex: 1, pb: { xs: mobileNavOffset(8), md: 0 } }}>
+      <main
+        className={cn(
+          'mx-auto my-3 w-full max-w-[1536px] flex-1',
+          SAFE_GUTTER_CLASSES,
+          isMobile && 'pb-[calc(64px+env(safe-area-inset-bottom))]',
+        )}
+      >
         {expired && (
-          <Alert
-            severity="info"
-            sx={{ mb: 1.5 }}
-            action={(
-              <Button color="inherit" size="small" onClick={() => window.location.reload()}>
-                Reload
-              </Button>
-            )}
-          >
-            Some data could not be loaded, most likely because newer data has been published. Reload to get the latest.
-          </Alert>
+          <div role="alert" className="tw mb-3 flex flex-wrap items-center gap-3 rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm text-pretty">
+            <p className="min-w-0 flex-1">
+              Some data could not be loaded, most likely because newer data has been published. Reload to get the latest.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>Reload</Button>
+          </div>
         )}
         {selectedUnavailable ? (
-          <Alert
-            severity="warning"
-            action={(
-              <Button color="inherit" size="small" onClick={() => manifestQuery.refetch()}>
-                Retry
-              </Button>
-            )}
-          >
-            {selectedMarket} data is not available in this publish. Retry, or choose another market above.
-          </Alert>
+          <div role="alert" className="tw flex flex-wrap items-center gap-3 rounded-md border border-warning/40 bg-warning/10 px-4 py-2 text-sm text-pretty">
+            <p className="min-w-0 flex-1">
+              {selectedMarket} data is not available in this publish. Retry, or choose another market above.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => manifestQuery.refetch()}>Retry</Button>
+          </div>
         ) : children}
-      </Container>
+      </main>
 
       {isMobile && (
         <MobileBottomNav
           items={navItems}
           extras={(close) => (
             <>
-              <ListItem>
-                <ListItemIcon><LockOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Read-only" secondary="A published daily snapshot; nothing here can be changed." />
-              </ListItem>
-              <ListItemButton
-                component="a"
+              <SheetItem
+                icon={<Lock aria-hidden="true" />}
+                label="Read-only"
+                description="A published daily snapshot; nothing here can be changed."
+              />
+              <SheetItem
                 href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Star on GitHub (opens in a new tab)"
                 onClick={close}
-              >
-                <ListItemIcon><GitHubIcon /></ListItemIcon>
-                <ListItemText primary="Star on GitHub" secondary="Open source. Self-host it for live scans." />
-              </ListItemButton>
+                icon={<GithubMark aria-hidden="true" />}
+                label="Star on GitHub"
+                description="Open source. Self-host it for live scans."
+              />
               <ColorModeListItem onDone={close} />
             </>
           )}
         />
       )}
-    </Box>
+    </div>
   );
 }
 

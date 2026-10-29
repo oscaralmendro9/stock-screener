@@ -42,8 +42,9 @@ export function ColorModeButton() {
   );
 }
 
-// A row in the mobile "More" sheet: a link when `to` is set, otherwise a button.
-export function SheetItem({ to, icon, label, description, selected = false, onClick, disabled, ...props }) {
+// A row in the mobile "More" sheet: an app link (`to`), an external link
+// (`href`), a button (`onClick`), or plain text.
+export function SheetItem({ to, href, icon, label, description, selected = false, onClick, disabled, ...props }) {
   const className = cn(
     'flex min-h-12 w-full cursor-pointer items-center gap-4 px-4 text-left text-sm outline-none transition-colors duration-150 ease-out hover:bg-surface-subtle focus-visible:bg-surface-subtle disabled:cursor-default disabled:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
     selected && 'bg-accent/10 font-semibold [&_svg]:text-accent',
@@ -61,6 +62,8 @@ export function SheetItem({ to, icon, label, description, selected = false, onCl
     <li>
       {to ? (
         <RouterLink to={to} onClick={onClick} aria-current={selected ? 'page' : undefined} className={className} {...props}>{body}</RouterLink>
+      ) : href ? (
+        <a href={href} onClick={onClick} className={className} {...props}>{body}</a>
       ) : onClick ? (
         <button type="button" onClick={onClick} disabled={disabled} className={className} {...props}>{body}</button>
       ) : (

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { matchPath, useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 import { Bot, CandlestickChart, Check, History, LoaderCircle, LogOut, Sparkles, UserRound } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/ui/dropdown-menu';
 import { Drawer } from '@mui/material';
+import GlobalSearch from './GlobalSearch';
 import MarketSelector from './MarketSelector';
 import RuntimeActivityStatusButton from './RuntimeActivityStatusButton';
 import {
@@ -31,7 +32,7 @@ import { useMarket, useMarketForCapability } from '../../contexts/MarketContext'
 import { usePipeline } from '../../contexts/usePipeline';
 import { useStrategyProfile, useStrategyProfileData } from '../../contexts/StrategyProfileContext';
 import { isLiveOptionsAvailable } from '../../features/options/optionsAvailability';
-import { loadStockDetails, loaderForPath } from '../../pageLoaders';
+import { loaderForPath } from '../../pageLoaders';
 import {
   BREADTH_MARKET_FALLBACKS,
   GROUP_RANKING_MARKET_FALLBACKS,
@@ -185,38 +186,6 @@ function useNavPrefetch() {
   }, [breadthMarket, groupsMarket, location.pathname, queryClient, selectedMarket]);
 }
 
-function TickerSearch() {
-  const navigate = useNavigate();
-  const [tickerInput, setTickerInput] = useState('');
-
-  const handleTickerSubmit = (event) => {
-    if (event.key !== 'Enter') return;
-    const ticker = tickerInput.trim().toUpperCase();
-    if (!ticker) return;
-    navigate(`/stocks/${encodeURIComponent(ticker)}`);
-    setTickerInput('');
-    event.target.blur();
-  };
-
-  return (
-    <input
-      type="search"
-      value={tickerInput}
-      onChange={(e) => setTickerInput(e.target.value)}
-      onKeyDown={handleTickerSubmit}
-      onFocus={() => loadQuietly(loadStockDetails)}
-      placeholder="Ticker"
-      aria-label="Go to ticker"
-      enterKeyHint="go"
-      autoCapitalize="characters"
-      autoComplete="off"
-      spellCheck={false}
-      // 16px on phones: iOS Safari zooms into inputs below that.
-      className="h-11 w-24 min-w-0 rounded-md border border-border bg-surface-subtle px-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-ring/40 md:h-8 md:w-40 md:text-sm"
-    />
-  );
-}
-
 function Layout({ children }) {
   const location = useLocation();
   const isMobile = useIsMobileShell();
@@ -266,7 +235,7 @@ function Layout({ children }) {
           <RuntimeActivityStatusButton compact={isMobile} />
           <MarketSelector />
           <div className="flex-1" />
-          <TickerSearch />
+          <GlobalSearch pages={navItems} compact={isMobile} onPageIntent={prefetchPage} />
           {!isMobile && (
             <>
               <div className="flex-1" />

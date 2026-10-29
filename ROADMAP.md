@@ -15,10 +15,10 @@ Tailwind + shadcn following `DESIGN.md`.
 
 ## Phase 1 — New shell
 - [x] Tailwind app shell: top nav on desktop, bottom tab bar + "More" sheet on phones, native market selector, Radix profile menu, color mode
-- [ ] Static-site header (`static/StaticLayout.jsx`) still MUI; it already reuses the new nav, brand and sheet
+- [x] Static-site header (`static/StaticLayout.jsx`) on Tailwind, sharing the native market select
+- [x] Global search palette (Ctrl/⌘+K or `/`): symbols by ticker or company name, page jumps, direct ticker fallback. Futures and options underlyings join it in phases 2–3
 - [ ] Assistant drawer stays an MUI `Drawer` until `AssistantChat` migrates (its MUI dialogs can't open inside a Radix modal)
-- [ ] Global symbol search (stocks, futures, options underlyings)
-- [ ] Spanish/English i18n
+- [~] Spanish/English i18n — dropped for now: the app stays in English
 
 ## Phase 2 — Futures module
 - [ ] Futures registry built from the existing COT registry (`backend/app/domain/cot/registry.py`) and its Yahoo `=F` symbols

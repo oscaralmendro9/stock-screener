@@ -436,7 +436,11 @@ describe('Layout', () => {
       renderInApp('/');
 
       fireEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name: 'More' }));
-      fireEvent.touchStart(within(screen.getByRole('list', { name: 'More' })).getByRole('link', { name: 'Backtest' }));
+      // A real touch carries coordinates; the sheet's scroll lock reads them.
+      fireEvent.touchStart(
+        within(screen.getByRole('list', { name: 'More' })).getByRole('link', { name: 'Backtest' }),
+        { touches: [{ clientX: 0, clientY: 0 }], changedTouches: [{ clientX: 0, clientY: 0 }] },
+      );
 
       expect(loadedPaths).toEqual(['/validation']);
     });
