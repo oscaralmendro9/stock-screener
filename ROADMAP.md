@@ -43,7 +43,8 @@ Tailwind + shadcn following `DESIGN.md`.
 
 ## Phase 4 — Page migration
 - [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer
-- [ ] Scan → Stock detail → Breadth → Groups → Options → the rest
+- [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. Still MUI: the scan control bar, presets menu, multi-selects and the static site's `FilterPanel`
+- [ ] Stock detail → Breadth → Groups → Options → the rest
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

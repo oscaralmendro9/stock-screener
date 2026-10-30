@@ -30,6 +30,8 @@ const baseProps = {
   onOpenChart: vi.fn(),
   onRowHover: vi.fn(),
   onRetry: vi.fn(),
+  // These cases cover the full table; the view tabs have their own tests.
+  defaultView: 'all',
 };
 
 describe('ScanResultsSection', () => {

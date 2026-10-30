@@ -16,6 +16,10 @@ function CompactMultiSelect({
   onModeChange,
   showModeToggle = false,
   maxValues = null,
+  // Inline: the caller labels it (e.g. the screener grid's <label htmlFor=id>),
+  // so the caption row goes and the mode toggle sits beside the input.
+  inline = false,
+  id,
 }) {
   const isExcludeMode = mode === 'exclude';
   const selectedValues = values || [];
@@ -32,43 +36,51 @@ function CompactMultiSelect({
     }
   };
 
-  return (
-    <Box sx={{ minWidth: 140 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontSize: '0.7rem', flexGrow: 1 }}
-        >
-          {label}
-        </Typography>
-        {showModeToggle && (
-          <Tooltip title={isExcludeMode ? 'Excluding selected (click to include)' : 'Including selected (click to exclude)'}>
-            <IconButton
-              size="small"
-              onClick={handleModeToggle}
-              sx={{
-                p: 0,
-                ml: 0.5,
-                width: 18,
-                height: 18,
-                bgcolor: isExcludeMode ? 'error.main' : 'primary.main',
-                color: isExcludeMode ? 'error.contrastText' : 'primary.contrastText',
-                '&:hover': {
-                  bgcolor: isExcludeMode ? 'error.dark' : 'primary.dark',
-                },
-              }}
-            >
-              {isExcludeMode ? (
-                <RemoveIcon sx={{ fontSize: 14 }} />
-              ) : (
-                <AddIcon sx={{ fontSize: 14 }} />
-              )}
-            </IconButton>
-          </Tooltip>
+  const modeToggle = showModeToggle ? (
+    <Tooltip title={isExcludeMode ? 'Excluding selected (click to include)' : 'Including selected (click to exclude)'}>
+      <IconButton
+        size="small"
+        aria-label={isExcludeMode ? `${label}: excluding selected` : `${label}: including selected`}
+        onClick={handleModeToggle}
+        sx={{
+          p: 0,
+          ml: inline ? 0 : 0.5,
+          mr: inline ? 0.5 : 0,
+          flexShrink: 0,
+          width: 18,
+          height: 18,
+          bgcolor: isExcludeMode ? 'error.main' : 'primary.main',
+          color: isExcludeMode ? 'error.contrastText' : 'primary.contrastText',
+          '&:hover': {
+            bgcolor: isExcludeMode ? 'error.dark' : 'primary.dark',
+          },
+        }}
+      >
+        {isExcludeMode ? (
+          <RemoveIcon sx={{ fontSize: 14 }} />
+        ) : (
+          <AddIcon sx={{ fontSize: 14 }} />
         )}
-      </Box>
+      </IconButton>
+    </Tooltip>
+  ) : null;
+
+  return (
+    <Box sx={inline ? { minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center' } : { minWidth: 140 }}>
+      {inline ? modeToggle : (
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: '0.7rem', flexGrow: 1 }}
+          >
+            {label}
+          </Typography>
+          {modeToggle}
+        </Box>
+      )}
       <Autocomplete
+        id={id}
         multiple
         size="small"
         value={selectedValues}
@@ -131,16 +143,18 @@ function CompactMultiSelect({
           ))
         }
         sx={{
+          // Inline: share the row with the mode toggle instead of wrapping under it.
+          ...(inline && { flex: 1, minWidth: 0 }),
           '& .MuiAutocomplete-tag': {
             margin: '1px',
           },
         }}
       />
-      {showSelectionLimit && (
+      {showSelectionLimit && (!inline || selectionLimitReached) && (
         <Typography
           variant="caption"
           color={selectionLimitReached ? 'primary.main' : 'text.secondary'}
-          sx={{ display: 'block', mt: 0.25, fontSize: '0.65rem' }}
+          sx={{ display: 'block', mt: 0.25, fontSize: '0.65rem', flexBasis: '100%' }}
         >
           Up to {maxValues} values
         </Typography>

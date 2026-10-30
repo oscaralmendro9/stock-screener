@@ -613,6 +613,8 @@ describe('ScanPage', () => {
       order: 'desc',
     });
     expect(await screen.findByText(/Results:\s*1 stocks/i)).toBeInTheDocument();
+    // The sort labels under test belong to the full table.
+    fireEvent.click(screen.getByRole('button', { name: 'All columns' }));
     expect(screen.getByText('Comp')).toHaveClass('Mui-active');
 
     fireEvent.click(screen.getByText('SE'));

@@ -12,7 +12,7 @@ import {
   getUniverseStats,
   refreshScanCache,
 } from '../../../api/scans';
-import FilterPanel from '../components/FilterPanelContainer';
+import ScreenerFilterGrid from '../screener/ScreenerFilterGrid';
 import ChartViewerModal from '../../../components/Scan/ChartViewerModalLazy';
 import { useFilterPresets } from '../../../hooks/useFilterPresets';
 import { useRuntimeActivity } from '../../../hooks/useRuntimeActivity';
@@ -626,7 +626,7 @@ function ScanPage() {
     return message ? { message, detail } : null;
   }, [createScanMutation.error]);
 
-  // Handlers passed to ScanControlBar / FilterPanel stay referentially stable
+  // Handlers passed to ScanControlBar / ScreenerFilterGrid stay referentially stable
   // so those memoized children skip re-rendering on unrelated page updates
   // (status polls, result fetches, chart modal state).
   const scanRequest = useMemo(() => {
@@ -858,7 +858,7 @@ function ScanPage() {
       )}
 
       {viewScanFinished && (
-        <FilterPanel
+        <ScreenerFilterGrid
           filters={filters}
           onFilterChange={editQuickFilter}
           onReset={handleResetFilters}
