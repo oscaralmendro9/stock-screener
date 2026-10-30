@@ -356,6 +356,13 @@ describe('Layout', () => {
     expect(screen.queryByTitle(/scheduled tasks/i)).not.toBeInTheDocument();
   });
 
+  it('links the Stock Scanner mark back to Home', () => {
+    useRuntimeActivityMock.mockReturnValue({ data: null });
+    renderInApp('/scan');
+
+    expect(screen.getByRole('link', { name: 'Stock Scanner' })).toHaveAttribute('href', '/');
+  });
+
   describe('on a phone-width screen', () => {
     beforeEach(() => {
       // useMediaQuery(breakpoints.down('md')) matches.

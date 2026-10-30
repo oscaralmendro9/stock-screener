@@ -23,14 +23,27 @@ const intentHandlers = (onIntent, path) => (onIntent ? {
 
 const iconButtonClass = 'tw grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 ease-out hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:size-9 [&_svg]:size-[18px]';
 
-export function BrandMark({ label }) {
-  return (
-    <div className="tw flex shrink-0 items-center gap-2">
+// With `to`, the mark links home (the usual "logo goes home" convention);
+// without it (the pre-router loading screen) it is plain branding.
+export function BrandMark({ label, to }) {
+  const body = (
+    <>
       <span aria-hidden="true" className="grid size-7 place-items-center rounded-md bg-accent text-accent-foreground">
         <ChartLine className="size-[18px]" />
       </span>
       {label && <span className="text-[15px] font-bold whitespace-nowrap text-foreground">{label}</span>}
-    </div>
+    </>
+  );
+  if (!to) return <div className="tw flex shrink-0 items-center gap-2">{body}</div>;
+  return (
+    <RouterLink
+      to={to}
+      // The visible label hides on phones; the name stays for screen readers.
+      aria-label={label ? undefined : 'Home'}
+      className="tw flex min-h-11 shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9"
+    >
+      {body}
+    </RouterLink>
   );
 }
 

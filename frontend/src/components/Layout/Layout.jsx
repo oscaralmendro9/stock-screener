@@ -234,7 +234,7 @@ function Layout({ children }) {
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="tw border-b border-border bg-surface">
         <div className={cn('flex min-h-13 items-center gap-2 overflow-x-auto md:gap-3 [&>*]:shrink-0', SAFE_GUTTER_CLASSES)}>
-          <BrandMark label={isMobile ? null : 'Stock Scanner'} />
+          <BrandMark to="/" label={isMobile ? null : 'Stock Scanner'} />
           <RuntimeActivityStatusButton compact={isMobile} />
           <MarketSelector />
           <div className="flex-1" />

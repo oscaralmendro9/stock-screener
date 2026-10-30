@@ -99,7 +99,7 @@ function StaticLayout({ children }) {
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="tw border-b border-border bg-surface">
         <div className={cn('flex min-h-13 items-center gap-2 overflow-x-auto md:gap-3 [&>*]:shrink-0', SAFE_GUTTER_CLASSES)}>
-          <BrandMark label={isMobile ? null : SITE_NAME} />
+          <BrandMark to="/" label={isMobile ? null : SITE_NAME} />
           {isMobile ? (
             <Lock role="img" aria-label="Read-only" className="size-[18px] text-muted-foreground" />
           ) : (
