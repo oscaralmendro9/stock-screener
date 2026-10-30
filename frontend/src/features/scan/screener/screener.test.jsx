@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { BoolSelect, RangePresetSelect } from './FilterControls';
 import { FILTER_GRID, matchRangePreset } from './filterGridConfig';
 import ScreenerFilterGrid from './ScreenerFilterGrid';
-import ScreenerTable, { pageItems } from './ScreenerTable';
+import ScreenerTable from './ScreenerTable';
+import { pageItems } from './pagination';
 import { SCREENER_VIEWS } from './screenerViews';
 
 const PRESETS = [

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import QueryErrorAlert from '../common/QueryErrorAlert';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionDetails,
@@ -29,7 +29,6 @@ import CancelIcon from '@mui/icons-material/Cancel';
 
 import { getStockDecisionDashboard, getStockValidation } from '../../api/stocks';
 import CandlestickChart from '../Charts/CandlestickChart';
-import StockMetricsSidebar from '../Scan/StockMetricsSidebar';
 import AddToWatchlistMenu from '../common/AddToWatchlistMenu';
 import PeerComparisonModal from '../Scan/PeerComparisonModal';
 import MarketThemesList from './MarketThemesList';
@@ -39,15 +38,21 @@ import {
   ValidationRecentEventsTable,
   ValidationSummaryCards,
 } from '../Validation/ValidationPanels';
-import { getGroupRankColor, getStageColor, onPalette } from '../../utils/colorUtils';
+import { getStageColor, onPalette } from '../../utils/colorUtils';
 import {
-  formatLargeNumber,
   formatPercent,
   formatRatio,
   getScoreColor,
 } from '../../utils/formatUtils';
 import { resolveMarketCapDisplay } from '../../utils/marketCapUtils';
 import { useStrategyProfileData } from '../../contexts/StrategyProfileContext';
+import { useRuntime } from '../../contexts/RuntimeContext';
+import { Plus } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+import KeyStatsGrid from '../../features/stock/KeyStatsGrid';
+import StockHeader, { StockTabs } from '../../features/stock/StockHeader';
+import { OptionsChainView } from '../../pages/OptionsChainPage';
 
 const CriteriaList = ({ title, items, emptyText }) => (
   <Box sx={{ flex: 1 }}>
@@ -100,21 +105,6 @@ const BoolIndicator = ({ value }) => {
   return <CancelIcon sx={{ fontSize: 14, color: 'text.disabled' }} />;
 };
 
-function MetricBox({ label, value, bgcolor }) {
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box sx={{ borderRadius: 1, px: 1.5, py: 0.5, textAlign: 'center', minWidth: 36, ...onPalette(bgcolor) }}>
-        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-          {value}
-        </Typography>
-      </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
 function InfoBox({ label, value }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -150,6 +140,11 @@ function StockDetails() {
   } = useStrategyProfileData();
   const [peerModalOpen, setPeerModalOpen] = useState(false);
   const [validationLookbackDays, setValidationLookbackDays] = useState(365);
+  const { features } = useRuntime();
+  // Overview | Options, kept in the URL (?tab=options) so it can be linked.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'options' ? 'options' : 'overview';
+  const setTab = (next) => setSearchParams(next === 'options' ? { tab: 'options' } : {}, { replace: true });
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['stockDecisionDashboard', symbol, requestProfile],
@@ -167,11 +162,6 @@ function StockDetails() {
     enabled: Boolean(symbol),
     staleTime: 60_000,
   });
-
-  const sidebarFundamentals = useMemo(
-    () => data ? { ...(data.fundamentals || {}), symbol: data.symbol } : {},
-    [data]
-  );
 
   if (isLoading || (isLoadingProfiles && !requestProfile)) {
     return (
@@ -232,117 +222,75 @@ function StockDetails() {
   const strengthsTitle = activeProfileDetail?.stock_action?.strengths_title || 'Top Strengths';
   const weaknessesTitle = activeProfileDetail?.stock_action?.weaknesses_title || 'Top Weaknesses';
 
-  const adrValue = chart.adr_percent;
-  const epsRating = chart.eps_rating;
   const groupRank = chart.ibd_group_rank;
   const marketGroup = chart.ibd_industry_group;
   const marketThemes = chart.market_themes || [];
   const sector = chart.gics_sector || info.sector;
   const industry = chart.gics_industry || info.industry;
 
+  // Theme links are only missing because Themes is switched off: not a gap
+  // worth flagging on every stock.
+  const degradedReasons = (data.degraded_reasons || []).filter(
+    (reason) => features.themes || reason !== 'missing_theme_links',
+  );
+  const history = data.chart?.price_history || [];
+  const lastClose = history.at(-1)?.close;
+  const prevClose = history.at(-2)?.close;
+  const change1d = lastClose != null && prevClose ? (lastClose / prevClose - 1) * 100 : null;
+
   return (
-    <Box>
-      {/* ─── Header ─── */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 2,
-          py: 1.5,
-          borderBottom: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.default',
-          borderRadius: '4px 4px 0 0',
-          flexWrap: 'wrap',
-          gap: 1,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box>
-            <Typography variant="h5" fontWeight="bold">
-              {data.symbol}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {info.name || 'Unknown company'}
-            </Typography>
-          </Box>
-
-          {groupRank != null && (
-            <MetricBox label="Grp Rnk" value={groupRank} bgcolor={getGroupRankColor(groupRank)} />
-          )}
-          {adrValue != null && (
-            <MetricBox
-              label="ADR"
-              value={`${Number(adrValue).toFixed(1)}%`}
-              bgcolor={Number(adrValue) >= 4 ? 'success.main' : Number(adrValue) >= 2 ? 'warning.main' : 'error.main'}
-            />
-          )}
-          {epsRating != null && (
-            <MetricBox
-              label="EPS Rtg"
-              value={epsRating}
-              bgcolor={epsRating >= 80 ? 'success.main' : epsRating >= 50 ? 'warning.main' : 'error.main'}
-            />
-          )}
-          {(marketGroup || sector || industry) && (
-            <Box sx={{ display: 'flex', gap: 1.5, ml: 1 }}>
-              {marketGroup && <InfoBox label="Group" value={marketGroup} />}
-              {sector && <InfoBox label="Sector" value={sector} />}
-              {industry && <InfoBox label="Industry" value={industry} />}
-            </Box>
-          )}
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {price != null && (
-            <Chip size="small" color="primary" label={`$${Number(price).toFixed(2)}`} />
-          )}
+    <div className="tw flex flex-col gap-3 pb-4">
+      <StockHeader
+        symbol={data.symbol}
+        name={info.name}
+        exchange={chart.exchange}
+        market={chart.market}
+        sector={sector}
+        industry={industry}
+        group={marketGroup}
+        groupRank={groupRank}
+        price={price}
+        change={change1d}
+        asOf={data.as_of_date || history.at(-1)?.date}
+        rating={decision.rating}
+        onViewPeers={() => setPeerModalOpen(true)}
+        watchlistMenu={(
           <AddToWatchlistMenu
             symbols={data.symbol}
-            trigger={<Chip color="primary" clickable label="Add to Watchlist" />}
+            trigger={<Button size="sm"><Plus aria-hidden="true" />Watchlist</Button>}
           />
-          <Chip
-            component={RouterLink}
-            to={`/chain/${encodeURIComponent(data.symbol)}`}
-            clickable
-            variant="outlined"
-            label="Options chain"
-          />
-          {decision.rating && (
-            <Chip
-              label={decision.rating}
-              sx={{
-                ...onPalette(getScoreColor(decision.composite_score)),
-                fontWeight: 700,
-              }}
-            />
-          )}
-        </Box>
-      </Box>
+        )}
+      />
 
-      {data.degraded_reasons?.length > 0 && (
-        <Alert severity="info" sx={{ borderRadius: 0 }}>
-          Workspace is partially degraded: {data.degraded_reasons.join(', ')}.
+      {degradedReasons.length > 0 && (
+        <Alert severity="info">
+          Workspace is partially degraded: {degradedReasons.join(', ')}.
         </Alert>
       )}
 
-      {/* ─── Split Panel: Sidebar + Chart ─── */}
-      <Box sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider', height: 520 }}>
-        <StockMetricsSidebar
-          stockData={(data.chart?.chart_data?.source !== 'unavailable' && data.chart?.chart_data) || null}
-          fundamentals={sidebarFundamentals}
-          onViewPeers={() => setPeerModalOpen(true)}
+      <StockTabs active={tab} onChange={setTab} />
+
+      {tab === 'options' ? (
+        <OptionsChainView symbol={data.symbol} embedded />
+      ) : (
+        <>
+      <Card className="overflow-hidden">
+        <CandlestickChart
+          key={data.symbol}
+          symbol={data.symbol}
+          priceData={history}
+          height={480}
         />
-        <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
-          <CandlestickChart
-            key={data.symbol}
-            symbol={data.symbol}
-            priceData={data.chart?.price_history || []}
-            height={520}
-          />
-        </Box>
-      </Box>
+      </Card>
+
+      <KeyStatsGrid data={data} />
+
+      {fundamentals.description && (
+        <Card className="px-4 py-3">
+          <h2 className="mb-1 text-sm font-semibold">About</h2>
+          <p className="max-w-prose text-sm text-pretty text-muted-foreground">{fundamentals.description}</p>
+        </Card>
+      )}
 
       {/* ─── Accordion Sections ─── */}
       <Box sx={{ mt: 1 }}>
@@ -754,6 +702,8 @@ function StockDetails() {
           </AccordionDetails>
         </Accordion>
       </Box>
+        </>
+      )}
 
       <PeerComparisonModal
         open={peerModalOpen}
@@ -764,7 +714,7 @@ function StockDetails() {
           navigate(`/stocks/${encodeURIComponent(sym)}`);
         }}
       />
-    </Box>
+    </div>
   );
 }
 

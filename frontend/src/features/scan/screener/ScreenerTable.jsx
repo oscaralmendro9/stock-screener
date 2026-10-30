@@ -1,18 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
-
-export const PER_PAGE_OPTIONS = [20, 50, 100];
-
-// Page numbers with ellipses: 1 … 4 5 6 … 503 (the current page ±2, plus ends).
-export function pageItems(page, pageCount) {
-  const pages = new Set([1, pageCount]);
-  for (let p = page - 2; p <= page + 2; p += 1) {
-    if (p >= 1 && p <= pageCount) pages.add(p);
-  }
-  const sorted = [...pages].sort((a, b) => a - b);
-  return sorted.flatMap((p, index) => (index > 0 && p - sorted[index - 1] > 1 ? ['gap', p] : [p]));
-}
+import { PER_PAGE_OPTIONS, pageItems } from './pagination';
 
 const PAGE_BUTTON = 'grid h-11 min-w-11 cursor-pointer place-items-center rounded-md px-2 text-sm tabular-nums outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 md:h-7 md:min-w-7 md:text-xs';
 

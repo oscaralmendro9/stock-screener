@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { SplitBar } from './BreadthBars';
-import { changeColor, layoutHeatmap } from './MarketHeatmap';
-import SignalTables, { SIGNALS } from './SignalTables';
+import { changeColor, layoutHeatmap } from './heatmapLayout';
+import SignalTables from './SignalTables';
+import { SIGNALS } from './signals';
 
 const getScanResults = vi.fn();
 vi.mock('../../api/scans', () => ({

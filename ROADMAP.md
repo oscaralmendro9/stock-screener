@@ -46,7 +46,7 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] Home is the daily snapshot alone; Key Markets (TradingView widget) and the Stockbee frame retired from it; COT moved to `/cot`, Watchlists to `/watchlists`
 - [x] `FEATURE_THEMES` / `FEATURE_CHATBOT` pass through docker-compose (default true) so a deployment without LLM keys can hide Themes and the assistant
 - [x] Home rebuilt Finviz-style: breadth split bars, signal lists (gainers/losers, new highs/lows, unusual volume, most active/volatile, leaders) and a sector market map from `GET /v1/scans/{id}/heatmap` (six fields per name, pages walked server-side)
-- [ ] Stock page as the quote hub (key-stats grid, options chain as a tab)
+- [x] Stock page as the quote hub: Finviz-style header, Overview | Options tabs (`?tab=options` embeds the chain), full-width chart and a six-column key-stats grid (fundamentals, performance, trend, volume/volatility, RS, scores; price-derived stats computed from the dashboard history). The MUI metrics sidebar is gone from it; the analysis accordions stay below
 - [ ] Maps (sector heatmap)
 - [ ] "New scan" out of the screener's main view
 

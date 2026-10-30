@@ -7,9 +7,9 @@ const ANY = '';
 const CUSTOM = '__custom__';
 
 // 16px on phones keeps iOS Safari from zooming in; 44px rows meet touch targets.
-export const CONTROL = 'h-11 w-full min-w-0 cursor-pointer rounded-md border bg-surface-subtle px-2 text-base text-foreground outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring md:h-7 md:text-xs';
+const CONTROL = 'h-11 w-full min-w-0 cursor-pointer rounded-md border bg-surface-subtle px-2 text-base text-foreground outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring md:h-7 md:text-xs';
 // A set filter stands out, as in Finviz, so the active ones read at a glance.
-export const controlTone = (active) => (active ? 'border-accent bg-accent/10 font-medium' : 'border-border');
+const controlTone = (active) => (active ? 'border-accent bg-accent/10 font-medium' : 'border-border');
 
 const toNumber = (text) => {
   if (text === '' || text == null) return null;

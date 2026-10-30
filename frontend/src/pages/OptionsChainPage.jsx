@@ -129,7 +129,14 @@ function ChainSkeleton() {
 
 export default function OptionsChainPage() {
   const { symbol: rawSymbol } = useParams();
-  const symbol = String(rawSymbol || '').toUpperCase();
+  return <OptionsChainView symbol={String(rawSymbol || '').toUpperCase()} />;
+}
+
+/**
+ * The chain for one symbol. `embedded` is the stock page's Options tab: the
+ * page title and the link back to the stock page are left to the host.
+ */
+export function OptionsChainView({ symbol, embedded = false }) {
   const isMobile = useIsMobileShell();
   const [expiration, setExpiration] = useState(null);
   const [showAll, setShowAll] = useState(false);
@@ -151,7 +158,7 @@ export default function OptionsChainPage() {
     <div className="tw flex flex-col gap-3 pb-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-balance">{symbol} options</h1>
+          {!embedded && <h1 className="text-xl font-semibold text-balance">{symbol} options</h1>}
           <p className="text-sm text-pretty text-muted-foreground">
             {data ? (
               <>
@@ -172,9 +179,11 @@ export default function OptionsChainPage() {
               onChange={(value) => { setExpiration(value); setShowAll(false); }}
             />
           )}
-          <Button asChild variant="secondary" size="sm" className="mb-0.5">
-            <RouterLink to={`/stocks/${encodeURIComponent(symbol)}`}>Stock page</RouterLink>
-          </Button>
+          {!embedded && (
+            <Button asChild variant="secondary" size="sm" className="mb-0.5">
+              <RouterLink to={`/stocks/${encodeURIComponent(symbol)}`}>Stock page</RouterLink>
+            </Button>
+          )}
         </div>
       </header>
 
