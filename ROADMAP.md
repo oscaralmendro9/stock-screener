@@ -41,6 +41,15 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] Daily tabs responsive (row on phones, rail on desktop); readable error states with Retry; Scan filter header wraps
 - [ ] `RuntimeProvider` subscribes to every query-cache event, which triggers a dev-only "update while rendering" warning; narrowing it broke a startup test, so it needs its own change
 
+## Phase 3b — Information architecture (Finviz-style sections)
+- [x] Top bar lists sections only: Home · Screener · Groups · Market · Futures · Watchlists (+ Options when enabled); sub-pages are `SectionTabs` (Screener | Backtest, Industry groups | Themes, Contracts | COT positioning)
+- [x] Home is the daily snapshot alone; Key Markets (TradingView widget) and the Stockbee frame retired from it; COT moved to `/cot`, Watchlists to `/watchlists`
+- [x] `FEATURE_THEMES` / `FEATURE_CHATBOT` pass through docker-compose (default true) so a deployment without LLM keys can hide Themes and the assistant
+- [ ] Home rebuilt Finviz-style (breadth bars, signal tables, mini heatmap)
+- [ ] Stock page as the quote hub (key-stats grid, options chain as a tab)
+- [ ] Maps (sector heatmap)
+- [ ] "New scan" out of the screener's main view
+
 ## Phase 4 — Page migration
 - [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer
 - [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. Still MUI: the scan control bar, presets menu, multi-selects and the static site's `FilterPanel`

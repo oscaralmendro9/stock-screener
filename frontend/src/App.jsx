@@ -45,8 +45,11 @@ import {
   loadStockDetails,
   loadThemesPage,
   loadValidationPage,
+  loadWatchlistsPage,
+  loadCotPage,
   loaderForPath,
 } from './pageLoaders';
+import { SectionPage } from './components/Layout/SectionTabs';
 
 // All pages are lazy-loaded so the initial bundle stays free of heavy
 // page-specific chunks (MarketScanPage alone pulls in recharts, ~400KB).
@@ -66,6 +69,8 @@ const OptionsSymbolPage = lazy(loadOptionsSymbolPage);
 const FuturesPage = lazy(loadFuturesPage);
 const FuturesDetailPage = lazy(loadFuturesDetailPage);
 const OptionsChainPage = lazy(loadOptionsChainPage);
+const WatchlistsPage = lazy(loadWatchlistsPage);
+const CotPage = lazy(loadCotPage);
 const StaticAppShell = lazy(() => import('./static/StaticAppShell'));
 
 // Fetch the landing page's code alongside /app-capabilities rather than after
@@ -279,16 +284,18 @@ function AppShell() {
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<MarketScanPage />} />
-              <Route path="/scan" element={<ScanPage />} />
+              <Route path="/scan" element={<SectionPage section="screener"><ScanPage /></SectionPage>} />
+              <Route path="/validation" element={<SectionPage section="screener"><ValidationPage /></SectionPage>} />
               <Route path="/breadth" element={<BreadthPage />} />
-              <Route path="/groups" element={<GroupRankingsPage />} />
-              <Route path="/validation" element={<ValidationPage />} />
-              {features.themes && <Route path="/themes" element={<ThemesPage />} />}
+              <Route path="/groups" element={<SectionPage section="groups"><GroupRankingsPage /></SectionPage>} />
+              {features.themes && <Route path="/themes" element={<SectionPage section="groups"><ThemesPage /></SectionPage>} />}
+              <Route path="/watchlists" element={<WatchlistsPage />} />
               {features.chatbot && <Route path="/chatbot" element={<ChatbotPage />} />}
               <Route path="/options" element={<LiveOptionsRoute />} />
               <Route path="/options/:symbol" element={<LiveOptionsRoute detail />} />
-              <Route path="/futures" element={<FuturesPage />} />
+              <Route path="/futures" element={<SectionPage section="futures"><FuturesPage /></SectionPage>} />
               <Route path="/futures/:symbol" element={<FuturesDetailPage />} />
+              <Route path="/cot" element={<CotPage />} />
               <Route path="/chain/:symbol" element={<OptionsChainPage />} />
               <Route path="/stocks/:ticker" element={<StockDetails />} />
               <Route path="/operations" element={<OperationsPage />} />

@@ -14,6 +14,8 @@ export const loadOptionsSymbolPage = () => import('./pages/OptionsSymbolPage');
 export const loadFuturesPage = () => import('./pages/FuturesPage');
 export const loadFuturesDetailPage = () => import('./pages/FuturesDetailPage');
 export const loadOptionsChainPage = () => import('./pages/OptionsChainPage');
+export const loadWatchlistsPage = () => import('./pages/WatchlistsPage');
+export const loadCotPage = () => import('./pages/CotPage');
 
 const PATH_LOADERS = {
   '/': loadMarketScanPage,
@@ -26,6 +28,8 @@ const PATH_LOADERS = {
   '/operations': loadOperationsPage,
   '/options': loadOptionsPage,
   '/futures': loadFuturesPage,
+  '/watchlists': loadWatchlistsPage,
+  '/cot': loadCotPage,
 };
 
 export function loaderForPath(pathname) {

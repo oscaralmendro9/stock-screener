@@ -97,7 +97,7 @@ describe('StaticLayout repo link and page title', () => {
   it('titles the tab with the page and market', () => {
     renderLayout('/breadth');
 
-    expect(document.title).toBe('Breadth · US · Stock Scanner Daily');
+    expect(document.title).toBe('Market · US · Stock Scanner Daily');
   });
 
   it('names the Options page even when the market has no options nav item', () => {

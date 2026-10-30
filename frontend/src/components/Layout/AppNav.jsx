@@ -6,9 +6,12 @@ import { cn } from '@/lib/cn';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/ui/sheet';
 import { ColorModeContext } from '../../contexts/ColorModeContext';
 
-const isActive = (item, pathname) => (
-  item.matchPrefix ? pathname.startsWith(item.path) : pathname === item.path
-);
+// `match` lists every route a section owns (e.g. Screener: /scan and
+// /validation), each with its sub-paths; otherwise matchPrefix or exact.
+const isActive = (item, pathname) => {
+  if (item.match) return item.match.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return item.matchPrefix ? pathname.startsWith(item.path) : pathname === item.path;
+};
 
 // Hover, keyboard focus or a touch says a link is about to be followed; the
 // live shell passes `onIntent` to prefetch the page, the static shell does not.

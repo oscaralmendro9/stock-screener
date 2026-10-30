@@ -22,9 +22,28 @@ export const useIsMobileShell = () => useMediaQuery(MOBILE_SHELL_QUERY);
 
 const icon = (Icon) => <Icon aria-hidden="true" />;
 
+// Sections, Finviz-style: each owns its sub-pages (shown as SectionTabs), so
+// the top bar stays short. Phones show the first four in the bottom bar.
 export const CORE_NAV_ITEMS = [
-  { path: '/', label: 'Daily', icon: icon(CalendarDays) },
-  { path: '/scan', label: 'Scan', icon: icon(ListFilter) },
-  { path: '/breadth', label: 'Breadth', icon: icon(ChartSpline) },
-  { path: '/groups', label: 'Groups', icon: icon(ChartNoAxesColumn) },
+  { path: '/', label: 'Home', icon: icon(CalendarDays) },
+  { path: '/scan', label: 'Screener', match: ['/scan', '/validation'], icon: icon(ListFilter) },
+  { path: '/groups', label: 'Groups', match: ['/groups', '/themes'], icon: icon(ChartNoAxesColumn) },
+  { path: '/breadth', label: 'Market', icon: icon(ChartSpline) },
 ];
+
+// Sub-pages of a section, as tabs under the top bar. Items may carry `show`,
+// a features predicate, for sub-pages behind a runtime feature flag.
+export const SECTION_TABS = {
+  screener: [
+    { path: '/scan', label: 'Screener' },
+    { path: '/validation', label: 'Backtest' },
+  ],
+  groups: [
+    { path: '/groups', label: 'Industry groups' },
+    { path: '/themes', label: 'Themes', show: (features) => Boolean(features.themes) },
+  ],
+  futures: [
+    { path: '/futures', label: 'Contracts' },
+    { path: '/cot', label: 'COT positioning' },
+  ],
+};

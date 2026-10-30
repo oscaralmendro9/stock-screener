@@ -10,18 +10,9 @@ const runtimeState = {
     social_signals: false,
   },
 };
-const keyMarketsRenderSpy = vi.hoisted(() => vi.fn());
-const cotRenderSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('../contexts/RuntimeContext', () => ({
   useRuntime: () => runtimeState,
-}));
-
-vi.mock('../components/MarketScan/KeyMarketsTab', () => ({
-  default: () => {
-    keyMarketsRenderSpy();
-    return <div>key-markets</div>;
-  },
 }));
 
 vi.mock('../components/MarketScan/DailyMarketSnapshotTab', () => ({
@@ -31,95 +22,36 @@ vi.mock('../components/MarketScan/DailyMarketSnapshotTab', () => ({
   </div>,
 }));
 
-vi.mock('../components/MarketScan/ThemesTab', () => ({
-  default: () => <div>themes-tab</div>,
-}));
-
-vi.mock('../components/MarketScan/WatchlistsTab', () => ({
-  default: () => <div>watchlists-tab</div>,
-}));
-
-vi.mock('../components/MarketScan/StockbeeMmTab', () => ({
-  default: () => <div>stockbee-tab</div>,
-}));
-
 vi.mock('../features/socialSignals/SocialSignalsTab', () => ({
   default: () => <div>social-signals-tab</div>,
 }));
 
-vi.mock('../features/cot/CotPositioningTab', () => ({
-  default: () => {
-    cotRenderSpy();
-    return <div>cot-positioning-tab</div>;
-  },
-}));
+const renderPage = () => render(
+  <ThemeProvider theme={createTheme()}>
+    <MarketScanPage />
+  </ThemeProvider>,
+);
 
-describe('MarketScanPage capability gating', () => {
+describe('MarketScanPage (Home)', () => {
   beforeEach(() => {
-    keyMarketsRenderSpy.mockClear();
-    cotRenderSpy.mockClear();
     runtimeState.features = { themes: false, social_signals: false };
   });
 
-  it('places COT after Key Markets and before Themes without eager mounting', async () => {
+  it('shows the snapshot alone, without a tab rail, when Social Signals is off', () => {
     runtimeState.features = { themes: true, social_signals: false };
-    render(
-      <ThemeProvider theme={createTheme()}>
-        <MarketScanPage />
-      </ThemeProvider>
-    );
-
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Daily Snapshot', 'Key Markets', 'COT Positioning', 'Themes', 'Watchlists', 'Stockbee MM',
-    ]);
-    expect(cotRenderSpy).not.toHaveBeenCalled();
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'COT Positioning' }));
-    expect(await screen.findByText('cot-positioning-tab')).toBeInTheDocument();
-    expect(cotRenderSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows Social Signals directly after Daily only when enabled', async () => {
-    runtimeState.features = { themes: false, social_signals: true };
-    render(
-      <ThemeProvider theme={createTheme()}>
-        <MarketScanPage />
-      </ThemeProvider>
-    );
-
-    const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
-    expect(tabs.slice(0, 3)).toEqual(['Daily Snapshot', 'Social Signals', 'Key Markets']);
-    fireEvent.click(screen.getByRole('button', { name: 'daily-social-card' }));
-    expect(await screen.findByText('social-signals-tab')).toBeInTheDocument();
-  });
-
-  it('removes the Themes tab when themes are disabled', () => {
-    render(
-      <ThemeProvider theme={createTheme()}>
-        <MarketScanPage />
-      </ThemeProvider>
-    );
-
-    expect(screen.queryByRole('tab', { name: 'Themes' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Key Markets' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Daily Snapshot' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Watchlists' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Stockbee MM' })).toBeInTheDocument();
-  });
-
-  it('does not mount the Key Markets tab until the user selects it', async () => {
-    render(
-      <ThemeProvider theme={createTheme()}>
-        <MarketScanPage />
-      </ThemeProvider>
-    );
+    renderPage();
 
     expect(screen.getByText('daily-snapshot-tab')).toBeInTheDocument();
-    expect(screen.queryByText('key-markets')).not.toBeInTheDocument();
-    expect(keyMarketsRenderSpy).not.toHaveBeenCalled();
+    // Key Markets, COT, Themes, Watchlists and Stockbee moved out of Home.
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
 
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Key Markets' }));
+  it('shows Social Signals beside the snapshot only when enabled', async () => {
+    runtimeState.features = { themes: false, social_signals: true };
+    renderPage();
 
-    expect(await screen.findByText('key-markets')).toBeInTheDocument();
-    expect(keyMarketsRenderSpy).toHaveBeenCalled();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Daily Snapshot', 'Social Signals']);
+    fireEvent.click(screen.getByRole('button', { name: 'daily-social-card' }));
+    expect(await screen.findByText('social-signals-tab')).toBeInTheDocument();
   });
 });
