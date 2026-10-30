@@ -1,24 +1,13 @@
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { LoaderCircle } from 'lucide-react';
 
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
 import PriceSparkline from '../Scan/PriceSparkline';
 import RSSparkline from '../Scan/RSSparkline';
 import ActionStateBadge from './ActionStateBadge';
 import StockRowCard from './StockRowCard';
 import { useIsMobileShell } from '../Layout/shellNav';
-import TickerCell from '../common/TickerCell';
-import { getGroupRankColor } from '../../utils/colorUtils';
 import { formatLocalCurrency } from '../../utils/formatUtils';
 import { resolveMarketCapDisplay } from '../../utils/marketCapUtils';
 
@@ -29,6 +18,22 @@ const formatNumber = (value, digits = 0) => {
     minimumFractionDigits: digits,
   });
 };
+
+// Top-ranked groups stand out by weight; color stays reserved for price direction.
+const TOP_GROUP_RANK = 20;
+
+const HEAD = 'px-3 py-2 font-medium whitespace-nowrap';
+const CELL = 'px-3 py-1.5';
+
+function TableMessage({ colSpan, className, children }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className={cn('px-3 py-6 text-center text-sm text-muted-foreground', className)}>
+        {children}
+      </td>
+    </tr>
+  );
+}
 
 function DailyScanRowsTable({
   title,
@@ -52,6 +57,8 @@ function DailyScanRowsTable({
   scoreField = 'composite_score',
   showActionState = false,
   onOpenOpportunity = null,
+  // Inside another card: drop this table's own border so cards don't nest.
+  bare = false,
 }) {
   const isMobile = useIsMobileShell();
   const isChartEnabled = (symbol) => (
@@ -74,104 +81,81 @@ function DailyScanRowsTable({
         : undefined}
     />
   );
+  const showLoading = isLoading && rows.length === 0;
+  const showError = isError && rows.length === 0;
+  const showEmpty = !isLoading && !isError && rows.length === 0;
+  const Container = bare ? 'section' : Card;
 
   return (
-    <Paper
-      data-testid={testId}
-      elevation={0}
-      sx={{ p: 1.5, mb: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 1,
-          flexWrap: 'wrap',
-          mb: 1,
-        }}
-      >
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
-            {title}
-          </Typography>
-          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', fontSize: '10px' }}>
-            {subtitle}
-          </Typography>
-        </Box>
+    <Container data-testid={testId} className="tw overflow-hidden">
+      <CardHeader className="flex-wrap items-start pb-3">
+        <div className="min-w-0">
+          <CardTitle>{title}</CardTitle>
+          {subtitle ? <p className="mt-0.5 text-xs text-pretty text-muted-foreground">{subtitle}</p> : null}
+        </div>
         {action}
-      </Box>
+      </CardHeader>
       {isMobile ? (
         // Phones: one card per row instead of a 720px table that scrolls sideways.
         <>
-          {isLoading && rows.length === 0 ? (
-            <Box sx={{ py: 2, textAlign: 'center' }}><CircularProgress size={18} /></Box>
+          {showLoading ? (
+            <CardContent className="flex justify-center">
+              <LoaderCircle role="status" aria-label="Loading" className="size-5 animate-spin text-muted-foreground motion-reduce:animate-none" />
+            </CardContent>
           ) : null}
-          {isError && rows.length === 0 ? (
-            <Typography sx={{ color: 'error.main', py: 2, textAlign: 'center' }}>{errorMessage}</Typography>
-          ) : null}
-          {!isLoading && !isError && rows.length === 0 ? (
-            <Typography sx={{ py: 2, textAlign: 'center' }}>{emptyMessage}</Typography>
-          ) : null}
+          {showError ? <CardContent><p role="alert" className="text-center text-sm text-loss">{errorMessage}</p></CardContent> : null}
+          {showEmpty ? <CardContent><p className="text-center text-sm text-muted-foreground">{emptyMessage}</p></CardContent> : null}
           {rows.length > 0 ? (
-            <Box role="list" aria-label={typeof title === 'string' ? title : undefined} sx={{ mx: -1.5, mb: -1.5 }}>
+            <ul aria-label={typeof title === 'string' ? title : undefined} className="divide-y divide-border/60 border-t border-border">
               {rows.map((row) => (
-                <Box key={row.symbol} role="listitem" sx={{ borderTop: 1, borderColor: 'divider' }}>
+                <li key={row.symbol}>
                   <StockRowCard
                     row={row}
                     scoreField={scoreField}
                     badge={showActionState
                       ? actionBadge(row)
                       : showRating && row.rating
-                        ? <Chip label={row.rating} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                        ? <Badge>{row.rating}</Badge>
                         : null}
                     meta={showRs && row.rs_rating != null ? `RS ${formatNumber(row.rs_rating, 0)}` : null}
                     onOpen={isChartEnabled(row.symbol) ? () => handleRowOpen(row.symbol) : null}
                   />
-                </Box>
+                </li>
               ))}
-            </Box>
+            </ul>
           ) : null}
         </>
       ) : (
-        <TableContainer>
-          <Table size="small" sx={{ minWidth: 720 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell align="center">Symbol</TableCell>
-                <TableCell align="center">Score</TableCell>
-                {showActionState ? <TableCell align="center">Action</TableCell> : null}
-                {showRs ? <TableCell align="center">RS</TableCell> : null}
-                <TableCell align="center">Price</TableCell>
-                <TableCell align="center">MCap</TableCell>
-                {showRating ? <TableCell align="center">Rating</TableCell> : null}
-                <TableCell align="center">Price Trend (30d)</TableCell>
-                <TableCell align="center">RS Trend (30d)</TableCell>
-                <TableCell align="center">IBD Group</TableCell>
-                <TableCell align="center">Grp Rank</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {isLoading && rows.length === 0 ? (
-                <TableRow>
-                  <TableCell align="center" colSpan={colSpan}>
-                    <CircularProgress size={18} />
-                  </TableCell>
-                </TableRow>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
+            <thead className="border-y border-border bg-surface-subtle text-xs text-muted-foreground">
+              <tr>
+                <th scope="col" className={cn(HEAD, 'text-left')}>Symbol</th>
+                <th scope="col" className={cn(HEAD, 'text-right')}>Score</th>
+                {showActionState ? <th scope="col" className={cn(HEAD, 'text-left')}>Action</th> : null}
+                {showRs ? <th scope="col" className={cn(HEAD, 'text-right')}>RS</th> : null}
+                <th scope="col" className={cn(HEAD, 'text-right')}>Price</th>
+                <th scope="col" className={cn(HEAD, 'text-right')}>MCap</th>
+                {showRating ? <th scope="col" className={cn(HEAD, 'text-left')}>Rating</th> : null}
+                <th scope="col" className={cn(HEAD, 'text-left')}>Price trend (30D)</th>
+                <th scope="col" className={cn(HEAD, 'text-left')}>RS trend (30D)</th>
+                <th scope="col" className={cn(HEAD, 'text-left')}>IBD group</th>
+                <th scope="col" className={cn(HEAD, 'text-right')}>Grp rank</th>
+              </tr>
+            </thead>
+            <tbody>
+              {showLoading ? (
+                <TableMessage colSpan={colSpan}>
+                  <LoaderCircle role="status" aria-label="Loading" className="mx-auto size-5 animate-spin motion-reduce:animate-none" />
+                </TableMessage>
               ) : null}
-              {isError && rows.length === 0 ? (
-                <TableRow>
-                  <TableCell align="center" colSpan={colSpan} sx={{ color: 'error.main', py: 2 }}>
-                    {errorMessage}
-                  </TableCell>
-                </TableRow>
-              ) : null}
+              {showError ? <TableMessage colSpan={colSpan} className="text-loss">{errorMessage}</TableMessage> : null}
               {rows.map((row) => {
                 const rowChartEnabled = isChartEnabled(row.symbol);
+                const topGroup = row.ibd_group_rank != null && row.ibd_group_rank <= TOP_GROUP_RANK;
                 return (
-                  <TableRow
+                  <tr
                     key={row.symbol}
-                    hover={rowChartEnabled}
                     tabIndex={rowChartEnabled ? 0 : -1}
                     onClick={() => handleRowOpen(row.symbol)}
                     onKeyDown={(event) => {
@@ -181,75 +165,65 @@ function DailyScanRowsTable({
                         handleRowOpen(row.symbol);
                       }
                     }}
-                    sx={{ cursor: rowChartEnabled ? 'pointer' : 'default' }}
+                    className={cn(
+                      'border-b border-border/60 outline-none last:border-0 focus-visible:bg-surface-subtle',
+                      rowChartEnabled && 'cursor-pointer transition-colors duration-150 ease-out hover:bg-surface-subtle',
+                    )}
                   >
-                    <TableCell align="center">
-                      <TickerCell symbol={row.symbol} companyName={row.company_name} align="center" />
-                    </TableCell>
-                    <TableCell align="center">{formatNumber(row?.[scoreField], 1)}</TableCell>
-                    {showActionState ? (
-                      <TableCell align="center">{actionBadge(row)}</TableCell>
-                    ) : null}
-                    {showRs ? <TableCell align="center">{formatNumber(row.rs_rating, 0)}</TableCell> : null}
-                    <TableCell align="center">{formatLocalCurrency(row.current_price, row.currency)}</TableCell>
-                    <TableCell align="center">
+                    <td className={CELL}>
+                      <span className="flex max-w-48 min-w-0 flex-col">
+                        <span className="font-semibold">{row.symbol}</span>
+                        {row.company_name ? (
+                          <span title={row.company_name} className="truncate text-xs text-muted-foreground">{row.company_name}</span>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td className={cn(CELL, 'text-right font-medium tabular-nums')}>{formatNumber(row?.[scoreField], 1)}</td>
+                    {showActionState ? <td className={CELL}>{actionBadge(row)}</td> : null}
+                    {showRs ? <td className={cn(CELL, 'text-right tabular-nums')}>{formatNumber(row.rs_rating, 0)}</td> : null}
+                    <td className={cn(CELL, 'text-right tabular-nums')}>{formatLocalCurrency(row.current_price, row.currency)}</td>
+                    <td className={cn(CELL, 'text-right tabular-nums text-muted-foreground')}>
                       {resolveMarketCapDisplay(row, null, { preferUsd: true }).formattedValue}
-                    </TableCell>
-                    {showRating ? <TableCell align="center">{row.rating}</TableCell> : null}
-                    <TableCell align="center">
+                    </td>
+                    {showRating ? <td className={CELL}>{row.rating ? <Badge>{row.rating}</Badge> : '-'}</td> : null}
+                    <td className={CELL}>
                       {row.price_sparkline_data ? (
-                        <Box display="flex" justifyContent="center">
-                          <PriceSparkline
-                            data={row.price_sparkline_data}
-                            trend={row.price_trend}
-                            change1d={row.price_change_1d}
-                            industry={row.ibd_industry_group}
-                            width={priceSparklineWidth}
-                            height={28}
-                            sparklineWidth={priceSparklineInnerWidth}
-                          />
-                        </Box>
+                        <PriceSparkline
+                          data={row.price_sparkline_data}
+                          trend={row.price_trend}
+                          change1d={row.price_change_1d}
+                          industry={row.ibd_industry_group}
+                          width={priceSparklineWidth}
+                          height={28}
+                          sparklineWidth={priceSparklineInnerWidth}
+                        />
                       ) : '-'}
-                    </TableCell>
-                    <TableCell align="center">
+                    </td>
+                    <td className={CELL}>
                       {row.rs_sparkline_data ? (
-                        <Box display="flex" justifyContent="center">
-                          <RSSparkline
-                            data={row.rs_sparkline_data}
-                            trend={row.rs_trend}
-                            width={117}
-                            height={20}
-                          />
-                        </Box>
+                        <RSSparkline
+                          data={row.rs_sparkline_data}
+                          trend={row.rs_trend}
+                          width={117}
+                          height={20}
+                        />
                       ) : '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{
-                      color: 'text.secondary', fontSize: '12px',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140,
-                    }}>
+                    </td>
+                    <td className={cn(CELL, 'max-w-40 truncate text-xs text-muted-foreground')} title={row.ibd_industry_group || undefined}>
                       {row.ibd_industry_group || '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{
-                      fontFamily: 'monospace', fontWeight: row.ibd_group_rank != null && row.ibd_group_rank <= 20 ? 600 : 400,
-                      color: getGroupRankColor(row.ibd_group_rank),
-                    }}>
+                    </td>
+                    <td className={cn(CELL, 'text-right tabular-nums', topGroup ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
                       {row.ibd_group_rank ?? '-'}
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 );
               })}
-              {!isLoading && !isError && rows.length === 0 ? (
-                <TableRow>
-                  <TableCell align="center" colSpan={colSpan}>
-                    {emptyMessage}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              {showEmpty ? <TableMessage colSpan={colSpan}>{emptyMessage}</TableMessage> : null}
+            </tbody>
+          </table>
+        </div>
       )}
-    </Paper>
+    </Container>
   );
 }
 

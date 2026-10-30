@@ -42,7 +42,8 @@ Tailwind + shadcn following `DESIGN.md`.
 - [ ] `RuntimeProvider` subscribes to every query-cache event, which triggers a dev-only "update while rendering" warning; narrowing it broke a startup test, so it needs its own change
 
 ## Phase 4 — Page migration
-- [ ] Daily → Scan → Stock detail → Breadth → Groups → Options → the rest
+- [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer
+- [ ] Scan → Stock detail → Breadth → Groups → Options → the rest
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

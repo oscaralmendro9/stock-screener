@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Chip, Paper, Typography } from '@mui/material';
 
+import { Badge } from '@/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
 import { ACTION_STATE_META } from '../../features/opportunityState/actionState';
 import DailyScanRowsTable from './DailyScanRowsTable';
 import OpportunityEvidenceDrawer from './OpportunityEvidenceDrawer';
 
 const EMPTY_ROWS = [];
+// ACTION_STATE_META speaks MUI color names; map them to the badge tones.
+const BADGE_TONES = { error: 'loss', warning: 'warning', success: 'gain', info: 'accent', default: 'neutral' };
 
 function CorrectionSurvivorsPanel({
   summary,
@@ -37,62 +40,37 @@ function CorrectionSurvivorsPanel({
   }, [isComplete, opportunityRow, opportunitySymbol]);
 
   return (
-    <Paper
-      data-testid="correction-survivors-panel"
-      component="section"
-      elevation={0}
-      sx={{ p: 1.5, mb: 2, border: '1px solid', borderColor: 'divider' }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 2,
-          flexWrap: 'wrap',
-          mb: 1,
-        }}
-      >
-        <Box>
-          <Typography
-            component="h2"
-            variant="subtitle1"
-            sx={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            Correction Survivors
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
+    <Card data-testid="correction-survivors-panel" className="tw overflow-hidden">
+      <CardHeader className="flex-wrap items-start">
+        <div>
+          <CardTitle>Correction Survivors</CardTitle>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {posture?.stance || 'Market posture unavailable'}
-          </Typography>
-        </Box>
+          </p>
+        </div>
         {posture ? (
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+          <span className="text-xs text-muted-foreground tabular-nums">
             {posture.date || 'Date unavailable'} · {posture.benchmark_symbol || 'Benchmark unavailable'}
-          </Typography>
+          </span>
         ) : null}
-      </Box>
+      </CardHeader>
 
       {!isComplete ? (
-        <Typography role="status" variant="body2" color="warning.main" sx={{ py: 1 }}>
-          Survivor data incomplete
-        </Typography>
+        <CardContent>
+          <p role="status" className="text-sm text-warning">Survivor data incomplete</p>
+        </CardContent>
       ) : (
         <>
-          <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-            Total survivors: {summary.count}
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1.5 }}>
+          <CardContent className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-2 text-sm font-semibold tabular-nums">Total survivors: {summary.count}</span>
             {Object.entries(ACTION_STATE_META).map(([state, meta]) => (
-              <Chip
-                key={state}
-                label={`${meta.label}: ${summary.counts_by_action_state?.[state] ?? 0}`}
-                color={meta.color}
-                size="small"
-                variant="outlined"
-              />
+              <Badge key={state} tone={BADGE_TONES[meta.color] ?? 'neutral'}>
+                {`${meta.label}: ${summary.counts_by_action_state?.[state] ?? 0}`}
+              </Badge>
             ))}
-          </Box>
+          </CardContent>
           <DailyScanRowsTable
+            bare
             title="Top Resilience"
             subtitle="Top 20 rows in the persisted survivor ranking. Select an action state for evidence."
             rows={rows}
@@ -113,7 +91,7 @@ function CorrectionSurvivorsPanel({
         onClose={() => setOpportunitySymbol(null)}
         opportunityTelemetrySurface={opportunityTelemetrySurface}
       />
-    </Paper>
+    </Card>
   );
 }
 

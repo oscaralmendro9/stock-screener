@@ -201,8 +201,7 @@ describe('DailyMarketSnapshotTab', () => {
     expect(await screen.findByText('LIVE')).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox', { name: 'Mkt Cap' }));
-    await user.click(await screen.findByRole('option', { name: '>$1B' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Mkt Cap' }), '1000000000');
 
     await waitFor(() => {
       expect(getScanResults).toHaveBeenLastCalledWith(
