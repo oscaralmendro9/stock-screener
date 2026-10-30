@@ -25,7 +25,15 @@ const signed = (value) => (value == null ? '–' : `${value > 0 ? '+' : ''}${val
  * Market map: the largest names by sector, sized by market cap, colored by
  * the day's change. A tile opens its stock page.
  */
-export default function MarketHeatmap({ scanId, height = 420, limit = 500, title = 'Market map' }) {
+export default function MarketHeatmap({
+  scanId,
+  height = 420,
+  limit = 500,
+  title = 'Market map',
+  byIndustry = false,
+  // Controls for the header (the Maps page puts its size and grouping here).
+  actions = null,
+}) {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const width = useWidth(containerRef);
@@ -37,17 +45,20 @@ export default function MarketHeatmap({ scanId, height = 420, limit = 500, title
   });
   const items = query.data?.items;
   const layout = useMemo(
-    () => (items && width > 0 ? layoutHeatmap(items, width, height) : null),
-    [items, width, height],
+    () => (items && width > 0 ? layoutHeatmap(items, width, height, { byIndustry }) : null),
+    [items, width, height, byIndustry],
   );
 
   return (
     <section aria-label={title} className="min-w-0 rounded-lg border border-border bg-surface p-2">
       <header className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="text-[11px] text-muted-foreground">
-          {layout ? `${layout.tiles.length} largest companies by market cap · 1-day change` : null}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[11px] text-muted-foreground">
+            {layout ? `${layout.tiles.length} largest companies by market cap · 1-day change` : null}
+          </p>
+          {actions}
+        </div>
       </header>
       <div ref={containerRef} className="relative overflow-hidden rounded-md bg-[#2b2f38]" style={{ height }}>
         {query.isLoading && <div role="status" aria-label="Loading market map" className="absolute inset-0 bg-surface-subtle motion-safe:animate-pulse" />}
@@ -60,6 +71,16 @@ export default function MarketHeatmap({ scanId, height = 420, limit = 500, title
             style={{ left: sector.x, top: sector.y, width: sector.width }}
           >
             {sector.name}
+          </div>
+        ))}
+        {layout?.industries.map((industry) => (
+          <div
+            key={`${industry.name}-${industry.x}-${industry.y}`}
+            aria-hidden="true"
+            className="pointer-events-none absolute truncate px-1 text-[9px] leading-3 text-white/60"
+            style={{ left: industry.x, top: industry.y, width: industry.width }}
+          >
+            {industry.name}
           </div>
         ))}
         {layout?.tiles.map((tile) => {

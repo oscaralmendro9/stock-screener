@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,6 +17,8 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import StopIcon from '@mui/icons-material/Stop';
@@ -106,6 +108,24 @@ function ScanControlBar({
   onUseLastPublished,
 }) {
   const controlsDisabled = createScanPending || scanStatus === 'running';
+  // The screener shows a finished scan; setting up a new one is occasional,
+  // so its controls sit behind "New scan". They open on their own when
+  // nothing is loaded yet (or "New Scan" is picked) and for a social
+  // selection, which arrives here to be scanned.
+  const newScanPanelId = useId();
+  const mustSetUp = !currentScanId || customSymbols.length > 0;
+  const [newScanOpen, setNewScanOpen] = useState(mustSetUp);
+  // Until the user toggles it, the panel follows the page: the first render
+  // has no scan yet (open), then the loaded scan closes it again.
+  const userToggled = useRef(false);
+  useEffect(() => {
+    if (mustSetUp) setNewScanOpen(true);
+    else if (!userToggled.current) setNewScanOpen(false);
+  }, [mustSetUp]);
+  const toggleNewScan = () => {
+    userToggled.current = true;
+    setNewScanOpen((open) => !open);
+  };
   const universeMarkets = universeSelections?.markets ?? [];
   const {
     marketOption: selectedMarketOption,
@@ -182,8 +202,67 @@ function ScanControlBar({
           </Select>
         </FormControl>
 
-        <Box sx={{ borderLeft: 1, borderColor: 'divider', height: 32, mx: 0.5 }} />
+        {currentScanId && statusData && (
+          <ScanProgress
+            status={statusData.status}
+            progress={statusData.progress}
+            totalStocks={statusData.total_stocks}
+            completedStocks={statusData.completed_stocks}
+            passedStocks={statusData.passed_stocks}
+            etaSeconds={statusData.eta_seconds}
+          />
+        )}
 
+        {scanStatus === 'running' && (
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={cancelScanPending ? <CircularProgress size={14} /> : <StopIcon />}
+            onClick={onCancelScan}
+            disabled={cancelScanPending}
+          >
+            Cancel
+          </Button>
+        )}
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        {lastPublishedAvailable && onUseLastPublished && (
+          <Tooltip
+            title="Load a completed scan from the last published snapshot instead of computing one now."
+            describeChild
+          >
+            <span tabIndex={lastPublishedDisabled ? 0 : undefined} style={{ display: 'inline-flex' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={onUseLastPublished}
+                disabled={lastPublishedDisabled}
+              >
+                Use last published data
+              </Button>
+            </span>
+          </Tooltip>
+        )}
+
+        <Button
+          variant={newScanOpen ? 'text' : 'outlined'}
+          size="small"
+          aria-expanded={newScanOpen}
+          aria-controls={newScanPanelId}
+          startIcon={newScanOpen ? <ExpandLessIcon /> : <AddIcon />}
+          onClick={toggleNewScan}
+        >
+          {newScanOpen ? 'Hide scan setup' : 'New scan'}
+        </Button>
+      </Box>
+
+      {newScanOpen && (
+      <Box
+        id={newScanPanelId}
+        sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider' }}
+      >
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel id="universe-market-label">Market</InputLabel>
           <Select
@@ -285,18 +364,7 @@ function ScanControlBar({
           {stockCountLabel(universeMarket, universeScope, universeStats, statsLoading, selectedScopeOption)}
         </Box>
 
-        {scanStatus === 'running' ? (
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={cancelScanPending ? <CircularProgress size={14} /> : <StopIcon />}
-            onClick={onCancelScan}
-            disabled={cancelScanPending}
-          >
-            Cancel
-          </Button>
-        ) : (
+        {scanStatus !== 'running' && (
           refreshConflict ? (
             <Tooltip title={refreshConflict.message} describeChild>
               <span
@@ -328,37 +396,10 @@ function ScanControlBar({
           )
         )}
 
-        {lastPublishedAvailable && onUseLastPublished && (
-          <Tooltip
-            title="Load a completed scan from the last published snapshot instead of computing one now."
-            describeChild
-          >
-            <span tabIndex={lastPublishedDisabled ? 0 : undefined} style={{ display: 'inline-flex' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={onUseLastPublished}
-                disabled={lastPublishedDisabled}
-              >
-                Use last published data
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-
-        {currentScanId && statusData && (
-          <ScanProgress
-            status={statusData.status}
-            progress={statusData.progress}
-            totalStocks={statusData.total_stocks}
-            completedStocks={statusData.completed_stocks}
-            passedStocks={statusData.passed_stocks}
-            etaSeconds={statusData.eta_seconds}
-          />
-        )}
       </Box>
+      )}
 
-      <Collapse in={selectedScreeners.includes('custom')}>
+      <Collapse in={newScanOpen && selectedScreeners.includes('custom')}>
         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
           <Grid container spacing={1}>
             <Grid item xs={6} sm={4} md={2}>

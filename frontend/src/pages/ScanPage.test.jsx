@@ -123,6 +123,13 @@ beforeEach(() => {
   scanApi.getScans.mockResolvedValue({ scans: [] });
 });
 
+// With a scan on screen its setup sits behind "New scan" (ScanControlBar);
+// open it before starting another scan. No-op when it is already open.
+const openScanSetup = () => {
+  const toggle = screen.queryByText('New scan', { selector: 'button' });
+  if (toggle) fireEvent.click(toggle);
+};
+
 describe('ScanPage', () => {
   it('turns a URL-safe Social selection into a custom scan universe', async () => {
     runtimeState.runtimeReady = true;
@@ -1476,6 +1483,7 @@ describe('ScanPage', () => {
       fireEvent.click(await screen.findByText('Use last published data', { selector: 'button' }, { timeout: 3000 }));
       expect(await screen.findByText(/^Last published data as of 2026-10-01/, {}, { timeout: 3000 })).toBeInTheDocument();
 
+      openScanSetup();
       fireEvent.click(screen.getByText('Scan', { selector: 'button' }));
       await waitFor(() => expect(scanApi.createScan).toHaveBeenCalledTimes(3));
       await screen.findByText('Error: Another scan is already queued or running.', {}, { timeout: 3000 });
@@ -1527,6 +1535,7 @@ describe('ScanPage', () => {
       );
       // Text and selector queries: role queries over the results table are
       // slow enough to time out under a loaded full-suite run.
+      openScanSetup();
       fireEvent.click(screen.getByText('Scan', { selector: 'button' }));
       fireEvent.mouseDown(screen.getByLabelText('Previous Scans'));
       const scanB = await waitFor(() => {
@@ -1570,6 +1579,7 @@ describe('ScanPage', () => {
         () => expect(screen.getByText(/Results:\s*1 stocks/i)).toBeInTheDocument(),
         { timeout: 3000 },
       );
+      openScanSetup();
       fireEvent.click(screen.getByText('Scan', { selector: 'button' }));
       await screen.findByText('Showing your previous results until the new scan finishes.', {}, { timeout: 3000 });
 
@@ -1721,6 +1731,7 @@ describe('ScanPage', () => {
         () => expect(screen.getByText(/Results:\s*1 stocks/i)).toBeInTheDocument(),
         { timeout: 3000 },
       );
+      openScanSetup();
       fireEvent.click(screen.getByText('Scan', { selector: 'button' }));
 
       expect(

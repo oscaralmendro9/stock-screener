@@ -44,6 +44,22 @@ describe('layoutHeatmap', () => {
     expect(tiles.map((tile) => tile.symbol).sort()).toEqual(['AAPL', 'MSFT', 'XOM']);
   });
 
+  it('splits sectors into labelled industries on request, keeping every company', () => {
+    const withIndustries = [
+      { symbol: 'NVDA', gics_sector: 'Technology', gics_industry: 'Semiconductors', market_cap_usd: 500 },
+      { symbol: 'AVGO', gics_sector: 'Technology', gics_industry: 'Semiconductors', market_cap_usd: 300 },
+      { symbol: 'MSFT', gics_sector: 'Technology', gics_industry: 'Software', market_cap_usd: 400 },
+      { symbol: 'TINY', gics_sector: 'Technology', gics_industry: 'Hardware', market_cap_usd: 10 },
+    ];
+    const flat = layoutHeatmap(withIndustries, 600, 400);
+    const nested = layoutHeatmap(withIndustries, 600, 400, { byIndustry: true });
+
+    expect(flat.industries).toEqual([]);
+    expect(nested.tiles).toHaveLength(4);
+    // Big industries get a label strip; a sliver keeps its room for tiles.
+    expect(nested.industries.map((industry) => industry.name).sort()).toEqual(['Semiconductors', 'Software']);
+  });
+
   it('sizes tiles by market cap', () => {
     const { tiles } = layoutHeatmap(items, 400, 300);
     const area = (symbol) => {

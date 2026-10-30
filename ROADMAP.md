@@ -47,8 +47,8 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] `FEATURE_THEMES` / `FEATURE_CHATBOT` pass through docker-compose (default true) so a deployment without LLM keys can hide Themes and the assistant
 - [x] Home rebuilt Finviz-style: breadth split bars, signal lists (gainers/losers, new highs/lows, unusual volume, most active/volatile, leaders) and a sector market map from `GET /v1/scans/{id}/heatmap` (six fields per name, pages walked server-side)
 - [x] Stock page as the quote hub: Finviz-style header, Overview | Options tabs (`?tab=options` embeds the chain), full-width chart and a six-column key-stats grid (fundamentals, performance, trend, volume/volatility, RS, scores; price-derived stats computed from the dashboard history). The MUI metrics sidebar is gone from it; the analysis accordions stay below
-- [ ] Maps (sector heatmap)
-- [ ] "New scan" out of the screener's main view
+- [x] Maps: full-screen market map at `/maps` (top 300/500/1000, sector or sector & industry), live-only nav item
+- [x] "New scan" out of the screener's main view: the control bar keeps the loaded-scan picker, progress, Cancel and "Use last published data"; market, universe, strategies and Scan open from "New scan" (and on their own when nothing is loaded)
 
 ## Phase 4 — Page migration
 - [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer

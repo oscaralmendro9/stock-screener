@@ -16,6 +16,7 @@ export const loadFuturesDetailPage = () => import('./pages/FuturesDetailPage');
 export const loadOptionsChainPage = () => import('./pages/OptionsChainPage');
 export const loadWatchlistsPage = () => import('./pages/WatchlistsPage');
 export const loadCotPage = () => import('./pages/CotPage');
+export const loadMapsPage = () => import('./pages/MapsPage');
 
 const PATH_LOADERS = {
   '/': loadMarketScanPage,
@@ -30,6 +31,7 @@ const PATH_LOADERS = {
   '/futures': loadFuturesPage,
   '/watchlists': loadWatchlistsPage,
   '/cot': loadCotPage,
+  '/maps': loadMapsPage,
 };
 
 export function loaderForPath(pathname) {

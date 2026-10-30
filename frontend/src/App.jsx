@@ -47,6 +47,7 @@ import {
   loadValidationPage,
   loadWatchlistsPage,
   loadCotPage,
+  loadMapsPage,
   loaderForPath,
 } from './pageLoaders';
 import { SectionPage } from './components/Layout/SectionTabs';
@@ -71,6 +72,7 @@ const FuturesDetailPage = lazy(loadFuturesDetailPage);
 const OptionsChainPage = lazy(loadOptionsChainPage);
 const WatchlistsPage = lazy(loadWatchlistsPage);
 const CotPage = lazy(loadCotPage);
+const MapsPage = lazy(loadMapsPage);
 const StaticAppShell = lazy(() => import('./static/StaticAppShell'));
 
 // Fetch the landing page's code alongside /app-capabilities rather than after
@@ -290,6 +292,7 @@ function AppShell() {
               <Route path="/groups" element={<SectionPage section="groups"><GroupRankingsPage /></SectionPage>} />
               {features.themes && <Route path="/themes" element={<SectionPage section="groups"><ThemesPage /></SectionPage>} />}
               <Route path="/watchlists" element={<WatchlistsPage />} />
+              <Route path="/maps" element={<MapsPage />} />
               {features.chatbot && <Route path="/chatbot" element={<ChatbotPage />} />}
               <Route path="/options" element={<LiveOptionsRoute />} />
               <Route path="/options/:symbol" element={<LiveOptionsRoute detail />} />
