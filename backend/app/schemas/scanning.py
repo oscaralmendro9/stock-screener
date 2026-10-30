@@ -597,6 +597,25 @@ class ScanListResponse(BaseModel):
     scans: List[ScanListItem]
 
 
+class ScanHeatmapItem(BaseModel):
+    """One tile of the market map: size by market cap, color by 1D change."""
+
+    symbol: str
+    company_name: Optional[str] = None
+    gics_sector: Optional[str] = None
+    gics_industry: Optional[str] = None
+    market_cap_usd: Optional[float] = None
+    price_change_1d: Optional[float] = None
+
+
+class ScanHeatmapResponse(BaseModel):
+    """The largest names of a scan, trimmed to what a market map draws."""
+
+    scan_id: str
+    total: int
+    items: List[ScanHeatmapItem]
+
+
 class FilterOptionsResponse(BaseModel):
     """Response model for filter options."""
 

@@ -17,6 +17,9 @@ import { useMarket } from '../../contexts/MarketContext';
 import { describeRequestError } from '../../utils/requestErrors';
 import { formatSnapshotFreshnessLabel } from '../../utils/snapshotFreshness';
 import DailySocialSignalsCard from '../../features/socialSignals/DailySocialSignalsCard';
+import BreadthBars from '../../features/home/BreadthBars';
+import MarketHeatmap from '../../features/home/MarketHeatmap';
+import SignalTables from '../../features/home/SignalTables';
 
 const EMPTY_ROWS = [];
 const DEFAULT_TOP_RESULTS = 20;
@@ -234,12 +237,20 @@ function DailyMarketSnapshotTab({ showSocialSignals = false, onOpenSocialSignals
       </header>
 
       {/* Phones: two cards per row (one below ~300px, e.g. 200% zoom). Wider
-          screens fit as many ~160px cards as the row holds, so a 1920px
-          monitor shows all nine default key markets in one row. */}
-      <div className="grid grid-cols-2 gap-3 max-[300px]:grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
+          screens fit as many ~140px cards as the row holds, so from ~1440px
+          the nine default key markets share one row. */}
+      <div className="grid grid-cols-2 gap-3 max-[300px]:grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
         {keyMarkets.map((item) => (
           <KeyMarketCard key={item.symbol} item={item} currency={item.currency || 'USD'} />
         ))}
+      </div>
+
+      <BreadthBars market={selectedMarket} />
+
+      {/* Finviz's home row: the day's signal lists beside the market map. */}
+      <div className="grid items-start gap-3 min-[1400px]:grid-cols-2">
+        <SignalTables scanId={scanId} leaders={leaders} />
+        <MarketHeatmap scanId={scanId} />
       </div>
 
       <div className={WIDE_PAIR}>

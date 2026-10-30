@@ -31,6 +31,12 @@ vi.mock('../Scan/RSSparkline', () => ({
   default: () => <span data-testid="rs-sparkline" />,
 }));
 
+// Home's breadth bars, signal lists and market map fetch on their own and
+// have their own tests; stubbed so these cases cover the snapshot request.
+vi.mock('../../features/home/BreadthBars', () => ({ default: () => <div data-testid="breadth-bars" /> }));
+vi.mock('../../features/home/SignalTables', () => ({ default: () => <div data-testid="signal-tables" /> }));
+vi.mock('../../features/home/MarketHeatmap', () => ({ default: () => <div data-testid="market-heatmap" /> }));
+
 vi.mock('./MarketHealthExposure', () => ({
   default: () => <div data-testid="market-health-exposure" />,
 }));

@@ -270,3 +270,49 @@ class TestScanResultEndpoints:
             }
         finally:
             app.dependency_overrides.pop(get_uow, None)
+
+    async def test_heatmap_walks_pages_and_returns_only_map_fields(self, client):
+        items = [
+            make_domain_item(
+                f"S{index:03d}",
+                gics_sector="Technology",
+                gics_industry="Semiconductors",
+                market_cap_usd=1e12 - index * 1e9,
+                price_change_1d=1.5,
+            )
+            for index in range(150)
+        ]
+        scan_results = FakeScanResultRepository(items=items)
+        scan_repo = FakeScanRepository()
+        scan_repo.scans["scan-map"] = _make_scan("scan-map")
+        uow = _FakeUoW(scans=scan_repo, scan_results=scan_results)
+
+        app.dependency_overrides[get_uow] = lambda: uow
+        try:
+            resp = await client.get("/api/v1/scans/scan-map/heatmap?limit=120")
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["scan_id"] == "scan-map"
+            assert payload["total"] == 150
+            # Past the 100-row page cap, cut at the limit.
+            assert len(payload["items"]) == 120
+            assert payload["items"][0] == {
+                "symbol": "S000",
+                "company_name": "S000 Inc",
+                "gics_sector": "Technology",
+                "gics_industry": "Semiconductors",
+                "market_cap_usd": 1e12,
+                "price_change_1d": 1.5,
+            }
+            assert payload["items"][119]["symbol"] == "S119"
+            # Biggest first, rows without a cap dropped, no sparklines.
+            spec = scan_results.last_query_args["spec"]
+            assert spec.sort.field == "market_cap_usd"
+            assert spec.sort.order.value == "desc"
+            assert scan_results.last_query_args["include_sparklines"] is False
+        finally:
+            app.dependency_overrides.pop(get_uow, None)
+
+    async def test_heatmap_rejects_a_limit_over_the_cap(self, client):
+        resp = await client.get("/api/v1/scans/scan-map/heatmap?limit=5000")
+        assert resp.status_code == 422
