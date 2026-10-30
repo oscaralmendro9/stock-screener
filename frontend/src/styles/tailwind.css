@@ -27,6 +27,14 @@
   }
 }
 
+/* Thin, token-colored scrollbars everywhere (tables, panes, the page). */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
 /* Dark mode follows the same attribute the MUI theme and color-mode.js use. */
 @custom-variant dark (&:where([data-color-mode='dark'], [data-color-mode='dark'] *));
 

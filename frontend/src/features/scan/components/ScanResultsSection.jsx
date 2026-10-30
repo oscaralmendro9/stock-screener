@@ -1,5 +1,8 @@
-import { Alert, Box, Button, Chip, LinearProgress, Paper, Typography } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
+import { Alert, Box, Button, LinearProgress, Paper, Typography } from '@mui/material';
+import { Download } from 'lucide-react';
+
+import { Badge } from '@/ui/badge';
+import { Button as UiButton } from '@/ui/button';
 import ResultsTable from '../../../components/Scan/ResultsTable';
 import { expressionSummary } from '../filterExpressionBuilder';
 import { TableSkeleton } from '../../../components/common/LoadingSkeletons';
@@ -35,6 +38,9 @@ export default function ScanResultsSection({
     const hasAppliedFilter = expression
       ? expression.required.conditions.length > 0 || expression.groups.some((group) => group.enabled !== false)
       : false;
+    const countSuffix = hasAppliedFilter && unfilteredTotal !== resultsData.total
+      ? `stocks matching of ${unfilteredTotal.toLocaleString()}`
+      : 'stocks';
     return (
       <>
         {resultsFetching && (
@@ -48,27 +54,26 @@ export default function ScanResultsSection({
             {typeof errorMessage === 'string' ? errorMessage : 'The results request failed. Your previous results are still shown.'}
           </Alert>
         )}
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-          <Box>
-            <Typography variant="h6">
-              Results: {resultsData.total.toLocaleString()} stocks
-              {hasAppliedFilter && unfilteredTotal !== resultsData.total
-                ? ` matching of ${unfilteredTotal.toLocaleString()}`
-                : ''}
-            </Typography>
+        <div className="tw mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            {/* Screen readers (and tests) get the full sentence; the eye gets a big count. */}
+            <h2 className="flex flex-wrap items-baseline gap-x-2 text-pretty">
+              <span className="sr-only">Results: {resultsData.total.toLocaleString()} {countSuffix}</span>
+              <span aria-hidden="true" className="text-2xl font-semibold tabular-nums">{resultsData.total.toLocaleString()}</span>
+              <span aria-hidden="true" className="text-sm text-muted-foreground">{countSuffix}</span>
+            </h2>
             {expression && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.5 }}>
-                <Chip size="small" color={hasAppliedFilter ? 'primary' : 'default'} label="Applied" />
-                <Typography variant="caption" color="text.secondary">
-                  {expressionSummary(expression)}
-                </Typography>
-              </Box>
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge tone={hasAppliedFilter ? 'accent' : 'neutral'}>{hasAppliedFilter ? 'Filtered' : 'Unfiltered'}</Badge>
+                <span className="min-w-0">{expressionSummary(expression)}</span>
+              </p>
             )}
-          </Box>
-          <Button variant="outlined" startIcon={<DownloadIcon />} onClick={onExport} disabled={!resultsData.total}>
+          </div>
+          <UiButton variant="secondary" size="sm" onClick={onExport} disabled={!resultsData.total}>
+            <Download aria-hidden="true" />
             Export to CSV
-          </Button>
-        </Box>
+          </UiButton>
+        </div>
 
         <ResultsTable
           results={resultsData.results}

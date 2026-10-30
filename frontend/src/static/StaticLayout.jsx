@@ -147,7 +147,7 @@ function StaticLayout({ children }) {
 
       <main
         className={cn(
-          'mx-auto my-3 w-full max-w-[1536px] flex-1',
+          'mx-auto my-3 w-full flex-1',
           SAFE_GUTTER_CLASSES,
           isMobile && 'pb-[calc(64px+env(safe-area-inset-bottom))]',
         )}

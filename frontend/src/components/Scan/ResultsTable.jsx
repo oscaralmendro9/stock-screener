@@ -326,7 +326,8 @@ const ResultRow = styled(TableRow)(({ theme }) => ({
     { color: resolvePaletteColor(theme.palette, path) },
   ])),
   ...heatClassStyles(theme.palette),
-  '& .rt-mono': { fontFamily: 'monospace' },
+  // Aligned digits in the UI font; a monospace face reads as a terminal.
+  '& .rt-mono': { fontVariantNumeric: 'tabular-nums' },
   '& .rt-strong': { fontWeight: 600 },
   '& .rt-ellipsis': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   '& .rt-p2': { padding: '2px' },

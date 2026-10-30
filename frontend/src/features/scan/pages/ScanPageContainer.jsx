@@ -785,14 +785,14 @@ function ScanPage() {
 
   if (!runtimeReady) {
     return (
-      <Container maxWidth="xl" sx={{ pt: 1 }}>
+      <Container maxWidth={false} disableGutters sx={{ pt: 1 }}>
         <PageSkeleton label="Loading scan" />
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ pt: 1 }}>
+    <Container maxWidth={false} disableGutters sx={{ pt: 1 }}>
       <ScanControlBar
         currentScanId={currentScanId}
         scanHistory={scanHistory}

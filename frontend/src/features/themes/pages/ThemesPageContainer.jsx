@@ -403,7 +403,7 @@ function ThemesPage() {
 
   if (!runtimeReady) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -413,7 +413,7 @@ function ThemesPage() {
 
   if (economicCatalogQuery.isPending) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -423,7 +423,7 @@ function ThemesPage() {
 
   if (economicMode) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}
           justifyContent="space-between"
@@ -509,7 +509,7 @@ function ThemesPage() {
 
   if (themeView === 'flat' && errorRankings) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
         <Alert severity="error">Error loading themes: {errorRankings.message}</Alert>
         <Box mt={2}>
           <Button
@@ -526,7 +526,7 @@ function ThemesPage() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
       <ThemesPageHeader
         selectedPipeline={selectedPipeline}
         onPipelineChange={handlePipelineChangeWithReset}

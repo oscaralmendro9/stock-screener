@@ -112,7 +112,7 @@ const AppLoadingScreen = ({ label = 'Stock Scanner' }) => (
         <BrandMark label={label} />
       </Toolbar>
     </AppBar>
-    <Container maxWidth="xl" sx={{ mt: 1 }}>
+    <Container maxWidth={false} disableGutters sx={{ mt: 1 }}>
       <PageSkeleton label="Loading Stock Scanner" />
     </Container>
   </Box>

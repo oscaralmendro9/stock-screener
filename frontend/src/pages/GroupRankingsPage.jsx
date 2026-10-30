@@ -697,7 +697,7 @@ function GroupRankingsPage() {
 
   if (!runtimeReady) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
         <PageSkeleton label="Loading group rankings" />
       </Container>
     );
@@ -712,7 +712,7 @@ function GroupRankingsPage() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+    <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
       {features.tasks && selectedMarket === 'US' && (
         <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
           <Button

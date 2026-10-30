@@ -883,7 +883,7 @@ export default function OperationsPage() {
   const [activeId, selectTab] = useHashTab(visibleIds);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 2 }}>
+    <Container maxWidth={false} disableGutters sx={{ py: 2 }}>
       <Typography variant="h5" gutterBottom>
         Operations
       </Typography>

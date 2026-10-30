@@ -776,6 +776,6 @@ describe('ResultsTable', () => {
     expect(zeros).toHaveLength(2);
     zeros.forEach((cell) => expect(cell.className).not.toMatch(/rt-heat/));
     // The generated rule paints the tint (success.main at step 5).
-    expect(screen.getByText('95.4')).toHaveStyle({ backgroundColor: 'rgba(46, 189, 133, 0.5)' });
+    expect(screen.getByText('95.4')).toHaveStyle({ backgroundColor: 'rgba(46, 189, 133, 0.3)' });
   });
 });

@@ -77,6 +77,27 @@ const PALETTES = {
   },
 };
 
+// Filled chips as soft tints (like `Badge` in src/ui) instead of solid fills,
+// so unmigrated pages read like the Tailwind ones. An sx background still wins.
+function softChipRoot({ ownerState, theme }) {
+  const base = { borderRadius: 6, fontWeight: 500 };
+  if (ownerState.variant === 'outlined') {
+    // Colored outlines keep their tone; only the neutral one softens.
+    return !ownerState.color || ownerState.color === 'default' ? { ...base, borderColor: theme.palette.divider } : base;
+  }
+  const tone = ownerState.color && ownerState.color !== 'default' ? theme.palette[ownerState.color] : null;
+  if (!tone?.main) {
+    return { ...base, backgroundColor: theme.palette.background.subtle, color: theme.palette.text.secondary };
+  }
+  return {
+    ...base,
+    backgroundColor: alpha(tone.main, 0.15),
+    color: tone.main,
+    '&.MuiChip-clickable:hover, &.MuiChip-deletable:hover': { backgroundColor: alpha(tone.main, 0.24) },
+    '& .MuiChip-icon, & .MuiChip-deleteIcon': { color: 'inherit' },
+  };
+}
+
 export const getDesignTokens = (mode) => {
   const palette = PALETTES[mode];
   return {
@@ -117,6 +138,37 @@ export const getDesignTokens = (mode) => {
         styleOverrides: {
           // Flat surfaces: no dark-mode elevation tint.
           root: { backgroundImage: 'none' },
+          // Page-level cards (default elevation) get a border instead of a
+          // shadow; menus and popovers keep their higher-elevation shadows.
+          elevation1: { boxShadow: 'none', border: `1px solid ${palette.divider}` },
+        },
+      },
+      MuiButton: {
+        defaultProps: { disableElevation: true },
+        styleOverrides: {
+          root: { borderRadius: 6 },
+          outlined: { borderColor: palette.divider },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 6,
+            backgroundColor: palette.background.subtle,
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: palette.divider },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: palette.text.disabled },
+          },
+        },
+      },
+      MuiAlert: {
+        styleOverrides: {
+          root: { borderRadius: 8 },
+          standard: { border: '1px solid', borderColor: alpha(palette.text.primary, 0.08) },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: { borderRadius: 6, fontSize: '11px' },
         },
       },
       MuiAppBar: {
@@ -145,10 +197,10 @@ export const getDesignTokens = (mode) => {
           head: {
             backgroundColor: palette.background.subtle,
             color: palette.text.secondary,
-            fontWeight: 600,
+            fontWeight: 500,
             fontSize: '11px',
             textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.02em',
             padding: '6px 6px',
             whiteSpace: 'nowrap',
           },
@@ -201,6 +253,7 @@ export const getDesignTokens = (mode) => {
       },
       MuiChip: {
         styleOverrides: {
+          root: softChipRoot,
           sizeSmall: {
             height: 20,
             fontSize: '11px',

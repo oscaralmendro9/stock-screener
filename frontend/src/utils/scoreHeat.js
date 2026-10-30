@@ -27,10 +27,11 @@ export const heatStep = (value) => {
   return null;
 };
 
+// Kept soft (top step 0.3) so a column reads as a heat scale, not a solid band.
 export const heatFill = (palette, { dir, step }) => (
   dir === 'up'
-    ? alpha(palette.success.main, 0.08 + (0.42 * step) / UP_EDGES.length)
-    : alpha(palette.error.main, 0.08 + (0.26 * step) / DOWN_EDGES.length)
+    ? alpha(palette.success.main, 0.06 + (0.24 * step) / UP_EDGES.length)
+    : alpha(palette.error.main, 0.06 + (0.18 * step) / DOWN_EDGES.length)
 );
 
 /** Class name for tables that precompute the steps (see heatClassStyles). */

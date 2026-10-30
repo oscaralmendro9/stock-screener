@@ -130,7 +130,7 @@ function BreadthPage() {
     : contributorDrilldown.viewState.inconsistent;
   if (!runtimeReady || isLoadingCurrent) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -139,7 +139,7 @@ function BreadthPage() {
   }
   if (errorCurrent) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+      <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
         <QueryErrorAlert
           title={`Error loading ${selectedMarket} breadth data`}
           error={errorCurrent}
@@ -150,7 +150,7 @@ function BreadthPage() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+    <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
       <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
         <Box
           sx={{
