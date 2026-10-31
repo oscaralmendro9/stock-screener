@@ -1,33 +1,17 @@
 import { useState, useMemo } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Paper,
-  Typography,
-  Box,
-  CircularProgress,
-  Chip,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
+import { ArrowDown, ArrowUp, ArrowUpDown, LineChart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+
 import apiClient from '../../api/client';
 import { getStockPeers } from '../../api/stocks';
 import RSSparkline from './RSSparkline';
 import AddToWatchlistMenu from '../common/AddToWatchlistMenu';
-import { getStageColor, onPalette } from '../../utils/colorUtils';
 
 /**
  * Fetch peer stocks — scan-based when scanId is provided, standalone otherwise.
@@ -40,6 +24,45 @@ const fetchPeers = async (scanId, symbol) => {
   return getStockPeers(symbol);
 };
 
+const SORT_COLUMNS = [
+  ['composite_score', 'Composite Score'],
+  ['minervini_score', 'Minervini'],
+  ['rs_rating_1m', 'RS 1M'],
+  ['rs_rating_3m', 'RS 3M'],
+  ['rs_rating_12m', 'RS 12M'],
+  ['stage', 'Stage'],
+  ['current_price', 'Price'],
+  ['eps_growth_qq', 'EPS Growth'],
+  ['sales_growth_qq', 'Sales Growth'],
+];
+
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-1.5 font-medium';
+const TD = 'border-b border-border px-2 py-1.5 tabular-nums';
+
+const growthClass = (value) => (
+  value >= 20 ? 'text-gain' : value < 0 ? 'text-loss' : ''
+);
+
+function SortHeader({ field, label, sortBy, sortOrder, onSort, align = 'center' }) {
+  const active = sortBy === field;
+  const Icon = !active ? ArrowUpDown : sortOrder === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={cn(TH, align === 'left' ? 'text-left' : 'text-center', active ? 'text-foreground' : 'text-muted-foreground')}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex cursor-pointer items-center gap-1 rounded-sm whitespace-nowrap outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+        <Icon aria-hidden="true" className={cn('size-3', !active && 'opacity-40')} />
+      </button>
+    </th>
+  );
+}
 
 /**
  * Peer Comparison Modal
@@ -65,8 +88,8 @@ function PeerComparisonModal({ open, onClose, scanId, symbol, onOpenChart }) {
   const sortedPeers = useMemo(() => {
     if (!peers) return [];
     return [...peers].sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
 
       // Handle null/undefined values - push them to the end
       if (aVal == null && bVal == null) return 0;
@@ -86,293 +109,115 @@ function PeerComparisonModal({ open, onClose, scanId, symbol, onOpenChart }) {
   }, [peers, sortBy, sortOrder]);
 
   const industryGroup = peers && peers.length > 0 ? peers[0].ibd_industry_group : '';
+  const sortProps = { sortBy, sortOrder, onSort: handleRequestSort };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        sx: { minHeight: '70vh', maxHeight: '90vh' }
-      }}
-    >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h6" fontWeight="bold">
-              Industry Peers: {symbol}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {industryGroup || 'Loading...'}
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title={`Industry Peers: ${symbol ?? ''}`}
+        size="xl"
+        className="sm:min-h-[70dvh]"
+        footer={<DialogClose asChild><Button variant="ghost" size="sm">Close</Button></DialogClose>}
+      >
+        <p className="-mt-1 mb-3 text-sm text-muted-foreground">{industryGroup || (isLoading ? 'Loading...' : '')}</p>
 
-      <DialogContent dividers>
         {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
-            <CircularProgress />
-          </Box>
+          <div aria-busy="true" aria-label="Loading peers" className="flex flex-col gap-1.5">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="h-9 rounded bg-surface-subtle motion-safe:animate-pulse" />
+            ))}
+          </div>
         )}
 
-        {error && (
-          <Typography color="error">
-            Error loading peers: {error.message}
-          </Typography>
-        )}
+        {error && <Notice tone="error">Error loading peers: {error.message}</Notice>}
 
         {peers && peers.length > 0 && (
           <>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Found {peers.length} stocks in this industry group
-              </Typography>
-            </Box>
-
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Chart</TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortBy === 'symbol'}
-                        direction={sortBy === 'symbol' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('symbol')}
+            <p className="mb-2 text-sm text-muted-foreground tabular-nums">
+              Found {peers.length} stocks in this industry group
+            </p>
+            <div className="max-h-[60dvh] overflow-auto rounded-md border border-border">
+              <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-xs">
+                <thead>
+                  <tr>
+                    <th scope="col" className={cn(TH, 'text-left text-muted-foreground')}>Chart</th>
+                    <SortHeader field="symbol" label="Symbol" align="left" {...sortProps} />
+                    <th scope="col" className={cn(TH, 'text-center text-muted-foreground')}>RS Trend</th>
+                    {SORT_COLUMNS.map(([field, label]) => (
+                      <SortHeader key={field} field={field} label={label} {...sortProps} />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedPeers.map((peer) => {
+                    const current = peer.symbol === symbol;
+                    return (
+                      <tr
+                        key={peer.symbol}
+                        aria-current={current ? 'true' : undefined}
+                        className={cn('hover:bg-surface-subtle', current && 'bg-accent/10')}
                       >
-                        Symbol
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">RS Trend</TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'composite_score'}
-                        direction={sortBy === 'composite_score' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('composite_score')}
-                      >
-                        Composite Score
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'minervini_score'}
-                        direction={sortBy === 'minervini_score' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('minervini_score')}
-                      >
-                        Minervini
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'rs_rating_1m'}
-                        direction={sortBy === 'rs_rating_1m' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('rs_rating_1m')}
-                      >
-                        RS 1M
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'rs_rating_3m'}
-                        direction={sortBy === 'rs_rating_3m' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('rs_rating_3m')}
-                      >
-                        RS 3M
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'rs_rating_12m'}
-                        direction={sortBy === 'rs_rating_12m' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('rs_rating_12m')}
-                      >
-                        RS 12M
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'stage'}
-                        direction={sortBy === 'stage' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('stage')}
-                      >
-                        Stage
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'current_price'}
-                        direction={sortBy === 'current_price' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('current_price')}
-                      >
-                        Price
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'eps_growth_qq'}
-                        direction={sortBy === 'eps_growth_qq' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('eps_growth_qq')}
-                      >
-                        EPS Growth
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="center">
-                      <TableSortLabel
-                        active={sortBy === 'sales_growth_qq'}
-                        direction={sortBy === 'sales_growth_qq' ? sortOrder : 'asc'}
-                        onClick={() => handleRequestSort('sales_growth_qq')}
-                      >
-                        Sales Growth
-                      </TableSortLabel>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedPeers.map((peer) => (
-                    <TableRow
-                      key={peer.symbol}
-                      sx={{
-                        backgroundColor: peer.symbol === symbol ? 'action.selected' : 'inherit',
-                        '&:hover': { backgroundColor: 'action.hover' }
-                      }}
-                    >
-                      <TableCell>
-                        <Tooltip title="View Chart">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              onClose();
-                              onOpenChart(peer.symbol);
-                            }}
-                            sx={{ color: 'primary.main' }}
-                          >
-                            <ShowChartIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <AddToWatchlistMenu symbols={peer.symbol} size="small" />
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          fontWeight={peer.symbol === symbol ? 'bold' : 'normal'}
-                        >
-                          {peer.symbol}
-                        </Typography>
-                        {peer.company_name && (
-                          <Typography variant="caption" color="text.secondary">
-                            {peer.company_name}
-                          </Typography>
-                        )}
-                      </TableCell>
-
-                      <TableCell align="center" sx={{ p: '4px' }}>
-                        <RSSparkline
-                          data={peer.rs_sparkline_data}
-                          trend={peer.rs_trend}
-                          width={100}
-                          height={28}
-                        />
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2" fontWeight="bold" color="primary">
-                          {peer.composite_score?.toFixed(1) || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {peer.minervini_score?.toFixed(1) || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {peer.rs_rating_1m?.toFixed(1) || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {peer.rs_rating_3m?.toFixed(1) || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {peer.rs_rating_12m?.toFixed(1) || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        {peer.stage && peer.stage_name ? (
-                          <Chip
-                            label={`S${peer.stage}`}
-                            size="small"
-                            sx={{
-                              ...onPalette(getStageColor(peer.stage)),
-                              fontWeight: 'medium',
-                              fontSize: '0.75rem',
-                            }}
+                        <td className={TD}>
+                          <span className="inline-flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              aria-label={`View ${peer.symbol} chart`}
+                              title="View chart"
+                              onClick={() => {
+                                onClose();
+                                onOpenChart(peer.symbol);
+                              }}
+                              className="grid size-7 cursor-pointer place-items-center rounded-md text-accent outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <LineChart aria-hidden="true" className="size-4" />
+                            </button>
+                            <AddToWatchlistMenu symbols={peer.symbol} size="small" />
+                          </span>
+                        </td>
+                        <td className={TD}>
+                          <p className={cn('text-sm', current && 'font-semibold')}>{peer.symbol}</p>
+                          {peer.company_name && (
+                            <p className="max-w-[220px] truncate text-[11px] text-muted-foreground">{peer.company_name}</p>
+                          )}
+                        </td>
+                        <td className={cn(TD, 'px-1 text-center')}>
+                          <RSSparkline
+                            data={peer.rs_sparkline_data}
+                            trend={peer.rs_trend}
+                            width={100}
+                            height={28}
                           />
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {peer.current_price ? `$${peer.current_price.toFixed(2)}` : '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography
-                          variant="body2"
-                          color={
-                            peer.eps_growth_qq >= 20 ? 'success.main' :
-                            peer.eps_growth_qq >= 0 ? 'text.primary' : 'error.main'
-                          }
-                        >
+                        </td>
+                        <td className={cn(TD, 'text-center font-semibold text-accent')}>{peer.composite_score?.toFixed(1) || '-'}</td>
+                        <td className={cn(TD, 'text-center')}>{peer.minervini_score?.toFixed(1) || '-'}</td>
+                        <td className={cn(TD, 'text-center')}>{peer.rs_rating_1m?.toFixed(1) || '-'}</td>
+                        <td className={cn(TD, 'text-center')}>{peer.rs_rating_3m?.toFixed(1) || '-'}</td>
+                        <td className={cn(TD, 'text-center')}>{peer.rs_rating_12m?.toFixed(1) || '-'}</td>
+                        <td className={cn(TD, 'text-center')}>
+                          {peer.stage && peer.stage_name
+                            ? <Badge tone={peer.stage === 2 ? 'accent' : 'neutral'}>{`S${peer.stage}`}</Badge>
+                            : '-'}
+                        </td>
+                        <td className={cn(TD, 'text-center')}>{peer.current_price ? `$${peer.current_price.toFixed(2)}` : '-'}</td>
+                        <td className={cn(TD, 'text-center', growthClass(peer.eps_growth_qq))}>
                           {peer.eps_growth_qq != null ? `${peer.eps_growth_qq.toFixed(1)}%` : '-'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography
-                          variant="body2"
-                          color={
-                            peer.sales_growth_qq >= 20 ? 'success.main' :
-                            peer.sales_growth_qq >= 0 ? 'text.primary' : 'error.main'
-                          }
-                        >
+                        </td>
+                        <td className={cn(TD, 'text-center', growthClass(peer.sales_growth_qq))}>
                           {peer.sales_growth_qq != null ? `${peer.sales_growth_qq.toFixed(1)}%` : '-'}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
 
         {peers && peers.length === 0 && (
-          <Typography color="text.secondary" textAlign="center" sx={{ p: 3 }}>
-            No peer data available for this stock.
-          </Typography>
+          <p className="p-6 text-center text-sm text-muted-foreground">No peer data available for this stock.</p>
         )}
       </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
   );
 }

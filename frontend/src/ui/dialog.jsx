@@ -14,6 +14,26 @@ const SIZES = {
   xl: 'sm:max-w-7xl',
 };
 
+// Full-screen viewer (chart viewers). The caller draws its own header, so the
+// title is passed for screen readers only. `keyboardOwned` leaves Escape to
+// the caller's own key handler (e.g. to close an inner panel first).
+export function FullscreenDialogContent({ title, keyboardOwned = false, className, children, ...props }) {
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-overlay bg-black/50" />
+      <DialogPrimitive.Content
+        aria-describedby={undefined}
+        onEscapeKeyDown={keyboardOwned ? (event) => event.preventDefault() : undefined}
+        className={cn('tw fixed inset-0 z-modal flex flex-col bg-surface text-foreground outline-none', className)}
+        {...props}
+      >
+        <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+}
+
 // Centered modal. Full screen on phones, a card from `sm` up. The overlay
 // centers it with flex rather than a translate, so drag-and-drop libraries
 // that measure positions (hello-pangea/dnd) are not thrown off by a
@@ -21,7 +41,7 @@ const SIZES = {
 export function DialogContent({ title, size = 'md', className, bodyClassName, footer, children, ...props }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="tw fixed inset-0 z-overlay flex items-stretch justify-center bg-black/50 sm:items-center sm:p-4">
+      <DialogPrimitive.Overlay className="tw fixed inset-0 z-modal flex items-stretch justify-center bg-black/50 sm:items-center sm:p-4">
         <DialogPrimitive.Content
           aria-describedby={undefined}
           className={cn(

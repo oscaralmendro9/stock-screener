@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Modal,
-  Box,
-  Typography,
-  IconButton,
-  CircularProgress,
-  Chip,
-  Fade,
-  Button,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
-import PeopleIcon from '@mui/icons-material/People';
+import { Users } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAllFilteredSymbols,
@@ -29,8 +17,9 @@ import StockMetricsSidebar from './StockMetricsSidebar';
 import PeerComparisonModal from './PeerComparisonModal';
 import SetupEngineDrawer from './SetupEngineDrawer';
 import AddToWatchlistMenu from '../common/AddToWatchlistMenu';
-import MarketThemesList from '../Stock/MarketThemesList';
-import { getGroupRankColor, onPalette } from '../../utils/colorUtils';
+import { Button } from '@/ui/button';
+import { Dialog, FullscreenDialogContent } from '@/ui/dialog';
+import { ChartViewerHeader, ChartViewerKeyHints } from './ChartViewerChrome';
 import {
   buildScanQueryRequest,
   stableExpressionKey,
@@ -245,6 +234,8 @@ function ChartViewerModal({
     if (!open) return;
 
     const handleKeyDown = (e) => {
+      if (peerModalOpen) return;
+
       // Escape: close drawer first, then modal (always active, even in inputs)
       if (e.key === 'Escape') {
         if (setupDrawerOpen) {
@@ -280,7 +271,7 @@ function ChartViewerModal({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, goNext, goPrevious, onClose, setupDrawerOpen]);
+  }, [open, goNext, goPrevious, onClose, setupDrawerOpen, peerModalOpen]);
 
   // Reset setup drawer when symbol changes
   useEffect(() => {
@@ -336,293 +327,72 @@ function ChartViewerModal({
     });
   }, [open, currentSymbol, currentIndex, navigationSymbols, queryClient, scanId, currentPageResults]);
 
-  const chartHeight = window.innerHeight - 60; // Full height minus header
+  // Header (~60px) and the key-hint strip (~44px) sit above and below the chart.
+  const chartHeight = window.innerHeight - 104;
+  const epsRating = finalStockData?.eps_rating ?? fundamentals?.eps_rating ?? null;
 
   return (
     <>
-      <Modal
-        open={open}
-        onClose={onClose}
-        aria-labelledby="chart-viewer-modal"
-        closeAfterTransition
-        disableEscapeKeyDown
-      >
-        <Fade in={open}>
-          <Box
-            sx={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              outline: 'none',
-            }}
-          >
-            {/* Header */}
-            <Box
-              sx={{
-                height: 60,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: 3,
-                borderBottom: 1,
-                borderColor: 'divider',
-                bgcolor: 'background.default',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="h5" fontWeight="bold">
-                  {currentSymbol || 'Loading...'}
-                </Typography>
-                {symbolsLoading && <CircularProgress size={20} />}
-
-                {/* Group Rank Box */}
-                {industryGroup && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Box sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      minWidth: 36,
-                      ...onPalette(isGroupRankLoading ? 'grey.400' : getGroupRankColor(groupRankData?.current_rank)),
-                    }}>
-                      {isGroupRankLoading ? (
-                        <CircularProgress size={14} sx={{ color: 'inherit' }} />
-                      ) : (
-                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-                          {groupRankData?.current_rank ?? '-'}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                      Grp Rnk
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* ADR Box */}
-                {adrValue != null && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Box sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      ...onPalette(Number(adrValue) >= 4
-                        ? 'success.main'
-                        : Number(adrValue) >= 2
-                          ? 'warning.main'
-                          : 'error.main'),
-                    }}>
-                      <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-                        {Number(adrValue).toFixed(1)}%
-                      </Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                      ADR
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* EPS Rating Box */}
-                {(finalStockData?.eps_rating != null || fundamentals?.eps_rating != null) && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Box sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      minWidth: 36,
-                      ...onPalette((finalStockData?.eps_rating ?? fundamentals?.eps_rating) >= 80
-                        ? 'success.main'
-                        : (finalStockData?.eps_rating ?? fundamentals?.eps_rating) >= 50
-                          ? 'warning.main'
-                          : 'error.main'),
-                    }}>
-                      <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-                        {finalStockData?.eps_rating ?? fundamentals?.eps_rating}
-                      </Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                      EPS Rtg
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Industry Info Boxes */}
-                {finalStockData && (
-                  <Box sx={{ display: 'flex', gap: 1.5, ml: 1 }}>
-                    {/* IBD Industry Group */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Box sx={{
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        px: 1.5,
-                        py: 0.5,
-                        minWidth: 80,
-                        maxWidth: 180,
-                        textAlign: 'center',
-                        bgcolor: 'background.paper'
-                      }}>
-                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                          {finalStockData.ibd_industry_group || '-'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                        Group
-                      </Typography>
-                    </Box>
-
-                    {/* Sector */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Box sx={{
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        px: 1.5,
-                        py: 0.5,
-                        minWidth: 80,
-                        maxWidth: 180,
-                        textAlign: 'center',
-                        bgcolor: 'background.paper'
-                      }}>
-                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                          {finalStockData.gics_sector || '-'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                        Sector
-                      </Typography>
-                    </Box>
-
-                    {/* Industry */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Box sx={{
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        px: 1.5,
-                        py: 0.5,
-                        minWidth: 80,
-                        maxWidth: 180,
-                        textAlign: 'center',
-                        bgcolor: 'background.paper'
-                      }}>
-                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                          {finalStockData.gics_industry || '-'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                        Industry
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-
-                {marketThemes.length > 0 && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxWidth: 280 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                      Market Themes
-                    </Typography>
-                    <MarketThemesList themes={marketThemes} variant="wrap" />
-                  </Box>
-                )}
-
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {currentSymbol && (
-                  <AddToWatchlistMenu symbols={currentSymbol} size="medium" />
-                )}
+      <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+        <FullscreenDialogContent title={`Chart viewer: ${currentSymbol || ''}`} keyboardOwned>
+          <ChartViewerHeader
+            symbol={currentSymbol}
+            symbolsLoading={symbolsLoading}
+            groupRank={industryGroup ? { show: true, value: groupRankData?.current_rank, loading: isGroupRankLoading } : null}
+            adr={adrValue}
+            epsRating={epsRating}
+            stockData={finalStockData}
+            themes={marketThemes}
+            index={currentIndex}
+            total={totalCount}
+            onClose={onClose}
+            actions={(
+              <>
+                {currentSymbol && <AddToWatchlistMenu symbols={currentSymbol} size="medium" />}
                 {currentSymbol && finalStockData?.ibd_industry_group && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<PeopleIcon />}
-                    onClick={() => setPeerModalOpen(true)}
-                    sx={{ textTransform: 'none' }}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => setPeerModalOpen(true)}>
+                    <Users aria-hidden="true" />
                     View Peers
                   </Button>
                 )}
-                {totalCount > 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    Stock {currentIndex + 1} of {totalCount}
-                  </Typography>
-                )}
-                <IconButton onClick={onClose} size="large">
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-            </Box>
+              </>
+            )}
+          />
 
-            {/* Main Content */}
-            <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-              {/* Sidebar */}
-              <StockMetricsSidebar
-                stockData={finalStockData}
-                fundamentals={fundamentals}
-                onViewPeers={() => setPeerModalOpen(true)}
-                onViewSetupDetails={() => setSetupDrawerOpen(true)}
-              />
-
-              {/* Chart Area */}
-              <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
-                {currentSymbol ? (
-                  <CandlestickChart
-                    symbol={currentSymbol}
-                    period="6mo"
-                    height={chartHeight}
-                    visibleRange={visibleRange}
-                    onVisibleRangeChange={setVisibleRange}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      height: chartHeight,
-                    }}
-                  >
-                    <CircularProgress size={60} />
-                  </Box>
-                )}
-              </Box>
-            </Box>
-
-            {/* Footer - Keyboard Hints */}
-            <Box
-              sx={{
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                p: 1.5,
-                bgcolor: 'background.paper',
-                borderTop: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 3,
-              }}
-            >
-              <Chip icon={<KeyboardIcon />} label="Space: Next Stock" size="small" variant="outlined" />
-              <Chip icon={<KeyboardIcon />} label="Shift+Space: Previous" size="small" variant="outlined" />
-              {currentSymbol && (
-                <Chip icon={<KeyboardIcon />} label="D: Setup Details" size="small" variant="outlined" />
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <StockMetricsSidebar
+              stockData={finalStockData}
+              fundamentals={fundamentals}
+              onViewPeers={() => setPeerModalOpen(true)}
+              onViewSetupDetails={() => setSetupDrawerOpen(true)}
+            />
+            <div className="min-w-0 flex-1 overflow-hidden bg-surface">
+              {currentSymbol ? (
+                <CandlestickChart
+                  symbol={currentSymbol}
+                  period="6mo"
+                  height={chartHeight}
+                  visibleRange={visibleRange}
+                  onVisibleRangeChange={setVisibleRange}
+                />
+              ) : (
+                <div aria-busy="true" aria-label="Loading chart" className="h-full p-4">
+                  <div className="h-full rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+                </div>
               )}
-              <Chip icon={<KeyboardIcon />} label="Esc: Close" size="small" variant="outlined" />
-            </Box>
-          </Box>
-        </Fade>
-      </Modal>
+            </div>
+          </div>
+
+          <ChartViewerKeyHints
+            hints={[
+              'Space: Next Stock',
+              'Shift+Space: Previous',
+              ...(currentSymbol ? ['D: Setup Details'] : []),
+              'Esc: Close',
+            ]}
+          />
+        </FullscreenDialogContent>
+      </Dialog>
 
       {/* Peer Comparison Modal */}
       <PeerComparisonModal

@@ -110,12 +110,19 @@ function StockMetricsSidebar({
   onViewPeers,
   onViewSetupDetails,
 }) {
-  const frame = 'tw flex shrink-0 flex-col gap-3 overflow-auto border-r border-border bg-surface p-4 text-foreground';
+  // A responsive width ({ xs, md } as the static viewer passes) means: full
+  // width stacked under the chart on phones, a 450px column from md up.
+  const responsive = typeof width === 'object';
+  const frame = cn(
+    'tw flex shrink-0 flex-col gap-3 overflow-auto border-border bg-surface p-4 text-foreground',
+    responsive ? 'w-full border-t md:h-full md:w-[450px] md:border-t-0 md:border-r' : 'border-r',
+  );
+  const frameStyle = responsive ? undefined : { width, height };
 
   // Show loading only if neither stockData nor fundamentals are available
   if (!stockData && !fundamentals) {
     return (
-      <div className="tw p-4 text-sm text-muted-foreground" style={{ width }}>
+      <div className="tw p-4 text-sm text-muted-foreground" style={typeof width === 'object' ? undefined : { width }}>
         Loading stock data...
       </div>
     );
@@ -126,7 +133,7 @@ function StockMetricsSidebar({
   // Minimal view when only fundamentals are available (e.g., watchlists)
   if (!stockData && fundamentals) {
     return (
-      <aside className={frame} style={{ width, height }}>
+      <aside className={frame} style={frameStyle}>
         <p className="text-sm font-medium">{fundamentals.symbol}</p>
         {fundamentals?.description && <About description={fundamentals.description} />}
         <Section title="Growth">
@@ -153,7 +160,7 @@ function StockMetricsSidebar({
     stockData?.screeners_run?.includes('setup_engine');
 
   return (
-    <aside className={frame} style={{ width, height }}>
+    <aside className={frame} style={frameStyle}>
       {/* Header: Company Name + Rating */}
       <div className="flex items-start justify-between gap-2">
         <p className="flex-1 text-sm leading-snug font-medium">{stockData.company_name || stockData.symbol}</p>

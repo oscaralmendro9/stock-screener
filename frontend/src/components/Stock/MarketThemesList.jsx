@@ -1,140 +1,75 @@
-import { useState } from 'react';
-import {
-  Box,
-  Chip,
-  Popover,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 
-const WRAP_CHIP_SX = {
-  height: 'auto',
-  '& .MuiChip-label': {
-    whiteSpace: 'normal',
-    py: 0.25,
-    lineHeight: 1.3,
-  },
-};
+import { cn } from '@/lib/cn';
+
+const CHIP = 'inline-flex items-center rounded-sm border border-accent/40 px-1.5 text-accent';
 
 function WrapVariant({ themes, emptyText }) {
   if (!themes?.length) {
-    return (
-      <Typography variant="caption" color="text.secondary">
-        {emptyText}
-      </Typography>
-    );
+    return <span className="text-xs text-muted-foreground">{emptyText}</span>;
   }
   return (
-    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+    <div className="tw flex flex-wrap gap-1.5">
       {themes.map((theme, i) => (
-        <Chip
+        // Long labels wrap rather than being clipped.
+        <span
           key={`${theme}-${i}`}
-          label={theme}
-          size="small"
-          variant="outlined"
-          color="primary"
-          sx={WRAP_CHIP_SX}
-        />
+          className={cn(CHIP, 'py-0.5 text-xs leading-snug')}
+          style={{ whiteSpace: 'normal' }}
+        >
+          {theme}
+        </span>
       ))}
-    </Stack>
+    </div>
   );
 }
 
 function CompactVariant({ themes, maxInlineChips }) {
-  const [anchorEl, setAnchorEl] = useState(null);
-
   if (!themes?.length) {
-    return <Typography component="span" variant="body2" color="text.secondary">-</Typography>;
+    return <span className="text-sm text-muted-foreground">-</span>;
   }
 
   const inline = themes.slice(0, maxInlineChips);
   const overflow = themes.length - inline.length;
-  const tooltipText = themes.join(' · ');
 
-  const handleOpen = (event) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = (event) => {
-    event?.stopPropagation?.();
-    setAnchorEl(null);
-  };
-
-  // Intentionally no onClick on this Box: clicks on visible chips should
-  // still bubble to the TableRow handler (open-chart on row click), matching
-  // every other text cell. We stop propagation only on (a) the +N chip and
-  // (b) the Popover's Paper, so that popover interactions don't also open
-  // the chart via synthetic-event bubbling through the React tree.
+  // Visible chips have no click handler, so clicks still bubble to the row
+  // (open chart on row click). Only the +N trigger and the popover stop
+  // propagation. No portal: this sits inside MUI tables and modals too.
   return (
-    <Tooltip title={tooltipText} placement="top" arrow>
-      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, maxWidth: '100%' }}>
-        {inline.map((theme, i) => (
-          <Chip
-            key={`${theme}-${i}`}
-            label={theme}
-            size="small"
-            variant="outlined"
-            color="primary"
-            sx={{
-              height: 20,
-              fontSize: '0.7rem',
-              maxWidth: 110,
-              '& .MuiChip-label': { px: 0.75 },
-            }}
-          />
-        ))}
-        {overflow > 0 && (
-          <>
-            <Chip
-              label={`+${overflow}`}
-              size="small"
-              variant="outlined"
-              onClick={handleOpen}
-              sx={{
-                height: 20,
-                fontSize: '0.7rem',
-                cursor: 'pointer',
-                '& .MuiChip-label': { px: 0.75 },
-              }}
-            />
-            <Popover
-              open={Boolean(anchorEl)}
-              anchorEl={anchorEl}
-              onClose={handleClose}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-              slotProps={{
-                paper: {
-                  sx: { p: 1.25, maxWidth: 320 },
-                  onClick: (e) => e.stopPropagation(),
-                },
-              }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 0.5 }}
-              >
-                Market Themes ({themes.length})
-              </Typography>
-              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                {themes.map((theme, i) => (
-                  <Chip
-                    key={`${theme}-${i}`}
-                    label={theme}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                    sx={WRAP_CHIP_SX}
-                  />
-                ))}
-              </Stack>
-            </Popover>
-          </>
-        )}
-      </Box>
-    </Tooltip>
+    <span className="tw inline-flex max-w-full items-center gap-1" title={themes.join(' · ')}>
+      {inline.map((theme, i) => (
+        <span key={`${theme}-${i}`} className={cn(CHIP, 'h-5 max-w-[110px] truncate text-[11px]')}>
+          {theme}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <PopoverPrimitive.Root>
+          <PopoverPrimitive.Trigger
+            aria-label={`Show all ${themes.length} market themes`}
+            onClick={(event) => event.stopPropagation()}
+            className="inline-flex h-5 cursor-pointer items-center rounded-sm border border-border px-1.5 text-[11px] text-muted-foreground outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {`+${overflow}`}
+          </PopoverPrimitive.Trigger>
+          <PopoverPrimitive.Content
+            align="start"
+            sideOffset={6}
+            collisionPadding={8}
+            onClick={(event) => event.stopPropagation()}
+            className="tw z-toast max-w-xs rounded-md border border-border bg-surface p-2.5 text-foreground shadow-lg outline-none"
+          >
+            <p className="mb-1.5 text-xs text-muted-foreground">Market Themes ({themes.length})</p>
+            <div className="flex flex-wrap gap-1.5">
+              {themes.map((theme, i) => (
+                <span key={`${theme}-${i}`} className={cn(CHIP, 'py-0.5 text-xs leading-snug whitespace-normal')}>
+                  {theme}
+                </span>
+              ))}
+            </div>
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Root>
+      )}
+    </span>
   );
 }
 

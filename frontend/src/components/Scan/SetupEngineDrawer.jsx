@@ -1,10 +1,17 @@
-import { Alert, Box, Chip, CircularProgress, Drawer, IconButton, Typography } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Check, TriangleAlert, X } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Notice } from '@/ui/notice';
+import { Sheet, SheetContent, SheetTitle } from '@/ui/sheet';
+
 import { formatPatternName, getScoreColor } from '../../utils/formatUtils';
-import { onPalette } from '../../utils/colorUtils';
+
+// getScoreColor returns MUI palette keys; map them onto theme tokens.
+const SCORE_TEXT = { 'success.main': 'text-gain', 'warning.main': 'text-warning', 'error.main': 'text-loss' };
+const SCORE_TONE = { 'success.main': 'gain', 'warning.main': 'warning', 'error.main': 'loss' };
+const scoreText = (value) => SCORE_TEXT[getScoreColor(value)] || '';
+const scoreTone = (value) => SCORE_TONE[getScoreColor(value)] || 'neutral';
 
 // Human-readable names for common check/flag strings
 const CHECK_NAME_MAP = {
@@ -76,45 +83,49 @@ const formatCheckName = (name) => {
 };
 
 /**
- * Section header
+ * Section header (literal uppercase text, not a CSS transform)
  */
 const DrawerSection = ({ title, children }) => (
-  <Box sx={{ mb: 2 }}>
-    <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{ fontWeight: 'bold', letterSpacing: 0.5, fontSize: '0.7rem', mb: 0.75, display: 'block' }}
-    >
-      {title}
-    </Typography>
+  <section className="mb-4">
+    <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground">{title}</h3>
     {children}
-  </Box>
+  </section>
 );
 
 /**
  * Score grid item
  */
 const ScoreItem = ({ label, value }) => (
-  <Box sx={{ textAlign: 'center' }}>
-    <Typography variant="h6" fontWeight="bold" sx={{ color: getScoreColor(value), lineHeight: 1.2 }}>
+  <div className="text-center">
+    <p className={cn('text-lg leading-tight font-semibold tabular-nums', scoreText(value))}>
       {value != null ? value.toFixed(1) : '-'}
-    </Typography>
-    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-      {label}
-    </Typography>
-  </Box>
+    </p>
+    <p className="text-[11px] text-muted-foreground">{label}</p>
+  </div>
+);
+
+const PassIcon = ({ small = false }) => (
+  <Check role="img" aria-label="Passed" className={cn('shrink-0 text-gain', small ? 'size-3' : 'size-4')} />
+);
+const FailIcon = ({ small = false }) => (
+  <X role="img" aria-label="Failed" className={cn('shrink-0 text-loss', small ? 'size-3' : 'size-4')} />
 );
 
 /**
  * Check list item with icon
  */
-const CheckItem = ({ icon, text, color }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, py: 0.25 }}>
+const CheckItem = ({ icon, text, className }) => (
+  <div className="flex items-center gap-1.5 py-0.5">
     {icon}
-    <Typography variant="body2" sx={{ fontSize: '0.78rem', color: color || 'text.primary' }}>
-      {text}
-    </Typography>
-  </Box>
+    <span className={cn('text-[13px]', className)}>{text}</span>
+  </div>
+);
+
+const InfoRow = ({ label, children, className }) => (
+  <div className="flex justify-between gap-2">
+    <span className="text-xs text-muted-foreground">{label}</span>
+    <span className={cn('text-[13px] font-medium tabular-nums', className)}>{children}</span>
+  </div>
 );
 
 /**
@@ -151,346 +162,197 @@ function SetupEngineDrawer({ open, onClose, stockData, isLoading = false }) {
   );
 
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      sx={{ zIndex: 1400 }}
-      slotProps={{
-        backdrop: { sx: { backgroundColor: 'transparent' } },
-      }}
-      PaperProps={{
-        sx: { width: 420, bgcolor: 'background.paper' },
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 2,
-          py: 1.5,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Typography variant="subtitle1" fontWeight="bold">
-          Setup Engine Details{stockData.symbol ? ` — ${stockData.symbol}` : ''}
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+    <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <SheetContent side="right" showClose aria-describedby={undefined} className="sm:w-[420px]">
+        <div className="border-b border-border py-3 pr-12 pl-4">
+          <SheetTitle className="text-base font-semibold">
+            Setup Engine Details{stockData.symbol ? ` — ${stockData.symbol}` : ''}
+          </SheetTitle>
+        </div>
 
-      {/* Content */}
-      <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
-        {isLoading ? (
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress size={24} />
-          </Box>
-        ) : !explain ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-            Setup details not available for this stock.
-          </Typography>
-        ) : (
-          <>
-            {/* Data quality banners */}
-            {hasInsufficientData && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                Insufficient historical data — scores and pattern detection are unavailable for this stock.
-              </Alert>
-            )}
-            {hasDegradedData && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Some data sources are degraded. Scores may be less reliable.
-              </Alert>
-            )}
-
-            {/* Section 1: Setup Summary */}
-            <DrawerSection title="SETUP SUMMARY">
-              {/* Pattern + Confidence */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <Typography variant="body1" fontWeight="bold">
-                  {formatPatternName(stockData.se_pattern_primary)}
-                </Typography>
-                {stockData.se_pattern_confidence != null && (
-                  <Chip
-                    label={`${stockData.se_pattern_confidence.toFixed(0)}%`}
-                    size="small"
-                    sx={{
-                      fontSize: '0.7rem',
-                      height: 22,
-                      ...onPalette(getScoreColor(stockData.se_pattern_confidence)),
-                    }}
-                  />
-                )}
-              </Box>
-
-              {/* Scores Grid */}
-              {(stockData.se_setup_score != null ||
-                stockData.se_quality_score != null ||
-                stockData.se_readiness_score != null) && (
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 1.5 }}>
-                  <ScoreItem label="Setup" value={stockData.se_setup_score} />
-                  <ScoreItem label="Quality" value={stockData.se_quality_score} />
-                  <ScoreItem label="Readiness" value={stockData.se_readiness_score} />
-                </Box>
+        <div className="flex-1 overflow-auto p-4">
+          {isLoading ? (
+            <div role="progressbar" aria-label="Loading setup details" className="mt-4 flex justify-center">
+              <span aria-hidden="true" className="size-6 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+            </div>
+          ) : !explain ? (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Setup details not available for this stock.
+            </p>
+          ) : (
+            <>
+              {hasInsufficientData && (
+                <Notice tone="warning" className="mb-4">
+                  Insufficient historical data — scores and pattern detection are unavailable for this stock.
+                </Notice>
+              )}
+              {hasDegradedData && (
+                <Notice tone="info" className="mb-4">
+                  Some data sources are degraded. Scores may be less reliable.
+                </Notice>
               )}
 
-              {/* Ready chip */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                {stockData.se_setup_ready != null && (
-                  <Chip
-                    label={stockData.se_setup_ready ? 'READY' : 'NOT READY'}
-                    size="small"
-                    sx={{
-                      fontSize: '0.7rem',
-                      height: 22,
-                      ...onPalette(stockData.se_setup_ready ? 'success.main' : 'grey.500'),
-                      fontWeight: 'bold',
-                    }}
-                  />
-                )}
-                {stockData.se_timeframe && (
-                  <Chip
-                    label={stockData.se_timeframe}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: '0.7rem', height: 22 }}
-                  />
-                )}
-              </Box>
+              <DrawerSection title="SETUP SUMMARY">
+                <div className="mb-3 flex items-center gap-2">
+                  <p className="font-semibold">{formatPatternName(stockData.se_pattern_primary)}</p>
+                  {stockData.se_pattern_confidence != null && (
+                    <Badge tone={scoreTone(stockData.se_pattern_confidence)}>
+                      {`${stockData.se_pattern_confidence.toFixed(0)}%`}
+                    </Badge>
+                  )}
+                </div>
 
-              {/* Pivot Info */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, mt: 1 }}>
-                {stockData.se_pivot_price != null && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">Pivot</Typography>
-                    <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.8rem' }}>
-                      ${stockData.se_pivot_price.toFixed(2)}
-                    </Typography>
-                  </Box>
+                {(stockData.se_setup_score != null ||
+                  stockData.se_quality_score != null ||
+                  stockData.se_readiness_score != null) && (
+                  <div className="mb-3 grid grid-cols-3 gap-2">
+                    <ScoreItem label="Setup" value={stockData.se_setup_score} />
+                    <ScoreItem label="Quality" value={stockData.se_quality_score} />
+                    <ScoreItem label="Readiness" value={stockData.se_readiness_score} />
+                  </div>
                 )}
-                {stockData.se_pivot_type && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">Type</Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                      {formatCheckName(stockData.se_pivot_type)}
-                    </Typography>
-                  </Box>
-                )}
-                {stockData.se_pivot_date && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">Pivot Date</Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                      {stockData.se_pivot_date}
-                    </Typography>
-                  </Box>
-                )}
-                {stockData.se_distance_to_pivot_pct != null && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">Dist to Pivot</Typography>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      sx={{
-                        fontSize: '0.8rem',
-                        color: stockData.se_distance_to_pivot_pct <= 0 ? 'success.main' : 'warning.main',
-                      }}
+
+                <div className="mb-2 flex items-center gap-2">
+                  {stockData.se_setup_ready != null && (
+                    <Badge tone={stockData.se_setup_ready ? 'gain' : 'neutral'} className="font-semibold">
+                      {stockData.se_setup_ready ? 'READY' : 'NOT READY'}
+                    </Badge>
+                  )}
+                  {stockData.se_timeframe && <Badge>{stockData.se_timeframe}</Badge>}
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                  {stockData.se_pivot_price != null && (
+                    <InfoRow label="Pivot">${stockData.se_pivot_price.toFixed(2)}</InfoRow>
+                  )}
+                  {stockData.se_pivot_type && (
+                    <InfoRow label="Type" className="font-normal">{formatCheckName(stockData.se_pivot_type)}</InfoRow>
+                  )}
+                  {stockData.se_pivot_date && (
+                    <InfoRow label="Pivot Date" className="font-normal">{stockData.se_pivot_date}</InfoRow>
+                  )}
+                  {stockData.se_distance_to_pivot_pct != null && (
+                    <InfoRow
+                      label="Dist to Pivot"
+                      className={stockData.se_distance_to_pivot_pct <= 0 ? 'text-gain' : 'text-warning'}
                     >
                       {stockData.se_distance_to_pivot_pct >= 0 ? '+' : ''}
                       {stockData.se_distance_to_pivot_pct.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                )}
-                {stockData.se_atr14_pct != null && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">ATR14</Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                      {stockData.se_atr14_pct.toFixed(2)}%
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </DrawerSection>
-
-            {/* Section 2: Passed Checks */}
-            {explain.passed_checks?.length > 0 && (
-              <DrawerSection title="PASSED CHECKS">
-                {explain.passed_checks.map((check) => (
-                  <CheckItem
-                    key={check}
-                    icon={<CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
-                    text={formatCheckName(check)}
-                  />
-                ))}
+                    </InfoRow>
+                  )}
+                  {stockData.se_atr14_pct != null && (
+                    <InfoRow label="ATR14" className="font-normal">{stockData.se_atr14_pct.toFixed(2)}%</InfoRow>
+                  )}
+                </div>
               </DrawerSection>
-            )}
 
-            {/* Section 3: Failed Checks */}
-            {explain.failed_checks?.length > 0 && (
-              <DrawerSection title="FAILED CHECKS">
-                {explain.failed_checks.map((check) => (
-                  <CheckItem
-                    key={check}
-                    icon={<CancelIcon sx={{ fontSize: 16, color: 'error.main' }} />}
-                    text={formatCheckName(check)}
-                    color="error.main"
-                  />
-                ))}
-              </DrawerSection>
-            )}
+              {explain.passed_checks?.length > 0 && (
+                <DrawerSection title="PASSED CHECKS">
+                  {explain.passed_checks.map((check) => (
+                    <CheckItem key={check} icon={<PassIcon />} text={formatCheckName(check)} />
+                  ))}
+                </DrawerSection>
+              )}
 
-            {/* Section 4: Key Levels */}
-            {explain.key_levels && typeof explain.key_levels === 'object' && !Array.isArray(explain.key_levels) && Object.keys(explain.key_levels).length > 0 && (
-              <DrawerSection title="KEY LEVELS">
-                {Object.entries(explain.key_levels).map(([name, price]) => (
-                  <Box key={name} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.25 }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.78rem' }}>
-                      {formatCheckName(name)}
-                    </Typography>
-                    <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.78rem' }}>
-                      {price != null && Number.isFinite(Number(price)) ? `$${Number(price).toFixed(2)}` : '-'}
-                    </Typography>
-                  </Box>
-                ))}
-              </DrawerSection>
-            )}
+              {explain.failed_checks?.length > 0 && (
+                <DrawerSection title="FAILED CHECKS">
+                  {explain.failed_checks.map((check) => (
+                    <CheckItem key={check} icon={<FailIcon />} text={formatCheckName(check)} className="text-loss" />
+                  ))}
+                </DrawerSection>
+              )}
 
-            {/* Section 5: Invalidation Flags */}
-            {explain.invalidation_flags?.length > 0 && (
-              <DrawerSection title="INVALIDATION FLAGS">
-                {explain.invalidation_flags.map((flag, idx) => {
-                  const flagBase = getFlagCode(flag);
-                  const flagText = getFlagMessage(flag);
-                  const isHard = HARD_FLAGS.has(flagBase);
-                  const flagColor = isHard ? 'error.main' : 'warning.main';
-                  return (
-                    <CheckItem
-                      key={`${flagBase || 'flag'}-${idx}`}
-                      icon={<WarningAmberIcon sx={{ fontSize: 16, color: flagColor }} />}
-                      text={formatCheckName(flagText)}
-                      color={flagColor}
-                    />
-                  );
-                })}
-              </DrawerSection>
-            )}
+              {explain.key_levels && typeof explain.key_levels === 'object' && !Array.isArray(explain.key_levels) && Object.keys(explain.key_levels).length > 0 && (
+                <DrawerSection title="KEY LEVELS">
+                  {Object.entries(explain.key_levels).map(([name, price]) => (
+                    <div key={name} className="flex justify-between py-0.5 text-[13px]">
+                      <span>{formatCheckName(name)}</span>
+                      <span className="font-medium tabular-nums">
+                        {price != null && Number.isFinite(Number(price)) ? `$${Number(price).toFixed(2)}` : '-'}
+                      </span>
+                    </div>
+                  ))}
+                </DrawerSection>
+              )}
 
-            {/* Section 6: Pattern Candidates (optional) */}
-            {candidates?.length > 0 && (
-              <DrawerSection title="PATTERN CANDIDATES">
-                {candidates.map((c, idx) => (
-                  <Box
-                    key={`${c.pattern || 'candidate'}-${idx}`}
-                    sx={{
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 1.5,
-                      mb: 1,
-                    }}
-                  >
-                    {/* Candidate header */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                      <Typography variant="body2" fontWeight="bold">
-                        {formatPatternName(c.pattern)}
-                      </Typography>
-                      {c.confidence_pct != null && (
-                        <Chip
-                          label={`${Number(c.confidence_pct).toFixed(0)}%`}
-                          size="small"
-                          sx={{
-                            fontSize: '0.65rem',
-                            height: 18,
-                            ...onPalette(getScoreColor(Number(c.confidence_pct))),
-                          }}
-                        />
+              {explain.invalidation_flags?.length > 0 && (
+                <DrawerSection title="INVALIDATION FLAGS">
+                  {explain.invalidation_flags.map((flag, idx) => {
+                    const flagBase = getFlagCode(flag);
+                    const flagText = getFlagMessage(flag);
+                    const tone = HARD_FLAGS.has(flagBase) ? 'text-loss' : 'text-warning';
+                    return (
+                      <CheckItem
+                        key={`${flagBase || 'flag'}-${idx}`}
+                        icon={<TriangleAlert aria-hidden="true" className={cn('size-4 shrink-0', tone)} />}
+                        text={formatCheckName(flagText)}
+                        className={tone}
+                      />
+                    );
+                  })}
+                </DrawerSection>
+              )}
+
+              {candidates?.length > 0 && (
+                <DrawerSection title="PATTERN CANDIDATES">
+                  {candidates.map((c, idx) => (
+                    <div key={`${c.pattern || 'candidate'}-${idx}`} className="mb-2 rounded-md border border-border p-3">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <p className="text-sm font-semibold">{formatPatternName(c.pattern)}</p>
+                        {c.confidence_pct != null && (
+                          <Badge tone={scoreTone(Number(c.confidence_pct))}>
+                            {`${Number(c.confidence_pct).toFixed(0)}%`}
+                          </Badge>
+                        )}
+                        {c.timeframe && <Badge>{c.timeframe}</Badge>}
+                      </div>
+
+                      <div className="mb-1.5 grid grid-cols-3 gap-1">
+                        {[['setup_score', 'Setup'], ['quality_score', 'Quality'], ['readiness_score', 'Readiness']]
+                          .filter(([key]) => c[key] != null)
+                          .map(([key, label]) => (
+                            <div key={key} className="text-center">
+                              <p className={cn('text-[13px] font-medium tabular-nums', scoreText(c[key]))}>{c[key].toFixed(1)}</p>
+                              <p className="text-[11px] text-muted-foreground">{label}</p>
+                            </div>
+                          ))}
+                      </div>
+
+                      {c.pivot_price != null && (
+                        <p className="text-[11px] text-muted-foreground tabular-nums">
+                          Pivot: ${c.pivot_price.toFixed(2)}
+                          {c.pivot_type ? ` (${formatCheckName(c.pivot_type)})` : ''}
+                          {c.pivot_date ? ` — ${c.pivot_date}` : ''}
+                        </p>
                       )}
-                      {c.timeframe && (
-                        <Chip
-                          label={c.timeframe}
-                          size="small"
-                          variant="outlined"
-                          sx={{ fontSize: '0.65rem', height: 18 }}
-                        />
-                      )}
-                    </Box>
 
-                    {/* Candidate scores */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.5, mb: 0.75 }}>
-                      {c.setup_score != null && (
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" fontWeight="medium" sx={{ color: getScoreColor(c.setup_score), fontSize: '0.8rem' }}>
-                            {c.setup_score.toFixed(1)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Setup</Typography>
-                        </Box>
+                      {c.checks && typeof c.checks === 'object' && !Array.isArray(c.checks) && Object.keys(c.checks).length > 0 && (
+                        <div className="mt-1">
+                          {Object.entries(c.checks).map(([name, passed]) => (
+                            <div key={name} className="flex items-center gap-1 py-px">
+                              {passed ? <PassIcon small /> : <FailIcon small />}
+                              <span className="text-[11px]">{formatCheckName(name)}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                      {c.quality_score != null && (
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" fontWeight="medium" sx={{ color: getScoreColor(c.quality_score), fontSize: '0.8rem' }}>
-                            {c.quality_score.toFixed(1)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Quality</Typography>
-                        </Box>
+
+                      {c.notes?.length > 0 && (
+                        <div className="mt-1">
+                          {c.notes.map((note, i) => (
+                            <p key={i} className="text-[11px] text-muted-foreground">{note}</p>
+                          ))}
+                        </div>
                       )}
-                      {c.readiness_score != null && (
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" fontWeight="medium" sx={{ color: getScoreColor(c.readiness_score), fontSize: '0.8rem' }}>
-                            {c.readiness_score.toFixed(1)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Readiness</Typography>
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Candidate pivot */}
-                    {c.pivot_price != null && (
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                        Pivot: ${c.pivot_price.toFixed(2)}
-                        {c.pivot_type ? ` (${formatCheckName(c.pivot_type)})` : ''}
-                        {c.pivot_date ? ` \u2014 ${c.pivot_date}` : ''}
-                      </Typography>
-                    )}
-
-                    {/* Candidate checks */}
-                    {c.checks && typeof c.checks === 'object' && !Array.isArray(c.checks) && Object.keys(c.checks).length > 0 && (
-                      <Box sx={{ mt: 0.5 }}>
-                        {Object.entries(c.checks).map(([name, passed]) => (
-                          <Box key={name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.1 }}>
-                            {passed ? (
-                              <CheckCircleIcon sx={{ fontSize: 12, color: 'success.main' }} />
-                            ) : (
-                              <CancelIcon sx={{ fontSize: 12, color: 'error.main' }} />
-                            )}
-                            <Typography variant="caption" sx={{ fontSize: '0.68rem' }}>
-                              {formatCheckName(name)}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-
-                    {/* Candidate notes */}
-                    {c.notes?.length > 0 && (
-                      <Box sx={{ mt: 0.5 }}>
-                        {c.notes.map((note, i) => (
-                          <Typography key={i} variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block' }}>
-                            {note}
-                          </Typography>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-              </DrawerSection>
-            )}
-          </>
-        )}
-      </Box>
-    </Drawer>
+                    </div>
+                  ))}
+                </DrawerSection>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
