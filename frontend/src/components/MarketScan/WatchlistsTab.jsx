@@ -5,21 +5,13 @@
  */
 import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Chip,
-  Typography,
-  IconButton,
-  CircularProgress,
-  ToggleButtonGroup,
-  ToggleButton,
-  Tooltip,
-} from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
-import DownloadIcon from '@mui/icons-material/Download';
+import { Download, Plus, RefreshCw, Settings } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
+
 import { getWatchlists, getWatchlistData, getWatchlistStewardship } from '../../api/userWatchlists';
 import WatchlistTable from './WatchlistTable';
 import UserWatchlistManager from './UserWatchlistManager';
@@ -27,6 +19,55 @@ import { useStrategyProfileData } from '../../contexts/StrategyProfileContext';
 
 // Defers the lightweight-charts bundle until a chart is actually opened.
 const WatchlistChartModal = lazy(() => import('./WatchlistChartModal'));
+
+const STATUSES = ['strengthening', 'unchanged', 'deteriorating', 'exit_risk', 'missing_from_run'];
+const STATUS_FILTERS = [
+  ['all', 'All'],
+  ['strengthening', 'Strengthening'],
+  ['unchanged', 'Unchanged'],
+  ['deteriorating', 'Deteriorating'],
+  ['exit_risk', 'Exit Risk'],
+  ['missing_from_run', 'Missing'],
+];
+
+function Segmented({ label, options, value, onChange }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex max-w-full flex-wrap rounded-md border border-border p-0.5">
+      {options.map(([optionValue, optionLabel]) => (
+        <button
+          key={optionValue}
+          type="button"
+          aria-pressed={value === optionValue}
+          onClick={() => { if (value !== optionValue) onChange(optionValue); }}
+          className={cn(
+            'h-9 cursor-pointer rounded-sm px-3 text-xs font-semibold whitespace-nowrap outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring md:h-7',
+            value === optionValue ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-surface-subtle hover:text-foreground',
+          )}
+        >
+          {optionLabel}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function IconAction({ label, onClick, disabled, children }) {
+  return (
+    <Button variant="ghost" size="icon" aria-label={label} title={label} onClick={onClick} disabled={disabled}>
+      {children}
+    </Button>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading watchlist" className="flex flex-col gap-1.5">
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <div key={i} className="h-8 rounded bg-surface-subtle motion-safe:animate-pulse" />
+      ))}
+    </div>
+  );
+}
 
 function WatchlistsTab() {
   const { requestProfile } = useStrategyProfileData();
@@ -111,11 +152,9 @@ function WatchlistsTab() {
     }
   };
 
-  const handleWatchlistChange = (_, newWatchlistId) => {
-    if (newWatchlistId !== null) {
-      setSelectedWatchlistId(newWatchlistId);
-      setStatusFilter('all');
-    }
+  const handleWatchlistChange = (newWatchlistId) => {
+    setSelectedWatchlistId(newWatchlistId);
+    setStatusFilter('all');
   };
 
   const handleOpenChart = (symbol) => {
@@ -143,122 +182,78 @@ function WatchlistsTab() {
 
   if (watchlistsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-        <CircularProgress />
-      </Box>
+      <div className="tw p-2">
+        <TableSkeleton />
+      </div>
     );
   }
 
   if (watchlistsError) {
-    return <Alert severity="error">Unable to load watchlists: {watchlistsError.message}</Alert>;
+    return <Notice tone="error" className="tw">Unable to load watchlists: {watchlistsError.message}</Notice>;
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 1,
-          pb: 1,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Box display="flex" alignItems="center" gap={2}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Watchlist:
-          </Typography>
+    <div className="tw flex h-full flex-col">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Watchlist:</span>
           {watchlists.length > 0 ? (
-            <ToggleButtonGroup
+            <Segmented
+              label="Watchlist"
+              options={watchlists.map((watchlist) => [watchlist.id, watchlist.name])}
               value={selectedWatchlistId}
-              exclusive
               onChange={handleWatchlistChange}
-              size="small"
-            >
-              {watchlists.map((watchlist) => (
-                <ToggleButton
-                  key={watchlist.id}
-                  value={watchlist.id}
-                  sx={{ px: 2, py: 0.5, textTransform: 'none' }}
-                >
-                  {watchlist.name}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+            />
           ) : (
-            <Typography variant="body2" color="text.secondary">
-              No watchlists created yet
-            </Typography>
+            <span className="text-sm text-muted-foreground">No watchlists created yet</span>
           )}
-        </Box>
+        </div>
 
-        <Box display="flex" alignItems="center" gap={0.5}>
-          <Tooltip title="Download watchlist as CSV">
-            <span>
-              <IconButton
-                onClick={handleDownloadWatchlist}
-                size="small"
-                disabled={!watchlistData?.items?.length || dataLoading}
-              >
-                <DownloadIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Refresh data">
-            <IconButton aria-label="Refresh data" onClick={handleRefresh} size="small">
-              <RefreshIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Manage watchlists">
-            <IconButton onClick={() => setManagerOpen(true)} size="small">
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
+        <div className="flex items-center gap-0.5">
+          <IconAction
+            label="Download watchlist as CSV"
+            onClick={handleDownloadWatchlist}
+            disabled={!watchlistData?.items?.length || dataLoading}
+          >
+            <Download aria-hidden="true" />
+          </IconAction>
+          <IconAction label="Refresh data" onClick={handleRefresh}>
+            <RefreshCw aria-hidden="true" />
+          </IconAction>
+          <IconAction label="Manage watchlists" onClick={() => setManagerOpen(true)}>
+            <Settings aria-hidden="true" />
+          </IconAction>
+        </div>
+      </div>
 
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <div className="min-h-0 flex-1 overflow-auto">
         {dataLoading ? (
-          <Box display="flex" justifyContent="center" py={4}>
-            <CircularProgress />
-          </Box>
+          <TableSkeleton />
         ) : dataError ? (
-          <Alert severity="error">Unable to load watchlist data: {dataError.message}</Alert>
+          <Notice tone="error">Unable to load watchlist data: {dataError.message}</Notice>
         ) : watchlistData ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <div className="flex flex-col gap-2">
             {stewardshipError && (
-              <Alert severity="warning">
+              <Notice tone="warning">
                 Stewardship context is unavailable: {stewardshipError.message}
-              </Alert>
+              </Notice>
             )}
             {stewardshipData && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                  {['strengthening', 'unchanged', 'deteriorating', 'exit_risk', 'missing_from_run'].map((status) => (
-                    <Chip
-                      key={status}
-                      size="small"
-                      variant="outlined"
-                      label={`${status.replaceAll('_', ' ')}: ${stewardshipData.summary_counts?.[status] ?? 0}`}
-                    />
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUSES.map((status) => (
+                    <Badge key={status}>
+                      {`${status.replaceAll('_', ' ')}: ${stewardshipData.summary_counts?.[status] ?? 0}`}
+                    </Badge>
                   ))}
-                </Box>
-                <ToggleButtonGroup
-                  size="small"
+                </div>
+                <Segmented
+                  label="Filter by stewardship status"
+                  options={STATUS_FILTERS}
                   value={statusFilter}
-                  exclusive
-                  onChange={(_, value) => value && setStatusFilter(value)}
-                >
-                  <ToggleButton value="all">All</ToggleButton>
-                  <ToggleButton value="strengthening">Strengthening</ToggleButton>
-                  <ToggleButton value="unchanged">Unchanged</ToggleButton>
-                  <ToggleButton value="deteriorating">Deteriorating</ToggleButton>
-                  <ToggleButton value="exit_risk">Exit Risk</ToggleButton>
-                  <ToggleButton value="missing_from_run">Missing</ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
+                  onChange={setStatusFilter}
+                />
+              </div>
             )}
             <WatchlistTable
               watchlistData={filteredWatchlistData}
@@ -267,20 +262,19 @@ function WatchlistsTab() {
               onRefresh={handleRefresh}
               onOpenChart={handleOpenChart}
             />
-          </Box>
+          </div>
         ) : watchlists.length === 0 ? (
-          <Box textAlign="center" py={4}>
-            <Typography color="text.secondary" gutterBottom>
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-sm text-muted-foreground">
               No watchlists yet. Create your first watchlist to get started.
-            </Typography>
-            <Tooltip title="Manage watchlists">
-              <IconButton color="primary" onClick={() => setManagerOpen(true)} size="large">
-                <AddIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
+            </p>
+            <Button onClick={() => setManagerOpen(true)}>
+              <Plus aria-hidden="true" />
+              Create a watchlist
+            </Button>
+          </div>
         ) : null}
-      </Box>
+      </div>
 
       <UserWatchlistManager open={managerOpen} onClose={() => setManagerOpen(false)} onUpdate={handleRefresh} />
 
@@ -294,7 +288,7 @@ function WatchlistsTab() {
           />
         </Suspense>
       )}
-    </Box>
+    </div>
   );
 }
 
