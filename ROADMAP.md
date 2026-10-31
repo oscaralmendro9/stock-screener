@@ -71,7 +71,8 @@ Open:
 - [x] Breadth: page, context strip, history table, chart (theme tokens, `aria-pressed` range toggle, day ticks on short ranges), formula toggletips (`ui/popover`, open on hover, tap or keyboard) and the contributor dialog (Radix) on Tailwind. The static site's `StaticBreadthPage` shell stays MUI
 - [~] Groups: page, view tabs (shared with the static site), movers, rankings table (RS tints from tokens, `aria-sort` headers) and the group detail dialog (Radix, rank chart on tokens) on Tailwind; shared `ui/notice`. Still MUI: `RRGChart`, the matrix panel, `GroupChartsGrid` and the price/RS sparklines inside the dialog
 - [x] Options: Command Center (lens toggle, sortable table with `aria-sort`, keyboard rows), symbol detail (summary cards, strike charts and history on tokens, native `<details>` for method notes), status banner, quality/source badges and the not-in-cohort state on Tailwind. Covered by tests only so far: the module is off in this install (`OPTIONS_ANALYTICS_ENABLED=false`)
-- [ ] The rest (Watchlists, Themes, Futures/COT leftovers, Operations, assistant, static shells)
+- [x] COT positioning (`/cot`, and the COT chart on futures detail): view, participant legend toggles, summary strip, curated-markets table (`aria-sort`, current row) on Tailwind; new `ui/native-select`
+- [ ] The rest (Watchlists, Themes, Operations, Validation, assistant, static shells)
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

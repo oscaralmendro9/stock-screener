@@ -1,21 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  FormControl,
-  InputLabel,
-  Paper,
-  Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Typography,
-} from '@mui/material';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+
+import { NativeSelect } from '@/ui/native-select';
 import { formatCotNumber, formatCotPercent, priceStateLabel } from './cotPresentation';
 
 const COLUMNS = [
@@ -29,6 +19,9 @@ const COLUMNS = [
   ['price_change_pct', 'Price Change'],
 ];
 
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-1.5 text-left font-medium';
+const TD = 'border-b border-border px-2 py-1.5 tabular-nums';
+
 const compare = (left, right, direction) => {
   if (left === null || left === undefined) return right === null || right === undefined ? 0 : 1;
   if (right === null || right === undefined) return -1;
@@ -38,10 +31,11 @@ const compare = (left, right, direction) => {
   return direction === 'asc' ? result : -result;
 };
 
+// Week-over-week change in contracts: sign and colour.
 const Delta = ({ value }) => (
-  <Typography component="span" variant="caption" color={value > 0 ? 'success.main' : value < 0 ? 'error.main' : 'text.secondary'} sx={{ ml: 0.5 }}>
+  <span className={cn('ml-1 text-[11px]', value > 0 ? 'text-gain' : value < 0 ? 'text-loss' : 'text-muted-foreground')}>
     {value === null ? '—' : `${value > 0 ? '+' : ''}${formatCotNumber(value)}`}
-  </Typography>
+  </span>
 );
 
 const NetTrend = ({ values }) => {
@@ -51,7 +45,7 @@ const NetTrend = ({ values }) => {
   const span = max - min || 1;
   const points = values.map((value, index) => `${(index / Math.max(1, values.length - 1)) * 76},${22 - ((value - min) / span) * 20}`).join(' ');
   return (
-    <svg width="78" height="24" viewBox="0 0 78 24" role="img" aria-label={`12-week net trend ending at ${formatCotNumber(values.at(-1))}`}>
+    <svg width="78" height="24" viewBox="0 0 78 24" role="img" aria-label={`12-week net trend ending at ${formatCotNumber(values.at(-1))}`} className="text-accent">
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
@@ -79,51 +73,56 @@ const CotSnapshotTable = ({ snapshot, onSelectInstrument, selectedSlug = null })
   const select = (slug) => onSelectInstrument?.(slug);
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
-        <Typography variant="h6" component="h3">All curated markets</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="cot-category-label">Category</InputLabel>
-            <Select
-              native
-              labelId="cot-category-label"
-              label="Category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              inputProps={{ 'aria-label': 'COT table category' }}
-            >
-              <option value="all">All categories</option>
-              {categories.map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
-            </Select>
-          </FormControl>
-          <Button variant="outlined" onClick={() => setSort(null)}>Restore curated order</Button>
-        </Box>
-      </Box>
-      <TableContainer sx={{ maxHeight: 520 }}>
-        <Table stickyHeader size="small" aria-label="COT positioning snapshot">
-          <TableHead>
-            <TableRow>
-              {COLUMNS.map(([key, label]) => (
-                <TableCell key={key} sortDirection={sort?.key === key ? sort.direction : false}>
-                  <TableSortLabel
-                    active={sort?.key === key}
-                    direction={sort?.key === key ? sort.direction : 'asc'}
-                    onClick={() => changeSort(key)}
+    <Card className="tw overflow-hidden">
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border p-3">
+        <h3 className="text-base font-semibold">All curated markets</h3>
+        <div className="flex flex-wrap items-end gap-2">
+          <NativeSelect
+            label="Category"
+            ariaLabel="COT table category"
+            value={category}
+            onChange={setCategory}
+            className="w-44"
+          >
+            <option value="all">All categories</option>
+            {categories.map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+          </NativeSelect>
+          <Button variant="secondary" size="sm" onClick={() => setSort(null)}>Restore curated order</Button>
+        </div>
+      </div>
+      <div className="max-h-[520px] overflow-auto">
+        <table aria-label="COT positioning snapshot" className="w-full min-w-[900px] border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr>
+              {COLUMNS.map(([key, label]) => {
+                const active = sort?.key === key;
+                const Icon = !active ? ArrowUpDown : sort.direction === 'asc' ? ArrowUp : ArrowDown;
+                return (
+                  <th
+                    key={key}
+                    scope="col"
+                    aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                    className={cn(TH, active ? 'text-foreground' : 'text-muted-foreground')}
                   >
-                    {label}
-                  </TableSortLabel>
-                </TableCell>
-              ))}
-              <TableCell>Price Context</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+                    <button
+                      type="button"
+                      onClick={() => changeSort(key)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {label}
+                      <Icon aria-hidden="true" className={cn('size-3', !active && 'opacity-40')} />
+                    </button>
+                  </th>
+                );
+              })}
+              <th scope="col" className={cn(TH, 'text-muted-foreground')}>Price Context</th>
+            </tr>
+          </thead>
+          <tbody>
             {rows.map((row) => (
-              <TableRow
+              <tr
                 key={row.slug}
-                hover
-                selected={row.slug === selectedSlug}
+                aria-current={row.slug === selectedSlug ? 'true' : undefined}
                 tabIndex={0}
                 onClick={() => select(row.slug)}
                 onKeyDown={(event) => {
@@ -132,23 +131,29 @@ const CotSnapshotTable = ({ snapshot, onSelectInstrument, selectedSlug = null })
                     select(row.slug);
                   }
                 }}
-                sx={{ cursor: 'pointer' }}
+                className={cn(
+                  'cursor-pointer outline-none hover:bg-surface-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                  row.slug === selectedSlug && 'bg-accent/10',
+                )}
               >
-                <TableCell><Typography variant="body2">{row.display_name}</Typography><Typography variant="caption" color="text.secondary">{row.focal_label}</Typography></TableCell>
-                <TableCell>{formatCotNumber(row.long)}<Delta value={row.delta_long} /></TableCell>
-                <TableCell>{formatCotNumber(row.short)}<Delta value={row.delta_short} /></TableCell>
-                <TableCell>{formatCotNumber(row.net)}<Delta value={row.delta_net} /></TableCell>
-                <TableCell>{formatCotPercent(row.net_pct_open_interest)}</TableCell>
-                <TableCell>{row.percentile_status === 'available' ? formatCotPercent(row.percentile_3y, 0) : 'Building'}</TableCell>
-                <TableCell><NetTrend values={row.net_trend} /></TableCell>
-                <TableCell>{formatCotPercent(row.price_change_pct)}</TableCell>
-                <TableCell>{priceStateLabel(row.price_mapping_kind, row.price_coverage_state)}</TableCell>
-              </TableRow>
+                <td className={TD}>
+                  <p className="text-sm font-medium">{row.display_name}</p>
+                  <p className="text-[11px] text-muted-foreground">{row.focal_label}</p>
+                </td>
+                <td className={TD}>{formatCotNumber(row.long)}<Delta value={row.delta_long} /></td>
+                <td className={TD}>{formatCotNumber(row.short)}<Delta value={row.delta_short} /></td>
+                <td className={TD}>{formatCotNumber(row.net)}<Delta value={row.delta_net} /></td>
+                <td className={TD}>{formatCotPercent(row.net_pct_open_interest)}</td>
+                <td className={TD}>{row.percentile_status === 'available' ? formatCotPercent(row.percentile_3y, 0) : 'Building'}</td>
+                <td className={TD}><NetTrend values={row.net_trend} /></td>
+                <td className={TD}>{formatCotPercent(row.price_change_pct)}</td>
+                <td className={cn(TD, 'text-muted-foreground')}>{priceStateLabel(row.price_mapping_kind, row.price_coverage_state)}</td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 };
 

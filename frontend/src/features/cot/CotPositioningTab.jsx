@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { Notice } from '@/ui/notice';
 
 import { getCotCatalog, getCotHistory, getCotSnapshot } from '../../api/cot';
 import {
@@ -49,8 +50,8 @@ const CotPositioningTab = () => {
   }, [publicationMismatch, queryClient]);
 
   return (
-    <Box sx={{ height: '100%', overflow: 'auto', pr: 0.5 }}>
-      <Box sx={{ display: 'grid', gap: 1.5 }}>
+    <div className="tw h-full overflow-auto pr-0.5">
+      <div className="grid gap-3">
         <CotPositioningView
           catalog={catalogQuery.data || null}
           history={historyQuery.data || null}
@@ -69,10 +70,10 @@ const CotPositioningTab = () => {
           />
         )}
         {snapshotQuery.error && (
-          <Alert severity="error">Unable to load the COT market table.</Alert>
+          <Notice tone="error">Unable to load the COT market table.</Notice>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
