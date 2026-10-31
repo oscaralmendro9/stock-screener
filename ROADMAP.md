@@ -73,7 +73,7 @@ Open:
 - [x] Options: Command Center (lens toggle, sortable table with `aria-sort`, keyboard rows), symbol detail (summary cards, strike charts and history on tokens, native `<details>` for method notes), status banner, quality/source badges and the not-in-cohort state on Tailwind. Covered by tests only so far: the module is off in this install (`OPTIONS_ANALYTICS_ENABLED=false`)
 - [x] COT positioning (`/cot`, and the COT chart on futures detail): view, participant legend toggles, summary strip, curated-markets table (`aria-sort`, current row) on Tailwind; new `ui/native-select`
 - [x] Validation (Backtest tab): page and the shared `ValidationPanels` (also used on stock detail) on Tailwind
-- [~] Watchlists: tab (watchlist picker, stewardship counts and status filter, icon actions, empty state) and table (keyboard-openable rows, always-reachable remove button, 11px floor) on Tailwind. Still MUI: `UserWatchlistManager`, `WatchlistChartModal`, sparklines, `PriceChangeBar`, `ActionStateBadge`, the evidence drawer
+- [~] Watchlists: tab (watchlist picker, stewardship counts and status filter, icon actions, empty state) and table (keyboard-openable rows, always-reachable remove button, 11px floor) on Tailwind. `UserWatchlistManager` on the new `ui/dialog` (Radix, flex-centred so drag-and-drop measures correctly; nested import dialog; delete confirms in an alert dialog instead of `window.confirm`). Still MUI: `WatchlistChartModal` (migrate together with `AddToWatchlistMenu`, `PeerComparisonModal` and `StockMetricsSidebar`, which open inside it), sparklines, `PriceChangeBar`, `ActionStateBadge`, the evidence drawer
 - [ ] The rest (Themes, Operations, assistant, static shells)
 - [ ] Remove MUI and enable Tailwind preflight
 

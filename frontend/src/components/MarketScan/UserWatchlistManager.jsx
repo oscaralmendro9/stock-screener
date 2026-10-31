@@ -9,32 +9,14 @@
  */
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  ListItemButton,
-  IconButton,
-  Box,
-  Typography,
-  Alert,
-  Stack,
-  FormControlLabel,
-  Switch,
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import EditIcon from '@mui/icons-material/Edit';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
+import { GripVertical, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+
 import {
   getWatchlists,
   createWatchlist,
@@ -49,6 +31,16 @@ import {
 } from '../../api/userWatchlists';
 import { invalidateWatchlistItems } from '../../api/userWatchlistQueries';
 import { getErrorMessage } from '../../utils/errorMessage';
+
+const INPUT = 'h-11 w-full min-w-0 rounded-md border border-border bg-surface px-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-8';
+const ICON_BUTTON = 'grid size-9 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 md:size-7';
+const FEEDBACK_TONE = { error: 'error', success: 'info', warning: 'warning', info: 'info' };
+const onEnter = (action) => (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    action();
+  }
+};
 
 const NAMED_SYMBOL_LIMIT = 10;
 
@@ -72,6 +64,7 @@ function UserWatchlistManager({ open, onClose, onUpdate }) {
   const [editedName, setEditedName] = useState('');
   const [newSymbol, setNewSymbol] = useState('');
   const [feedback, setFeedback] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importContent, setImportContent] = useState('');
   const [importDraftWatchlistId, setImportDraftWatchlistId] = useState(null);
@@ -218,11 +211,7 @@ function UserWatchlistManager({ open, onClose, onUpdate }) {
     }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Delete this watchlist and all its stocks?')) {
-      deleteMutation.mutate(id);
-    }
-  };
+  const handleDelete = (id) => setPendingDeleteId(id);
 
   const handleStartRename = () => {
     const selected = watchlists.find((w) => w.id === selectedWatchlistId);
@@ -324,341 +313,352 @@ function UserWatchlistManager({ open, onClose, onUpdate }) {
     || (importTooLong && `This text is over ${MAX_IMPORT_CHARS.toLocaleString('en-US')} characters.`)
     || (importItemsMutation.isError && getErrorMessage(importItemsMutation.error, 'Failed to import symbols'));
 
+  const pendingDelete = watchlists.find((w) => w.id === pendingDeleteId);
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Manage Watchlists</DialogTitle>
-      <DialogContent sx={{ minHeight: 450 }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title="Manage Watchlists"
+        size="md"
+        bodyClassName="min-h-[450px]"
+        footer={<DialogClose asChild><Button variant="ghost" size="sm">Close</Button></DialogClose>}
+      >
         {feedback && (
-          <Alert severity={feedback.severity} sx={{ mb: 2 }} onClose={() => setFeedback(null)}>
+          <Notice
+            tone={FEEDBACK_TONE[feedback.severity] || 'info'}
+            className="mb-3"
+            onDismiss={() => setFeedback(null)}
+          >
             {feedback.message}
-          </Alert>
+          </Notice>
         )}
 
-        <Box sx={{ display: 'flex', gap: 2, height: '100%' }}>
+        <div className="flex h-full flex-col gap-4 sm:flex-row">
           {/* Left Panel: Watchlist List */}
-          <Box
-            sx={{
-              width: 220,
-              borderRight: 1,
-              borderColor: 'divider',
-              pr: 2,
-              flexShrink: 0,
-            }}
-          >
-            <Typography variant="subtitle2" gutterBottom>
-              Watchlists
-            </Typography>
+          <section className="shrink-0 border-border sm:w-56 sm:border-r sm:pr-4">
+            <h3 className="mb-2 text-sm font-semibold">Watchlists</h3>
 
             {/* Create new watchlist */}
-            <Box display="flex" gap={0.5} mb={2}>
-              <TextField
-                size="small"
+            <div className="mb-3 flex gap-1">
+              <input
+                type="text"
+                aria-label="New watchlist name"
                 placeholder="New watchlist"
                 value={newWatchlistName}
                 onChange={(e) => setNewWatchlistName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
-                fullWidth
-                sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
+                onKeyDown={onEnter(handleCreate)}
+                className={INPUT}
               />
-              <IconButton
-                color="primary"
+              <button
+                type="button"
+                aria-label="Create watchlist"
                 onClick={handleCreate}
                 disabled={!newWatchlistName.trim() || createMutation.isPending}
-                size="small"
+                className={cn(ICON_BUTTON, 'size-11 text-accent md:size-8')}
               >
-                <AddIcon />
-              </IconButton>
-            </Box>
+                <Plus aria-hidden="true" className="size-4" />
+              </button>
+            </div>
 
             {/* Watchlist list with drag-drop */}
             <DragDropContext onDragEnd={handleWatchlistDragEnd}>
               <Droppable droppableId="watchlists">
                 {(provided) => (
-                  <List dense sx={{ mx: -1 }} ref={provided.innerRef} {...provided.droppableProps}>
+                  <ul className="flex flex-col gap-0.5" ref={provided.innerRef} {...provided.droppableProps}>
                     {watchlists.map((watchlist, index) => (
                       <Draggable key={watchlist.id} draggableId={`wl-${watchlist.id}`} index={index}>
                         {(provided, snapshot) => (
-                          <ListItemButton
+                          <li
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            selected={watchlist.id === selectedWatchlistId}
-                            onClick={() => setSelectedWatchlistId(watchlist.id)}
-                            sx={{
-                              borderRadius: 1,
-                              mb: 0.5,
-                              bgcolor: snapshot.isDragging ? 'action.hover' : undefined,
-                            }}
+                            className={cn(
+                              'flex items-center gap-1 rounded-md pr-1',
+                              watchlist.id === selectedWatchlistId ? 'bg-accent/10' : 'hover:bg-surface-subtle',
+                              snapshot.isDragging && 'bg-surface-subtle shadow-md',
+                            )}
                           >
-                            <Box
+                            <span
                               {...provided.dragHandleProps}
-                              sx={{ mr: 0.5, display: 'flex', alignItems: 'center', cursor: 'grab' }}
+                              aria-label={`Reorder ${watchlist.name}`}
+                              className="grid h-9 w-6 shrink-0 cursor-grab place-items-center rounded-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
-                              <DragIndicatorIcon fontSize="small" color="action" />
-                            </Box>
-                            <ListItemText
-                              primary={watchlist.name}
-                              primaryTypographyProps={{ fontSize: '0.875rem' }}
-                            />
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(watchlist.id);
-                              }}
-                              sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
+                              <GripVertical aria-hidden="true" className="size-4" />
+                            </span>
+                            <button
+                              type="button"
+                              aria-current={watchlist.id === selectedWatchlistId ? 'true' : undefined}
+                              onClick={() => setSelectedWatchlistId(watchlist.id)}
+                              className={cn(
+                                'min-h-9 min-w-0 flex-1 cursor-pointer truncate rounded-sm text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                watchlist.id === selectedWatchlistId && 'font-semibold text-accent',
+                              )}
                             >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </ListItemButton>
+                              {watchlist.name}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Delete ${watchlist.name}`}
+                              onClick={() => handleDelete(watchlist.id)}
+                              className={cn(ICON_BUTTON, 'hover:text-loss')}
+                            >
+                              <Trash2 aria-hidden="true" className="size-3.5" />
+                            </button>
+                          </li>
                         )}
                       </Draggable>
                     ))}
                     {provided.placeholder}
                     {watchlists.length === 0 && !watchlistsLoading && (
-                      <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
-                        No watchlists yet
-                      </Typography>
+                      <li className="px-1 text-xs text-muted-foreground">No watchlists yet</li>
                     )}
-                  </List>
+                  </ul>
                 )}
               </Droppable>
             </DragDropContext>
-          </Box>
+          </section>
 
           {/* Right Panel: Watchlist Details */}
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <section className="min-w-0 flex-1">
             {selectedWatchlist ? (
               <>
                 {/* Watchlist name with rename */}
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <div className="mb-3 flex items-center gap-2">
                   {editingName ? (
                     <>
-                      <TextField
-                        size="small"
+                      <input
+                        type="text"
+                        aria-label="Watchlist name"
                         value={editedName}
                         onChange={(e) => setEditedName(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSaveRename()}
+                        onKeyDown={onEnter(handleSaveRename)}
                         autoFocus
-                        sx={{ flex: 1 }}
+                        className={cn(INPUT, 'flex-1')}
                       />
-                      <Button size="small" onClick={handleSaveRename}>
-                        Save
-                      </Button>
-                      <Button size="small" onClick={() => setEditingName(false)}>
-                        Cancel
-                      </Button>
+                      <Button size="sm" onClick={handleSaveRename}>Save</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setEditingName(false)}>Cancel</Button>
                     </>
                   ) : (
                     <>
-                      <Typography variant="h6">{selectedWatchlist.name}</Typography>
-                      <IconButton size="small" onClick={handleStartRename}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
+                      <h3 className="text-lg font-semibold">{selectedWatchlist.name}</h3>
+                      <button
+                        type="button"
+                        aria-label={`Rename ${selectedWatchlist.name}`}
+                        onClick={handleStartRename}
+                        className={ICON_BUTTON}
+                      >
+                        <Pencil aria-hidden="true" className="size-3.5" />
+                      </button>
                     </>
                   )}
-                </Box>
+                </div>
 
-                <Box mb={2}>
-                  <FormControlLabel
-                    control={(
-                      <Switch
-                        size="small"
-                        checked={Boolean(selectedWatchlist.include_in_daily_scan)}
-                        disabled={dailyScanMutation.isPending}
-                        onChange={(e) => dailyScanMutation.mutate({
-                          id: selectedWatchlist.id,
-                          include: e.target.checked,
-                        })}
-                      />
-                    )}
-                    label="Include in daily scan"
-                  />
-                  <Typography variant="caption" color="text.secondary" display="block">
+                <div className="mb-3">
+                  <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedWatchlist.include_in_daily_scan)}
+                      disabled={dailyScanMutation.isPending}
+                      onChange={(e) => dailyScanMutation.mutate({
+                        id: selectedWatchlist.id,
+                        include: e.target.checked,
+                      })}
+                      className="size-4 cursor-pointer accent-accent"
+                    />
+                    Include in daily scan
+                  </label>
+                  <p className="text-xs text-muted-foreground">
                     Scanned after each of its markets&apos; daily scans, with the default screeners.
                     Any watchlist can still be scanned manually.
-                  </Typography>
-                </Box>
+                  </p>
+                </div>
 
                 {/* Add symbol */}
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} mb={2}>
-                  <TextField
-                    size="small"
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    aria-label="Symbol to add"
                     placeholder="Add symbol (e.g., NVDA)"
                     value={newSymbol}
                     onChange={(e) => setNewSymbol(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddSymbol()}
-                    sx={{ width: 200 }}
+                    onKeyDown={onEnter(handleAddSymbol)}
+                    className={cn(INPUT, 'sm:w-52')}
                   />
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={handleAddSymbol}
-                    disabled={!newSymbol.trim() || addItemMutation.isPending}
-                    startIcon={<AddIcon />}
-                  >
-                    Add
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={handleOpenImportDialog}
-                    startIcon={<UploadFileIcon />}
-                  >
-                    Import
-                  </Button>
-                </Stack>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleAddSymbol}
+                      disabled={!newSymbol.trim() || addItemMutation.isPending}
+                    >
+                      <Plus aria-hidden="true" />
+                      Add
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={handleOpenImportDialog}>
+                      <Upload aria-hidden="true" />
+                      Import
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Items list with drag-drop */}
                 {watchlistData?.items && watchlistData.items.length > 0 ? (
                   <DragDropContext onDragEnd={handleItemDragEnd}>
                     <Droppable droppableId="items">
                       {(provided) => (
-                        <List dense ref={provided.innerRef} {...provided.droppableProps}>
+                        <ul className="flex flex-col" ref={provided.innerRef} {...provided.droppableProps}>
                           {watchlistData.items.map((item, index) => (
                             <Draggable key={item.id} draggableId={`item-${item.id}`} index={index}>
                               {(provided, snapshot) => (
-                                <ListItem
+                                <li
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
-                                  sx={{
-                                    bgcolor: snapshot.isDragging ? 'action.hover' : undefined,
-                                    borderRadius: 1,
-                                  }}
+                                  className={cn(
+                                    'flex items-center gap-2 rounded-md border-b border-border py-1 pr-1',
+                                    snapshot.isDragging && 'bg-surface-subtle shadow-md',
+                                  )}
                                 >
-                                  <Box
+                                  <span
                                     {...provided.dragHandleProps}
-                                    sx={{
-                                      mr: 1,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      cursor: 'grab',
-                                    }}
+                                    aria-label={`Reorder ${item.symbol}`}
+                                    className="grid h-9 w-6 shrink-0 cursor-grab place-items-center rounded-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   >
-                                    <DragIndicatorIcon fontSize="small" color="action" />
-                                  </Box>
-                                  <ListItemText
-                                    primary={item.symbol}
-                                    secondary={item.company_name}
-                                    primaryTypographyProps={{ fontWeight: 500 }}
-                                  />
-                                  <ListItemSecondaryAction>
-                                    <IconButton
-                                      size="small"
-                                      aria-label={`Remove ${item.symbol}`}
-                                      onClick={() => handleRemoveItem(item.id)}
-                                      sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
-                                    >
-                                      <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                  </ListItemSecondaryAction>
-                                </ListItem>
+                                    <GripVertical aria-hidden="true" className="size-4" />
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium">{item.symbol}</p>
+                                    {item.company_name && (
+                                      <p className="truncate text-xs text-muted-foreground">{item.company_name}</p>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${item.symbol}`}
+                                    onClick={() => handleRemoveItem(item.id)}
+                                    className={cn(ICON_BUTTON, 'hover:text-loss')}
+                                  >
+                                    <Trash2 aria-hidden="true" className="size-3.5" />
+                                  </button>
+                                </li>
                               )}
                             </Draggable>
                           ))}
                           {provided.placeholder}
-                        </List>
+                        </ul>
                       )}
                     </Droppable>
                   </DragDropContext>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No stocks in this watchlist yet.
-                  </Typography>
+                  <p className="text-sm text-muted-foreground">No stocks in this watchlist yet.</p>
                 )}
               </>
             ) : (
-              <Box
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                height="100%"
-                minHeight={300}
-              >
-                <Typography color="text.secondary" textAlign="center">
-                  {watchlists.length > 0
-                    ? 'Select a watchlist to edit'
-                    : 'Create a watchlist to get started'}
-                </Typography>
-              </Box>
+              <p className="flex min-h-[300px] items-center justify-center text-center text-sm text-muted-foreground">
+                {watchlists.length > 0
+                  ? 'Select a watchlist to edit'
+                  : 'Create a watchlist to get started'}
+              </p>
             )}
-          </Box>
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
+          </section>
+        </div>
 
-      <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Import Symbols</DialogTitle>
-        <DialogContent>
-          <Typography id="watchlist-import-help" variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            Paste newline, comma, tab, or CSV-formatted symbols, or choose a .txt/.csv file such as a
-            TradingView watchlist export. The importer will dedupe entries and report invalid symbols.
-          </Typography>
-          <Button component="label" size="small" startIcon={<UploadFileIcon />} sx={{ mb: 1.5 }}>
-            Choose file
-            <input
-              hidden
-              type="file"
-              accept=".txt,.csv,text/plain,text/csv"
-              onChange={async (event) => {
-                const [file] = event.target.files;
-                event.target.value = '';
-                if (!file) {
-                  return;
-                }
-                if (file.size > MAX_IMPORT_CHARS) {
-                  setImportFileError(`${file.name} is over 1 MB.`);
-                  return;
-                }
-                try {
-                  setImportContent(await file.text());
-                  setImportFileError(null);
-                  clearImportServerError();
-                } catch {
-                  setImportFileError(`Could not read ${file.name}.`);
-                }
-              }}
-            />
-          </Button>
-          {importError && (
-            <Alert severity="error" sx={{ mb: 1.5 }}>
-              {importError}
-            </Alert>
-          )}
-          <TextField
-            autoFocus
-            multiline
-            minRows={8}
-            fullWidth
-            inputProps={{
-              'aria-label': 'Symbols to import',
-              'aria-describedby': 'watchlist-import-help',
-            }}
-            placeholder={'NVDA\nMSFT\nAAPL'}
-            value={importContent}
-            onChange={(event) => {
-              setImportContent(event.target.value);
-              clearImportServerError();
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setImportDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => importItemsMutation.mutate({
-              watchlistId: selectedWatchlistId,
-              payload: { content: importContent, format: 'auto' },
-            })}
-            disabled={
-              !selectedWatchlistId || !importContent.trim() || importTooLong || importItemsMutation.isPending
-            }
+        <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+          <DialogContent
+            title="Import Symbols"
+            size="sm"
+            footer={(
+              <>
+                <DialogClose asChild><Button variant="ghost" size="sm">Cancel</Button></DialogClose>
+                <Button
+                  size="sm"
+                  onClick={() => importItemsMutation.mutate({
+                    watchlistId: selectedWatchlistId,
+                    payload: { content: importContent, format: 'auto' },
+                  })}
+                  disabled={
+                    !selectedWatchlistId || !importContent.trim() || importTooLong || importItemsMutation.isPending
+                  }
+                >
+                  Import
+                </Button>
+              </>
+            )}
           >
-            Import
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <p id="watchlist-import-help" className="mb-3 text-sm text-muted-foreground">
+              Paste newline, comma, tab, or CSV-formatted symbols, or choose a .txt/.csv file such as a
+              TradingView watchlist export. The importer will dedupe entries and report invalid symbols.
+            </p>
+            <label className="mb-3 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold hover:bg-surface-subtle focus-within:ring-2 focus-within:ring-ring md:h-8">
+              <Upload aria-hidden="true" className="size-4" />
+              Choose file
+              <input
+                type="file"
+                accept=".txt,.csv,text/plain,text/csv"
+                className="sr-only"
+                onChange={async (event) => {
+                  const [file] = event.target.files;
+                  event.target.value = '';
+                  if (!file) {
+                    return;
+                  }
+                  if (file.size > MAX_IMPORT_CHARS) {
+                    setImportFileError(`${file.name} is over 1 MB.`);
+                    return;
+                  }
+                  try {
+                    setImportContent(await file.text());
+                    setImportFileError(null);
+                    clearImportServerError();
+                  } catch {
+                    setImportFileError(`Could not read ${file.name}.`);
+                  }
+                }}
+              />
+            </label>
+            {importError && (
+              <Notice tone="error" className="mb-3">{importError}</Notice>
+            )}
+            <textarea
+              autoFocus
+              rows={8}
+              aria-label="Symbols to import"
+              aria-describedby="watchlist-import-help"
+              placeholder={'NVDA\nMSFT\nAAPL'}
+              value={importContent}
+              onChange={(event) => {
+                setImportContent(event.target.value);
+                clearImportServerError();
+              }}
+              className="w-full rounded-md border border-border bg-surface p-2.5 font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={Boolean(pendingDelete)} onOpenChange={(next) => { if (!next) setPendingDeleteId(null); }}>
+          <DialogContent
+            role="alertdialog"
+            title="Delete watchlist?"
+            size="sm"
+            footer={(
+              <>
+                <DialogClose asChild><Button variant="ghost" size="sm">Cancel</Button></DialogClose>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    deleteMutation.mutate(pendingDeleteId);
+                    setPendingDeleteId(null);
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          >
+            <p className="text-sm">
+              {`Delete “${pendingDelete?.name ?? ''}” and all its stocks? This cannot be undone.`}
+            </p>
+          </DialogContent>
+        </Dialog>
+      </DialogContent>
     </Dialog>
   );
 }
