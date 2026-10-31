@@ -101,8 +101,8 @@ describe('ResultsTable', () => {
 
       await user.click(screen.getByRole('button', { name: 'Setup Ready' }));
 
-      expect(screen.getByRole('presentation')).toHaveTextContent('Resilience score');
-      expect(screen.getByRole('presentation')).toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('Resilience score');
+      expect(screen.getByRole('dialog')).toHaveTextContent('84.0');
       expect(onOpenChart).not.toHaveBeenCalled();
     });
 
@@ -112,7 +112,7 @@ describe('ResultsTable', () => {
         <ResultsTable {...defaultProps} results={[opportunityRow]} />,
       );
       await user.click(screen.getByRole('button', { name: 'Setup Ready' }));
-      expect(screen.getByRole('presentation')).toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('84.0');
 
       rerender(
         <ResultsTable
@@ -120,8 +120,8 @@ describe('ResultsTable', () => {
           results={[{ ...opportunityRow, resilience_score: 79.0 }]}
         />,
       );
-      expect(screen.getByRole('presentation')).toHaveTextContent('79.0');
-      expect(screen.getByRole('presentation')).not.toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('79.0');
+      expect(screen.getByRole('dialog')).not.toHaveTextContent('84.0');
 
       rerender(
         <ResultsTable
@@ -234,7 +234,7 @@ describe('ResultsTable', () => {
       expect(screen.getByRole('button', { name: 'Watch' })).toBeInTheDocument();
       expect(screen.getByText('91.0')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Watch' }));
-      expect(screen.getByRole('presentation')).toHaveTextContent('QQQ');
+      expect(screen.getByRole('dialog')).toHaveTextContent('QQQ');
     });
   });
 
