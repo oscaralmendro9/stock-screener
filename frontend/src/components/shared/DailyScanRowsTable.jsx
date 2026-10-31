@@ -128,7 +128,7 @@ function DailyScanRowsTable({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
-            <thead className="border-y border-border bg-surface-subtle text-xs text-muted-foreground">
+            <thead className="border-y border-border bg-surface text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className={cn(HEAD, 'text-left')}>Symbol</th>
                 <th scope="col" className={cn(HEAD, 'text-right')}>Score</th>

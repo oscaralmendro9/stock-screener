@@ -23,10 +23,10 @@ export default function KeyStatsGrid({ data }) {
     <section aria-label="Key statistics" className="grid overflow-hidden rounded-lg border border-border bg-surface sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {columns.map((rows, columnIndex) => (
         <dl key={columnIndex} className={cn('min-w-0 text-xs', columnIndex > 0 && 'border-t border-border sm:border-t-0 sm:border-l')}>
-          {rows.map(([label, value], rowIndex) => (
+          {rows.map(([label, value]) => (
             <div
               key={label}
-              className={cn('flex items-center justify-between gap-3 px-2.5 py-1 tabular-nums', rowIndex % 2 === 1 && 'bg-surface-subtle/60')}
+              className="flex items-center justify-between gap-3 px-2.5 py-1 tabular-nums"
             >
               <dt className="shrink-0 text-muted-foreground">{label}</dt>
               <dd className="min-w-0 text-right font-semibold"><Value value={value} /></dd>

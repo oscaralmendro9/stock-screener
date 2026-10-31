@@ -182,7 +182,7 @@ function ScreenerFilterGrid({
                   )}
                 >
                   {item.label}
-                  {count > 0 && <span className="rounded-sm bg-accent/15 px-1 text-[10px] font-semibold text-accent tabular-nums">{count}</span>}
+                  {count > 0 && <span className="rounded-sm bg-accent/15 px-1 text-[11px] font-semibold text-accent tabular-nums">{count}</span>}
                 </button>
               );
             })}

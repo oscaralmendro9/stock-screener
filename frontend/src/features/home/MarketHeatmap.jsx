@@ -67,7 +67,7 @@ export default function MarketHeatmap({
           <div
             key={sector.name}
             aria-hidden="true"
-            className="pointer-events-none absolute truncate px-1 text-[10px] leading-4 font-semibold tracking-wide text-white/80 uppercase"
+            className="pointer-events-none absolute truncate px-1 text-[11px] leading-4 font-semibold tracking-wide text-white/80 uppercase"
             style={{ left: sector.x, top: sector.y, width: sector.width }}
           >
             {sector.name}
@@ -77,15 +77,17 @@ export default function MarketHeatmap({
           <div
             key={`${industry.name}-${industry.x}-${industry.y}`}
             aria-hidden="true"
-            className="pointer-events-none absolute truncate px-1 text-[9px] leading-3 text-white/60"
+            className="pointer-events-none absolute truncate px-1 text-[11px] leading-3 text-white/70"
             style={{ left: industry.x, top: industry.y, width: industry.width }}
           >
             {industry.name}
           </div>
         ))}
         {layout?.tiles.map((tile) => {
-          const showSymbol = tile.width >= 26 && tile.height >= 14;
-          const showChange = tile.width >= 40 && tile.height >= 30;
+          // Labels stay at 11px or more; tiles too small for that show none
+          // (the name is in the tooltip and the accessible label).
+          const showSymbol = tile.width >= 32 && tile.height >= 16;
+          const showChange = tile.width >= 46 && tile.height >= 32;
           const big = tile.width >= 90 && tile.height >= 50;
           return (
             <button
@@ -97,13 +99,13 @@ export default function MarketHeatmap({
               className="absolute flex cursor-pointer flex-col items-center justify-center overflow-hidden text-white outline-none hover:brightness-125 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-white"
               style={{ left: tile.x, top: tile.y, width: tile.width, height: tile.height, backgroundColor: changeColor(tile.price_change_1d) }}
             >
-              {showSymbol && <span className={big ? 'text-base font-bold' : 'text-[10px] leading-3 font-semibold'}>{tile.symbol}</span>}
-              {showChange && <span className={big ? 'text-xs' : 'text-[9px] leading-3'}>{signed(tile.price_change_1d)}</span>}
+              {showSymbol && <span className={big ? 'text-base font-bold' : 'text-[11px] leading-3 font-semibold'}>{tile.symbol}</span>}
+              {showChange && <span className={big ? 'text-xs' : 'text-[11px] leading-3'}>{signed(tile.price_change_1d)}</span>}
             </button>
           );
         })}
       </div>
-      <div aria-hidden="true" className="mt-1.5 flex justify-center gap-px text-[10px] text-white">
+      <div aria-hidden="true" className="mt-1.5 flex justify-center gap-px text-[11px] text-white">
         {LEGEND.map((value) => (
           <span key={value} className="w-10 py-0.5 text-center tabular-nums" style={{ backgroundColor: changeColor(value === 0 ? 0 : value) }}>
             {value > 0 ? `+${value}%` : `${value}%`}

@@ -21,7 +21,7 @@ function SignalTable({ caption, groups }) {
     <div className="min-w-0 overflow-x-auto rounded-lg border border-border bg-surface">
       <table className="w-full border-collapse text-xs">
         <caption className="sr-only">{caption}</caption>
-        <thead className="border-b border-border bg-surface-subtle text-muted-foreground">
+        <thead className="border-b border-border bg-surface text-muted-foreground">
           <tr>
             <th scope="col" className="px-2 py-1.5 text-left font-medium">Ticker</th>
             <th scope="col" className="px-2 py-1.5 text-right font-medium">Last</th>
@@ -38,7 +38,7 @@ function SignalTable({ caption, groups }) {
                   <td colSpan={4} className="px-2 py-1 text-muted-foreground">
                     {isLoading ? 'Loading…' : isError ? 'Could not load' : 'None today'}
                   </td>
-                  <td className="px-2 py-1 text-accent">{label}</td>
+                  <td className="px-2 py-1 text-muted-foreground">{label}</td>
                 </tr>
               );
             }
@@ -58,7 +58,7 @@ function SignalTable({ caption, groups }) {
                 <td className="px-2 py-1 text-right text-muted-foreground tabular-nums">
                   {row.volume != null ? formatLargeNumber(row.volume, '$') : '-'}
                 </td>
-                <td className="px-2 py-1 whitespace-nowrap text-accent">{label}</td>
+                <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">{label}</td>
               </tr>
             ));
           })}

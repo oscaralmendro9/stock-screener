@@ -195,7 +195,9 @@ export const getDesignTokens = (mode) => {
             borderBottom: `1px solid ${palette.divider}`,
           },
           head: {
-            backgroundColor: palette.background.subtle,
+            // No header band: the head is the row's own surface (opaque, so a
+            // sticky header still hides the rows scrolling under it).
+            backgroundColor: palette.background.paper,
             color: palette.text.secondary,
             fontWeight: 500,
             fontSize: '11px',
@@ -224,10 +226,8 @@ export const getDesignTokens = (mode) => {
           root: {
             // :where() drops the row part of these selectors to the tbody class
             // alone, tying a row's own sx class; the row's styles are inserted
-            // later, so highlighted rows and per-row hover still win.
-            '& :where(.MuiTableRow-root:nth-of-type(odd))': {
-              backgroundColor: alpha(palette.text.primary, 0.025),
-            },
+            // later, so highlighted rows and per-row hover still win. Rows are
+            // separated by their rules, not zebra striping.
             '& :where(.MuiTableRow-root:hover)': {
               backgroundColor: alpha(palette.primary.main, 0.08),
             },

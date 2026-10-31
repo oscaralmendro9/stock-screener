@@ -110,7 +110,7 @@ function PriceSparkline({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'text.disabled',
-          fontSize: 10,
+          fontSize: 11,
         }}
       >
         -
@@ -162,9 +162,10 @@ function PriceSparkline({
         {showChange && changeText && (
           <Typography
             sx={{
-              fontSize: 10,
+              // 11px floor; aligned digits in the UI font rather than monospace.
+              fontSize: 11,
               fontWeight: 600,
-              fontFamily: 'monospace',
+              fontVariantNumeric: 'tabular-nums',
               color: changeColor,
               whiteSpace: 'nowrap',
               flexShrink: 0,

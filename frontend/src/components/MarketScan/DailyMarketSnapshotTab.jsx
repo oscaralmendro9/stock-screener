@@ -79,7 +79,7 @@ function TopGroupsCard({ groups }) {
       </CardHeader>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse text-sm">
-          <thead className="border-y border-border bg-surface-subtle text-xs text-muted-foreground">
+          <thead className="border-y border-border bg-surface text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="w-14 px-3 py-2 text-right font-medium">Rank</th>
               <th scope="col" className="px-3 py-2 text-left font-medium">Group</th>

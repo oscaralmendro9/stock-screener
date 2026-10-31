@@ -39,14 +39,14 @@ const formatValue = (row, metric) => {
 };
 
 const metricCellSx = (metric, tone) => ({
-  fontFamily: 'monospace',
+  fontVariantNumeric: 'tabular-nums',
   fontWeight: isDirectionalMetric(metric) ? 700 : 500,
   color: '#fff',
   backgroundColor: BREADTH_VISUAL_COLORS[tone],
   borderColor: 'rgba(255, 255, 255, 0.06)',
-  borderLeft: groupStartMetrics.has(metric)
-    ? `3px solid ${metricGroupColors[metric]}`
-    : undefined,
+  // A 1px rule marks where each indicator group starts.
+  borderLeft: groupStartMetrics.has(metric) ? '1px solid' : undefined,
+  borderLeftColor: groupStartMetrics.has(metric) ? 'divider' : undefined,
   px: 0.5,
   whiteSpace: 'nowrap',
   transition: 'background-color 120ms ease',
@@ -76,28 +76,22 @@ const GROUPS = [
     label: 'Primary Breadth Indicators',
     description: 'Daily movers & ratios',
     metrics: primaryBreadthMetrics,
-    color: '#9a6700',
   },
   {
     key: 'secondary',
     label: 'Secondary Breadth Indicators',
     description: 'Trend windows',
     metrics: secondaryBreadthMetrics,
-    color: '#176b43',
   },
   {
     key: 'context',
     label: 'Context',
     description: 'Market context',
     metrics: tableContextMetrics,
-    color: '#315f9b',
   },
 ];
 
 const groupStartMetrics = new Set(GROUPS.map((group) => group.metrics[0]));
-const metricGroupColors = Object.fromEntries(
-  GROUPS.map((group) => [group.metrics[0], group.color]),
-);
 const EMPTY_CONTRIBUTOR_DATES = new Set();
 
 function MetricHeader({ metric }) {
@@ -113,8 +107,9 @@ function MetricHeader({ metric }) {
         height: 54,
         px: 0.25,
         py: 0.5,
-        borderLeft: isGroupStart ? `3px solid ${metricGroupColors[metric]}` : undefined,
-        fontSize: 10,
+        borderLeft: isGroupStart ? 1 : undefined,
+        borderLeftColor: 'divider',
+        fontSize: 11,
         lineHeight: 1.15,
         whiteSpace: 'normal',
       }}
@@ -182,7 +177,8 @@ function BreadthHistoryTable({
                 zIndex: 5,
                 px: 0.75,
                 fontWeight: 700,
-                borderRight: `3px solid ${GROUPS[0].color}`,
+                borderRight: 1,
+                borderRightColor: 'divider',
               }}
             >
               Date
@@ -194,17 +190,15 @@ function BreadthHistoryTable({
                 colSpan={group.metrics.length}
                 data-testid={`breadth-group-${group.key}`}
                 sx={{
-                  bgcolor: group.color,
-                  color: '#fff',
-                  borderLeft: `3px solid ${group.color}`,
-                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                  borderLeft: 1,
+                  borderLeftColor: 'divider',
                   py: 0.6,
                 }}
               >
-                <Box sx={{ fontSize: 11, fontWeight: 800, lineHeight: 1.2 }}>
+                <Box sx={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
                   {group.label}
                 </Box>
-                <Box sx={{ fontSize: 9, fontWeight: 600, opacity: 0.78, lineHeight: 1.2 }}>
+                <Box sx={{ fontSize: 11, lineHeight: 1.2, color: 'text.secondary' }}>
                   {group.description}
                 </Box>
               </TableCell>
@@ -222,12 +216,12 @@ function BreadthHistoryTable({
                   position: 'sticky',
                   left: 0,
                   zIndex: 2,
-                  bgcolor: BREADTH_VISUAL_COLORS.neutral,
-                  color: '#fff',
-                  fontFamily: 'monospace',
+                  bgcolor: 'background.paper',
+                  fontVariantNumeric: 'tabular-nums',
                   fontWeight: 600,
                   px: 0.75,
-                  borderRight: `3px solid ${GROUPS[0].color}`,
+                  borderRight: 1,
+                  borderRightColor: 'divider',
                   whiteSpace: 'nowrap',
                 }}
               >

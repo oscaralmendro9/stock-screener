@@ -124,7 +124,7 @@ export default function ScreenerTable({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-xs">
           {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <thead className="border-b border-border bg-surface-subtle text-muted-foreground">
+          <thead className="border-b border-border bg-surface text-muted-foreground">
             <tr>
               <th scope="col" className="w-10 px-2 py-1.5 text-right font-medium">No.</th>
               {columns.map((column) => {
@@ -157,7 +157,7 @@ export default function ScreenerTable({
                   }
                 }}
                 className={cn(
-                  'border-b border-border/60 outline-none last:border-0 even:bg-surface-subtle/50 focus-visible:bg-accent/10',
+                  'border-b border-border/60 outline-none last:border-0 focus-visible:bg-accent/10',
                   onOpenChart && 'cursor-pointer transition-colors duration-150 ease-out hover:bg-accent/10',
                 )}
               >

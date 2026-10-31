@@ -27,7 +27,7 @@ const STANCE_TONES = {
 const TONE_TEXT = { gain: 'text-gain', warning: 'text-warning', loss: 'text-loss', neutral: 'text-foreground' };
 const TONE_FILL = { gain: 'bg-gain', warning: 'bg-warning', loss: 'bg-loss', neutral: 'bg-muted-foreground' };
 
-const AXIS = { stroke: 'var(--border)', tick: { fill: 'var(--muted-foreground)', fontSize: 10 }, tickLine: false };
+const AXIS = { stroke: 'var(--border)', tick: { fill: 'var(--muted-foreground)', fontSize: 11 }, tickLine: false };
 
 function stanceTone(stance) {
   return STANCE_TONES[stance] || 'neutral';

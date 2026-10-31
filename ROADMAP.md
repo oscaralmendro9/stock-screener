@@ -50,6 +50,20 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] Maps: full-screen market map at `/maps` (top 300/500/1000, sector or sector & industry), live-only nav item
 - [x] "New scan" out of the screener's main view: the control bar keeps the loaded-scan picker, progress, Cancel and "Use last published data"; market, universe, strategies and Scan open from "New scan" (and on their own when nothing is loaded)
 
+## Design review (Impeccable · Taste · Apple design skills, 2026-10-31)
+Fixed:
+- [x] No text under 11px on Home (was 168 nodes: map labels, sparkline change, chart axes); map tiles too small for an 11px label show none (name stays in the tooltip and accessible label)
+- [x] No zebra rows or header bands in any table (MUI theme and the Tailwind tables); the stock key-stats grid drops its alternating fill
+- [x] Accent only on data and links: the Home "Signal" column is grey
+- [x] Breadth history: neutral group headers, 1px dividers instead of 3px coloured left borders, tabular digits instead of monospace, 11px floor
+
+Open:
+- [ ] Mixed capitalization: section titles are Title Case ("Top Scan Candidates") while newer ones are sentence case ("Market map"); pick one (tests and the static site share the strings)
+- [ ] Brand face: Taste reads indigo accent + Inter on a grey ground as a stock kit; DESIGN.md keeps both for now (owner decision)
+- [ ] Groups page: coloured rank squares and MUI tabs; migrate with Phase 4
+- [ ] Map tiles under 24px are below WCAG 2.5.8 target size; covered by the equivalent-control exception (symbol search), noted rather than fixed
+- [~] Key-market cards keep their sparklines (Taste bans sparklines on KPIs): here the index trend is the content, as on Finviz
+
 ## Phase 4 — Page migration
 - [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer
 - [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. Still MUI: the scan control bar, presets menu, multi-selects and the static site's `FilterPanel`
