@@ -1,4 +1,4 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { cn } from '@/lib/cn';
 
 import BreadthMetricTooltip from './BreadthMetricTooltip';
 import { breadthMetricDefinitions } from './breadthMetricDefinitions';
@@ -56,78 +56,54 @@ function HealthBar({
     : `${left.label} and ${right.label} unavailable`;
 
   return (
-    <Paper
-      variant="outlined"
+    <div
       data-testid={testId}
       aria-label={ariaLabel}
-      sx={{ p: 1.25, minWidth: 0 }}
+      className="min-w-0 rounded-md border border-border p-3"
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+      <div className="flex justify-between gap-4">
         {[left, right].map((item, index) => {
           const itemPercent = index === 0 ? leftPercent : rightPercent;
           return (
-            <Box key={item.metric} sx={{ minWidth: 0, textAlign: index === 0 ? 'left' : 'right' }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: index === 0 ? 'flex-start' : 'flex-end',
-                }}
-              >
-                <Typography sx={{ color: colors[index], fontSize: 11, fontWeight: 800 }}>
+            <div key={item.metric} className={cn('min-w-0', index === 1 && 'text-right')}>
+              <div className={cn('flex items-center', index === 1 && 'justify-end')}>
+                <span className="text-[11px] font-semibold" style={{ color: colors[index] }}>
                   {item.label}
-                </Typography>
+                </span>
                 <BreadthMetricTooltip metric={item.metric} compact />
-              </Box>
-              <Typography
-                sx={{
-                  color: isAvailable ? colors[index] : 'text.secondary',
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
+              </div>
+              <p
+                className={cn('text-sm font-semibold tabular-nums', !isAvailable && 'text-muted-foreground')}
+                style={isAvailable ? { color: colors[index] } : undefined}
               >
                 {isAvailable ? `${item.count} (${itemPercent.toFixed(1)}%)` : '—'}
-              </Typography>
-            </Box>
+              </p>
+            </div>
           );
         })}
-      </Box>
-      <Box
+      </div>
+      <div
         role="img"
         aria-label={ariaLabel}
-        sx={{
-          display: 'flex',
-          height: 9,
-          mt: 0.75,
-          overflow: 'hidden',
-          bgcolor: BREADTH_VISUAL_COLORS.neutral,
-          borderRadius: 999,
-        }}
+        className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-surface-subtle"
       >
-        <Box
+        <div
           data-testid={`${testId}-${left.segment}`}
-          sx={{ width: `${leftPercent}%`, bgcolor: colors[0] }}
+          style={{ width: `${leftPercent}%`, backgroundColor: colors[0] }}
         />
         {neutral && (
-          <Box
+          <div
             data-testid={`${testId}-${neutral.segment}`}
-            sx={{ width: `${neutralPercent}%`, bgcolor: BREADTH_VISUAL_COLORS.unchanged }}
+            style={{ width: `${neutralPercent}%`, backgroundColor: BREADTH_VISUAL_COLORS.unchanged }}
           />
         )}
-        <Box
+        <div
           data-testid={`${testId}-${right.segment}`}
-          sx={{ width: `${rightPercent}%`, bgcolor: colors[1] }}
+          style={{ width: `${rightPercent}%`, backgroundColor: colors[1] }}
         />
-      </Box>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mt: 0.5, fontSize: 9.5 }}
-      >
-        {eligibleLabel}
-      </Typography>
-    </Paper>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">{eligibleLabel}</p>
+    </div>
   );
 }
 
@@ -142,21 +118,8 @@ function BreadthContextStrip({ row }) {
   const highLowEligible = Number(row?.high_low_52week_eligible_count) || 0;
 
   return (
-    <Box
-      aria-label="Breadth context"
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-      }}
-    >
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-          gap: 1,
-        }}
-      >
+    <div aria-label="Breadth context" className="tw flex flex-col gap-2">
+      <div className="grid gap-2 md:grid-cols-2">
         <HealthBar
           testId="breadth-health-advance-decline"
           left={{
@@ -181,10 +144,7 @@ function BreadthContextStrip({ row }) {
           }}
           isAvailable={advanceDeclineEligible > 0}
           eligibleLabel={`${advanceDeclineEligible || '—'} advance/decline eligible stocks`}
-          colors={[
-            BREADTH_VISUAL_COLORS['up-strong'],
-            BREADTH_VISUAL_COLORS['down-strong'],
-          ]}
+          colors={['var(--gain)', 'var(--loss)']}
         />
         <HealthBar
           testId="breadth-health-high-low"
@@ -206,43 +166,27 @@ function BreadthContextStrip({ row }) {
           eligibleLabel={`${highLowEligible || '—'} high/low eligible stocks`}
           colors={[BREADTH_VISUAL_COLORS.newHigh, BREADTH_VISUAL_COLORS.newLow]}
         />
-      </Box>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'repeat(1, minmax(0, 1fr))',
-            sm: 'repeat(3, minmax(0, 1fr))',
-          },
-          gap: 1,
-        }}
-      >
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
         {contextMetrics.map((metric) => (
-          <Paper
+          <div
             key={metric}
-            variant="outlined"
             data-testid={`breadth-context-${metric}`}
-            sx={{ p: 1, minWidth: 0 }}
+            className="min-w-0 rounded-md border border-border px-3 py-2"
           >
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontSize: 10, fontWeight: 700 }}
-              >
+            <div className="flex items-center">
+              <span className="text-[11px] font-semibold text-muted-foreground">
                 {breadthMetricDefinitions[metric].label}
-              </Typography>
+              </span>
               <BreadthMetricTooltip metric={metric} compact />
-            </Box>
-            <Typography
-              sx={{ mt: 0.25, fontFamily: 'monospace', fontSize: 13, fontWeight: 700 }}
-            >
+            </div>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums">
               {formatContextValue(row, metric)}
-            </Typography>
-          </Paper>
+            </p>
+          </div>
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 

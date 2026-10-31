@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import QueryErrorAlert from '../components/common/QueryErrorAlert';
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Container,
-  Paper,
-  Typography,
-} from '@mui/material';
 import { format, parseISO } from 'date-fns';
+import { TriangleAlert } from 'lucide-react';
+
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
 
 import {
   getBreadthContributorIndex,
@@ -33,6 +29,29 @@ import {
   breadthHistoryWindow,
   getBreadthDateRange,
 } from '../pageBootstrapQueries';
+import { describeRequestError } from '../utils/requestErrors';
+
+// Structural placeholder in the page's own shape: summary, bars, chart.
+function BreadthSkeleton() {
+  const block = 'rounded-md bg-surface-subtle motion-safe:animate-pulse';
+  return (
+    <div className="tw flex flex-col gap-4 py-2" aria-busy="true" aria-label="Loading breadth data">
+      <Card className="flex flex-col gap-3 p-3">
+        <div className={`${block} h-5 w-48`} />
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className={`${block} h-20`} />
+          <div className={`${block} h-20`} />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className={`${block} h-14`} />
+          <div className={`${block} h-14`} />
+          <div className={`${block} h-14`} />
+        </div>
+      </Card>
+      <div className={`${block} h-[390px] md:h-[460px]`} />
+    </div>
+  );
+}
 
 function BreadthPage() {
   const { runtimeReady } = useRuntime();
@@ -129,53 +148,38 @@ function BreadthPage() {
       : 'The contributor snapshot is inconsistent with breadth history.')
     : contributorDrilldown.viewState.inconsistent;
   if (!runtimeReady || isLoadingCurrent) {
-    return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
+    return <BreadthSkeleton />;
   }
   if (errorCurrent) {
     return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
-        <QueryErrorAlert
-          title={`Error loading ${selectedMarket} breadth data`}
-          error={errorCurrent}
-          onRetry={refetchCurrent}
-        />
-      </Container>
+      <div role="alert" className="tw my-2 flex flex-wrap items-center gap-3 rounded-md border border-loss/40 bg-loss/10 px-4 py-3 text-sm">
+        <TriangleAlert aria-hidden="true" className="size-4 text-loss" />
+        <p className="min-w-0 flex-1">
+          {`Error loading ${selectedMarket} breadth data: ${describeRequestError(errorCurrent)}`}
+        </p>
+        <Button variant="secondary" size="sm" onClick={() => refetchCurrent()}>Retry</Button>
+      </div>
     );
   }
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
-      <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 1.25,
-          }}
-        >
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Latest Breadth Data
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
+    <div className="tw flex flex-col gap-4 py-2">
+      <Card className="p-3">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h1 className="text-lg font-semibold text-balance">Latest Breadth Data</h1>
+            <p className="text-xs text-muted-foreground tabular-nums">
               One shared calculation layer · revision {currentBreadth?.calculation_revision ?? '—'}
-            </Typography>
-          </Box>
+            </p>
+          </div>
           {currentBreadth?.date && (
-            <Chip label={format(parseISO(currentBreadth.date), 'MMM dd, yyyy')} size="small" />
+            <Badge className="tabular-nums">{format(parseISO(currentBreadth.date), 'MMM dd, yyyy')}</Badge>
           )}
-        </Box>
+        </div>
         <BreadthContextStrip row={currentBreadth} />
-      </Paper>
+      </Card>
 
-      <Box sx={{ height: { xs: 390, md: 460 }, mb: 2 }}>
+      <div className="h-[390px] md:h-[460px]">
         <BreadthChart
           breadthData={chartBreadthData}
           spyData={benchmarkData || []}
@@ -186,24 +190,22 @@ function BreadthPage() {
           onTimeRangeChange={setChartTimeRange}
           fillContainer
         />
-      </Box>
+      </div>
 
       {historicalBreadth?.length > 0 && (
-        <Paper variant="outlined">
-          <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
-              Recent History
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
+        <Card className="overflow-hidden">
+          <div className="border-b border-border p-3">
+            <h2 className="text-sm font-semibold">Recent History</h2>
+            <p className="text-xs text-muted-foreground">
               Primary tracks daily movers and ratios; secondary tracks trend windows; context adds T2108, ATR extension, and universe size.
-            </Typography>
-          </Box>
+            </p>
+          </div>
           <BreadthHistoryTable
             rows={historicalBreadth}
             contributorDates={contributorDrilldown.availableDates}
             onContributorCellClick={contributorDrilldown.open}
           />
-        </Paper>
+        </Card>
       )}
 
       <BreadthContributorDialog
@@ -222,20 +224,15 @@ function BreadthPage() {
       />
 
       {currentBreadth && (
-        <Typography
-          component="div"
-          variant="caption"
-          color="text.secondary"
-          sx={{ mt: 2, textAlign: 'center' }}
-        >
+        <p className="text-center text-xs text-muted-foreground tabular-nums">
           Broad universe: {currentBreadth.broad_universe_count
             ?? currentBreadth.total_stocks_scanned
             ?? '—'}
           {' · '}
           Calculation time: {currentBreadth.calculation_duration_seconds?.toFixed?.(2) ?? '—'}s
-        </Typography>
+        </p>
       )}
-    </Container>
+    </div>
   );
 }
 
