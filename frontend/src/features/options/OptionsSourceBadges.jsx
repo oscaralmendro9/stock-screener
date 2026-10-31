@@ -1,4 +1,4 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { Badge } from '@/ui/badge';
 
 export default function OptionsSourceBadges({ badges = [], candidateRank, leaderRank }) {
   const isCandidate = badges.includes('candidate');
@@ -10,9 +10,9 @@ export default function OptionsSourceBadges({ badges = [], candidateRank, leader
   ].filter(Boolean).join(' · ');
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, whiteSpace: 'nowrap' }}>
-      <Chip size="small" color={isCandidate && isLeader ? 'secondary' : 'primary'} label={label} />
-      <Typography variant="caption" color="text.secondary">{ranks}</Typography>
-    </Box>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <Badge tone={isCandidate && isLeader ? 'accent' : 'neutral'}>{label}</Badge>
+      <span className="text-xs text-muted-foreground tabular-nums">{ranks}</span>
+    </span>
   );
 }

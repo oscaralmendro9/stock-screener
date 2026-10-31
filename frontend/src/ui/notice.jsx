@@ -9,12 +9,13 @@ const TONES = {
 };
 
 // Inline message next to what it is about. Errors are alerts; the rest are
-// polite status. `action` sits at the end (e.g. a Retry button).
-export function Notice({ tone = 'info', action, onDismiss, className, children }) {
+// polite status unless `role` says otherwise. `action` sits at the end (e.g. a
+// Retry button).
+export function Notice({ tone = 'info', role, action, onDismiss, className, children }) {
   const { box, icon, Icon } = TONES[tone];
   return (
     <div
-      role={tone === 'error' ? 'alert' : 'status'}
+      role={role ?? (tone === 'error' ? 'alert' : 'status')}
       className={cn('flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm', box, className)}
     >
       <Icon aria-hidden="true" className={cn('size-4 shrink-0', icon)} />
