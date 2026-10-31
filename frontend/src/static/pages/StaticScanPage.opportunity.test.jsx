@@ -253,8 +253,8 @@ describe('StaticScanPage', () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole('button', { name: 'Setup Ready' }));
-    expect(screen.getByRole('presentation')).toHaveTextContent('Resilience score');
-    expect(screen.getByRole('presentation')).toHaveTextContent('SPY');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Resilience score');
+    expect(screen.getByRole('dialog')).toHaveTextContent('SPY');
     expect(screen.getByText('Not computed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Not computed' })).not.toBeInTheDocument();
     expect(resultsTableSpy.mock.calls.at(-1)?.[0]).not.toHaveProperty('opportunityTelemetrySurface');
