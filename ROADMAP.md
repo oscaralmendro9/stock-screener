@@ -59,7 +59,7 @@ Fixed:
 
 Open:
 - [ ] Mixed capitalization: section titles are Title Case ("Top Scan Candidates") while newer ones are sentence case ("Market map"); pick one (tests and the static site share the strings)
-- [ ] Brand face: Taste reads indigo accent + Inter on a grey ground as a stock kit; DESIGN.md keeps both for now (owner decision)
+- [x] Brand face: owner chose "ink and teal" (teal accent, neutral ink chrome, Instrument Sans); see DESIGN.md
 - [ ] Groups page: coloured rank squares and MUI tabs; migrate with Phase 4
 - [ ] Map tiles under 24px are below WCAG 2.5.8 target size; covered by the equivalent-control exception (symbol search), noted rather than fixed
 - [~] Key-market cards keep their sparklines (Taste bans sparklines on KPIs): here the index trend is the content, as on Finviz

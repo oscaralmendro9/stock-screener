@@ -54,26 +54,26 @@ export function useColorMode() {
 // gains and losses. index.css repeats background.default for the pre-React paint.
 const PALETTES = {
   dark: {
-    primary: { main: '#7b93ff', contrastText: '#0b0d12' },
-    secondary: { main: '#b197fc', contrastText: '#0b0d12' },
+    primary: { main: '#38b2c4', contrastText: '#0f0f10' },
+    secondary: { main: '#8f9196', contrastText: '#0f0f10' },
     success: { main: '#2ebd85' },
     // Dark text on the red fill: 5.5:1 vs 3.5:1 for white.
-    error: { main: '#f6465d', contrastText: '#0b0d12' },
-    background: { default: '#0b0d12', paper: '#12151c', subtle: '#181c25' },
-    divider: '#242a37',
-    text: { primary: '#e7e9ee', secondary: '#8b93a7', disabled: '#5b6378' },
+    error: { main: '#f6465d', contrastText: '#0f0f10' },
+    background: { default: '#080808', paper: '#0f0f10', subtle: '#18191b' },
+    divider: '#232427',
+    text: { primary: '#efefef', secondary: '#8f9196', disabled: '#5c5f66' },
   },
   light: {
-    primary: { main: '#3b5bdb', contrastText: '#ffffff' },
-    secondary: { main: '#7048e8', contrastText: '#ffffff' },
+    primary: { main: '#0b7285', contrastText: '#ffffff' },
+    secondary: { main: '#5f6368', contrastText: '#ffffff' },
     // Darker than the dark-mode tones so the .main values pass 4.5:1 as small
     // text on every light surface (paper, default and subtle).
     success: { main: '#0c7d56' },
     error: { main: '#c92a37' },
     warning: { main: '#b45309' },
-    background: { default: '#f5f6f8', paper: '#ffffff', subtle: '#f2f4f7' },
-    divider: '#e3e6ec',
-    text: { primary: '#111827', secondary: '#5f6b7f', disabled: '#98a2b3' },
+    background: { default: '#f7f7f7', paper: '#ffffff', subtle: '#f3f3f3' },
+    divider: '#e6e6e6',
+    text: { primary: '#111111', secondary: '#5f6368', disabled: '#9aa0a6' },
   },
 };
 
@@ -106,7 +106,7 @@ export const getDesignTokens = (mode) => {
       borderRadius: 10,
     },
     typography: {
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: '"Instrument Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       fontSize: 13,
       body1: {
         fontSize: '14px',

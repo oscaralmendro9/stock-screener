@@ -30,9 +30,23 @@ Defined in `frontend/src/styles/tailwind.css`, mirrored from `PALETTES` in
 | `gain` / `loss` | Reserved for price direction only |
 | `warning` | Stale data, partial sessions |
 
-Changed from the generator: kept bundled **Inter** (no third-party font
-requests; `selfHostedFont.test.js` enforces it) instead of Fira; dark modals
-and inputs instead of white; focus ring uses `accent` instead of white.
+### Face: ink and teal (chosen 2026-10-31)
+
+- **Palette:** near-neutral ink chrome (light ground `#f7f7f7`, surfaces
+  white/`#f3f3f3`, text `#111111`/`#5f6368`; dark ground `#080808`, surfaces
+  `#0f0f10`/`#18191b`, text `#efefef`/`#8f9196`). Colour lives on data.
+- **Accent:** teal, `#0b7285` light / `#38b2c4` dark. Pushed toward blue from
+  the first pick (`#0b7a6e`/`#2bb8a6`) so it sits ~30° of hue away from the
+  gain green and never reads as "up". It is also chart series 1.
+- **Type:** bundled **Instrument Sans** (OFL, latin + latin-ext, weights
+  400-700), with Inter's Greek subset as the fallback for β and Δ. No
+  third-party font requests; `selfHostedFont.test.js` enforces it.
+- **Contrast** (WCAG AA, checked on every surface): text, muted text, accent,
+  gain, loss and warning all ≥4.5:1 in both modes; text on the accent fill
+  5.6:1 light, 7.6:1 dark.
+
+Also changed from the generator: dark modals and inputs instead of white;
+focus ring uses `accent` instead of white.
 
 ## Rules (must)
 
