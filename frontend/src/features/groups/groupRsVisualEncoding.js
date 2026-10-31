@@ -20,6 +20,14 @@ const RS_TINTS = {
   'down-strong': ['error', 0.34],
 };
 
+// Tailwind form of the same tints for migrated tables.
+export const GROUP_RS_TINT_CLASS = {
+  'up-strong': 'bg-gain/40',
+  'up-soft': 'bg-gain/20',
+  'down-soft': 'bg-loss/20',
+  'down-strong': 'bg-loss/35',
+};
+
 export const groupRsCellSx = (value) => {
   const tint = RS_TINTS[groupRsTone(value)];
   if (!tint) return {};

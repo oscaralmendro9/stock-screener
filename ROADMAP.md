@@ -60,7 +60,7 @@ Fixed:
 Open:
 - [ ] Mixed capitalization: section titles are Title Case ("Top Scan Candidates") while newer ones are sentence case ("Market map"); pick one (tests and the static site share the strings)
 - [x] Brand face: owner chose "ink and teal" (teal accent, neutral ink chrome, Instrument Sans); see DESIGN.md
-- [ ] Groups page: coloured rank squares and MUI tabs; migrate with Phase 4
+- [x] Groups page: coloured rank squares replaced by plain ranks (accent badge for the top 20), MUI tabs by Radix tabs
 - [ ] Map tiles under 24px are below WCAG 2.5.8 target size; covered by the equivalent-control exception (symbol search), noted rather than fixed
 - [~] Key-market cards keep their sparklines (Taste bans sparklines on KPIs): here the index trend is the content, as on Finviz
 
@@ -69,7 +69,8 @@ Open:
 - [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. Still MUI: the scan control bar, presets menu, multi-selects and the static site's `FilterPanel`
 - [~] Stock detail: the page body is on Tailwind (collapsible `<details>` sections, badges, peers table, lookback toggle, skeleton, notices). Still MUI inside it: `QueryErrorAlert`, `ValidationPanels`, `MarketThemesList`, `AddToWatchlistMenu` and `PeerComparisonModal`
 - [x] Breadth: page, context strip, history table, chart (theme tokens, `aria-pressed` range toggle, day ticks on short ranges), formula toggletips (`ui/popover`, open on hover, tap or keyboard) and the contributor dialog (Radix) on Tailwind. The static site's `StaticBreadthPage` shell stays MUI
-- [ ] Groups → Options → the rest
+- [~] Groups: page, view tabs (shared with the static site), movers, rankings table (RS tints from tokens, `aria-sort` headers) and the group detail dialog (Radix, rank chart on tokens) on Tailwind; shared `ui/notice`. Still MUI: `RRGChart`, the matrix panel, `GroupChartsGrid` and the price/RS sparklines inside the dialog
+- [ ] Options → the rest
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

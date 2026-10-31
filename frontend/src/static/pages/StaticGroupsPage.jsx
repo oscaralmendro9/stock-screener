@@ -295,7 +295,7 @@ function StaticGroupsPage() {
           rrgAvailable={rrgAvailable}
           matrixAvailable={matrixAvailable}
           availableScopes={availableRrgScopes}
-          sx={{ mb: 2 }}
+          className="mb-4"
         />
 
       <Box role="tabpanel" id={`group-panel-${view}`} aria-labelledby={`group-tab-${view}`}>

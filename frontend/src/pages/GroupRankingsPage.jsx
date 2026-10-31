@@ -1,76 +1,40 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import QueryErrorAlert from '../components/common/QueryErrorAlert';
-import {
-  Container,
-  Typography,
-  Box,
-  Alert,
-  CircularProgress,
-  Paper,
-  Grid,
-  Card,
-  CardContent,
-  Chip,
-  Tab,
-  Tabs,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  IconButton,
-  Button,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  useTheme,
-} from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import CloseIcon from '@mui/icons-material/Close';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+import { Notice } from '@/ui/notice';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
+
 import {
   getGroupMatrix,
   getCurrentRankings,
   getRankMovers,
-  getGroupDetail,
   getRRGBundle,
   triggerCalculation,
   getCalculationStatus,
 } from '../api/groups';
 import RRGChart from '../components/Charts/RRGChart';
+import GroupDetailModal from '../features/groups/GroupDetailModal';
 import GroupViewTabs from '../features/groups/GroupViewTabs';
+import RankChange from '../features/groups/RankChange';
 import { DEFAULT_MATRIX_PREFERENCES } from '../features/groups/matrix/groupMatrixModel';
 import { useRRGScopeSelection } from '../components/Charts/useRRGScopeSelection';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
 import { useRuntime } from '../contexts/RuntimeContext';
 import { useMarketForCapability } from '../contexts/MarketContext';
 import {
   GROUP_RANKING_MARKET_FALLBACKS,
   groupsBootstrapQuery as groupsBootstrapQueryOptions,
 } from '../pageBootstrapQueries';
-import PriceSparkline from '../components/Scan/PriceSparkline';
-import RSSparkline from '../components/Scan/RSSparkline';
-import GroupChartsGrid from '../components/Charts/GroupChartsGrid';
 import { rrgScopesForMarket } from '../utils/rrgScopes';
 import LiveGroupRankingsTable from '../features/groups/LiveGroupRankingsTable';
 import { getLiveGroupRankingSortValue } from '../features/groups/groupRankingFields';
 import { sortGroupRankings } from '../features/groups/groupRankingSort';
 import { PageSkeleton, TableSkeleton } from '../components/common/LoadingSkeletons';
+import { describeRequestError } from '../utils/requestErrors';
 
 const GroupMatrixPanel = lazy(() => import('../features/groups/matrix/GroupMatrixPanel'));
 
@@ -80,402 +44,44 @@ const REASON_HINTS = {
   no_groups_ranked: 'Run a price-data backfill so stocks have at least 252 days of history.',
   invalid_date: 'Provide a valid YYYY-MM-DD date.',
 };
+const PERIODS = [
+  { value: '1w', label: '1 Week' },
+  { value: '1m', label: '1 Month' },
+  { value: '3m', label: '3 Months' },
+  { value: '6m', label: '6 Months' },
+];
 
-// Helper to format rank change with color
-const RankChangeCell = ({ value }) => {
-  if (value === null || value === undefined) {
-    return <Box sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>-</Box>;
-  }
-
-  const color = value > 0 ? 'success.main' : value < 0 ? 'error.main' : 'text.secondary';
-  const prefix = value > 0 ? '+' : '';
-
-  return (
-    <Box display="flex" alignItems="center" justifyContent="flex-end" sx={{ fontFamily: 'monospace' }}>
-      {value > 0 && <TrendingUpIcon sx={{ fontSize: 12, mr: 0.25, color }} />}
-      {value < 0 && <TrendingDownIcon sx={{ fontSize: 12, mr: 0.25, color }} />}
-      <Box component="span" sx={{ color, fontWeight: value !== 0 ? 600 : 400, fontSize: '11px' }}>
-        {prefix}{value}
-      </Box>
-    </Box>
-  );
-};
-
-// Movers card component
+// Top five groups that climbed or fell the most over the selected period.
 const MoversCard = ({ title, groups, isGainers, period }) => {
-  const color = isGainers ? 'success' : 'error';
-  const Icon = isGainers ? TrendingUpIcon : TrendingDownIcon;
+  const Icon = isGainers ? TrendingUp : TrendingDown;
 
   return (
-    <Card variant="outlined">
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box display="flex" alignItems="center" mb={1}>
-          <Icon sx={{ color: `${color}.main`, mr: 0.5, fontSize: 18 }} />
-          <Box sx={{ fontWeight: 600, fontSize: '12px' }}>
-            {title}
-          </Box>
-        </Box>
-        {groups && groups.length > 0 ? (
-          <Box>
-            {groups.slice(0, 5).map((group, index) => {
-              const changeKey = period ? `rank_change_${period}` : null;
-              const change = changeKey ? group[changeKey] : null;
-
-              return (
-                <Box
-                  key={group.industry_group}
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  py={0.25}
-                  borderBottom={index < 4 ? 1 : 0}
-                  borderColor="divider"
-                >
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Box sx={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
-                      #{group.rank} {group.industry_group}
-                    </Box>
-                    <Box sx={{ fontSize: '10px', color: 'text.secondary' }}>
-                      RS: {group.avg_rs_rating?.toFixed(1)}
-                    </Box>
-                  </Box>
-                      <RankChangeCell value={change} />
-                    </Box>
-                  );
-                })}
-          </Box>
-        ) : (
-          <Box sx={{ fontSize: '11px', color: 'text.secondary' }}>
-            No data available
-          </Box>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-// Group Detail Modal
-const GroupDetailModal = ({ group, market, open, onClose }) => {
-  const { palette } = useTheme();
-  const [activeTab, setActiveTab] = useState('overview');
-
-  useEffect(() => {
-    if (!open) setActiveTab('overview');
-  }, [open]);
-
-  const { data: detail, isLoading } = useQuery({
-    queryKey: ['groupDetail', market, group],
-    queryFn: () => getGroupDetail(group, 365, market),
-    enabled: !!group && open,
-  });
-
-  const chartSymbols = useMemo(
-    () => (detail?.stocks || []).map((s) => s.symbol).filter(Boolean),
-    [detail?.stocks],
-  );
-
-  // Prepare chart data (reverse to show oldest first)
-  const chartData = detail?.history
-    ? [...detail.history].reverse().map(item => {
-        const d = new Date(item.date);
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return {
-          date: item.date,
-          rank: item.rank,
-          displayDate: `${months[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`, // "Jan '25" format
-        };
-      })
-    : [];
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">{group}</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {isLoading ? (
-          <TableSkeleton label="Loading group detail" rows={6} columns={5} title={false} />
-        ) : detail ? (
-          <Box>
-            <Tabs
-              value={activeTab}
-              onChange={(_, v) => setActiveTab(v)}
-              sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+    <section className="rounded-md border border-border p-3">
+      <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold">
+        <Icon aria-hidden="true" className={cn('size-4', isGainers ? 'text-gain' : 'text-loss')} />
+        {title}
+      </h3>
+      {groups && groups.length > 0 ? (
+        <ul>
+          {groups.slice(0, 5).map((group) => (
+            <li
+              key={group.industry_group}
+              className="flex items-center justify-between gap-2 border-b border-border py-1 text-xs last:border-0"
             >
-              <Tab value="overview" label="Overview" />
-              <Tab value="charts" label={`Charts${chartSymbols.length ? ` (${chartSymbols.length})` : ''}`} />
-            </Tabs>
-            {activeTab === 'charts' && (
-              <GroupChartsGrid symbols={chartSymbols} period="6mo" height={200} />
-            )}
-            {activeTab === 'overview' && (
-            <Box>
-            {/* Current Stats */}
-            <Grid container spacing={2} mb={3}>
-              <Grid item xs={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4">{detail.current_rank}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Current Rank
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4">{detail.current_avg_rs?.toFixed(1)}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Avg RS Rating
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4">{detail.num_stocks}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Stocks
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3}>
-                <Box textAlign="center">
-                  <Typography variant="body1">{detail.top_symbol || '-'}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Top Stock (RS: {detail.top_rs_rating?.toFixed(1) || '-'})
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-
-            {/* Rank History Chart */}
-            {chartData.length > 0 && (
-              <Box mb={3}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Rank History (1 Year)
-                </Typography>
-                <Box sx={{ width: '100%', height: 220, bgcolor: 'background.paper', borderRadius: 1, p: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis
-                        dataKey="displayDate"
-                        tick={{ fontSize: 11 }}
-                        interval={Math.floor(chartData.length / 6)}
-                        angle={-45}
-                        textAnchor="end"
-                        height={50}
-                      />
-                      <YAxis
-                        scale="log"
-                        domain={[1, 200]}
-                        reversed
-                        tick={{ fontSize: 10 }}
-                        tickFormatter={(value) => value}
-                        ticks={[1, 5, 10, 20, 50, 100, 197]}
-                      />
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                          border: 'none',
-                          borderRadius: 4,
-                          fontSize: 12,
-                        }}
-                        labelStyle={{ color: '#fff' }}
-                        itemStyle={{ color: '#fff' }}
-                        formatter={(value) => [`Rank: ${value}`, '']}
-                        labelFormatter={(label, payload) => payload?.[0]?.payload?.date || label}
-                      />
-                      <ReferenceLine y={20} stroke={palette.success.main} strokeDasharray="3 3" opacity={0.5} />
-                      <ReferenceLine y={177} stroke={palette.error.main} strokeDasharray="3 3" opacity={0.5} />
-                      <Line
-                        type="monotone"
-                        dataKey="rank"
-                        stroke={palette.primary.main}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Box>
-            )}
-
-            {/* Rank Changes */}
-            <Typography variant="subtitle2" gutterBottom>
-              Rank Changes
-            </Typography>
-            <Grid container spacing={2} mb={3}>
-              {[
-                { label: '1 Week', key: 'rank_change_1w' },
-                { label: '1 Month', key: 'rank_change_1m' },
-                { label: '3 Months', key: 'rank_change_3m' },
-                { label: '6 Months', key: 'rank_change_6m' },
-              ].map(({ label, key }) => (
-                <Grid item xs={3} key={key}>
-                  <Box textAlign="center" p={1} bgcolor="action.hover" borderRadius={1}>
-                    <RankChangeCell value={detail[key]} />
-                    <Typography variant="caption" color="text.secondary">
-                      {label}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-
-            {/* Constituent Stocks Table */}
-            {detail.stocks && detail.stocks.length > 0 && (
-              <Box mb={2}>
-                <Box sx={{ fontSize: '12px', fontWeight: 600, mb: 0.5 }}>
-                  Constituent Stocks ({detail.stocks.length})
-                </Box>
-                <TableContainer sx={{ maxHeight: 300 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Sym</TableCell>
-                        <TableCell align="center" sx={{ p: '2px' }}>Price 30d</TableCell>
-                        <TableCell align="center" sx={{ p: '2px' }}>RS 30d</TableCell>
-                        <TableCell align="right">Price</TableCell>
-                        <TableCell align="right">RS</TableCell>
-                        <TableCell align="right">1M</TableCell>
-                        <TableCell align="right">3M</TableCell>
-                        <TableCell align="right">EPS Q</TableCell>
-                        <TableCell align="right">EPS Y</TableCell>
-                        <TableCell align="right">Sls Q</TableCell>
-                        <TableCell align="right">Sls Y</TableCell>
-                        <TableCell align="right">Stg</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {detail.stocks.map((stock) => (
-                        <TableRow key={stock.symbol} hover>
-                          <TableCell sx={{ fontWeight: 600 }}>
-                            {stock.symbol}
-                          </TableCell>
-                          <TableCell align="center" sx={{ p: '2px' }}>
-                            <PriceSparkline
-                              data={stock.price_sparkline_data}
-                              trend={stock.price_trend}
-                              change1d={stock.price_change_1d}
-                              width={80}
-                              height={22}
-                              showChange={false}
-                            />
-                          </TableCell>
-                          <TableCell align="center" sx={{ p: '2px' }}>
-                            <RSSparkline
-                              data={stock.rs_sparkline_data}
-                              trend={stock.rs_trend}
-                              width={60}
-                              height={20}
-                            />
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                            {stock.price?.toFixed(2) || '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{
-                            fontFamily: 'monospace',
-                            fontWeight: 600,
-                            color: stock.rs_rating >= 80 ? 'success.main' : stock.rs_rating <= 30 ? 'error.main' : 'text.primary'
-                          }}>
-                            {stock.rs_rating?.toFixed(0) || '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                            {stock.rs_rating_1m?.toFixed(0) || '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                            {stock.rs_rating_3m?.toFixed(0) || '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{
-                            fontFamily: 'monospace',
-                            color: stock.eps_growth_qq > 0 ? 'success.main' : stock.eps_growth_qq < 0 ? 'error.main' : 'text.secondary'
-                          }}>
-                            {stock.eps_growth_qq != null ? `${stock.eps_growth_qq > 0 ? '+' : ''}${stock.eps_growth_qq.toFixed(0)}%` : '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{
-                            fontFamily: 'monospace',
-                            color: stock.eps_growth_yy > 0 ? 'success.main' : stock.eps_growth_yy < 0 ? 'error.main' : 'text.secondary'
-                          }}>
-                            {stock.eps_growth_yy != null ? `${stock.eps_growth_yy > 0 ? '+' : ''}${stock.eps_growth_yy.toFixed(0)}%` : '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{
-                            fontFamily: 'monospace',
-                            color: stock.sales_growth_qq > 0 ? 'success.main' : stock.sales_growth_qq < 0 ? 'error.main' : 'text.secondary'
-                          }}>
-                            {stock.sales_growth_qq != null ? `${stock.sales_growth_qq > 0 ? '+' : ''}${stock.sales_growth_qq.toFixed(0)}%` : '-'}
-                          </TableCell>
-                          <TableCell align="right" sx={{
-                            fontFamily: 'monospace',
-                            color: stock.sales_growth_yy > 0 ? 'success.main' : stock.sales_growth_yy < 0 ? 'error.main' : 'text.secondary'
-                          }}>
-                            {stock.sales_growth_yy != null ? `${stock.sales_growth_yy > 0 ? '+' : ''}${stock.sales_growth_yy.toFixed(0)}%` : '-'}
-                          </TableCell>
-                          <TableCell align="center">
-                            <Box
-                              component="span"
-                              sx={{
-                                backgroundColor: stock.stage === 2 ? 'success.main' : 'grey.400',
-                                color: stock.stage === 2 ? 'success.contrastText' : 'grey.900',
-                                padding: '1px 4px',
-                                borderRadius: '2px',
-                                fontSize: '10px',
-                                fontWeight: 500,
-                              }}
-                            >
-                              S{stock.stage || '-'}
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            )}
-
-            {/* History Table */}
-            {detail.history && detail.history.length > 0 && (
-              <>
-                <Box sx={{ fontSize: '12px', fontWeight: 600, mb: 0.5 }}>
-                  Rank History
-                </Box>
-                <TableContainer sx={{ maxHeight: 180 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell align="right">Rank</TableCell>
-                        <TableCell align="right">Avg RS</TableCell>
-                        <TableCell align="right">Stocks</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {detail.history.slice(0, 20).map((row) => (
-                        <TableRow key={row.date} hover>
-                          <TableCell sx={{ fontFamily: 'monospace' }}>{row.date}</TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>{row.rank}</TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>{row.avg_rs_rating?.toFixed(1)}</TableCell>
-                          <TableCell align="right" sx={{ fontFamily: 'monospace' }}>{row.num_stocks || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </>
-            )}
-            </Box>
-            )}
-          </Box>
-        ) : (
-          <Typography color="text.secondary">No data available</Typography>
-        )}
-      </DialogContent>
-    </Dialog>
+              <div className="min-w-0 flex-1">
+                <p className="truncate">{`#${group.rank} ${group.industry_group}`}</p>
+                <p className="text-[11px] text-muted-foreground tabular-nums">
+                  RS: {group.avg_rs_rating?.toFixed(1)}
+                </p>
+              </div>
+              <RankChange value={period ? group[`rank_change_${period}`] : null} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">No data available</p>
+      )}
+    </section>
   );
 };
 
@@ -655,10 +261,6 @@ function GroupRankingsPage() {
     }
   }, [calcStatus, queryClient, refreshPublishedGroups, selectedMarket]);
 
-  const handlePeriodChange = (event, newValue) => {
-    setSelectedPeriod(newValue);
-  };
-
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -697,179 +299,159 @@ function GroupRankingsPage() {
 
   if (!runtimeReady) {
     return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
+      <div className="py-2">
         <PageSkeleton label="Loading group rankings" />
-      </Container>
+      </div>
     );
   }
 
-  const renderCalculationErrorAlert = (sx) => (
-    calculationError ? (
-      <Alert severity="error" sx={sx} onClose={() => setCalculationError(null)}>
-        Calculation failed: {calculationError}
-      </Alert>
-    ) : null
-  );
-
   return (
-    <Container maxWidth={false} disableGutters sx={{ mt: 2, mb: 2 }}>
-      {features.tasks && selectedMarket === 'US' && (
-        <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={isCalculating ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
-            onClick={handleCalculate}
-            disabled={isCalculating}
-          >
+    <div className="tw flex flex-col gap-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <GroupViewTabs
+          view={view}
+          onView={setView}
+          scope={rrgScope}
+          onScope={setRrgScope}
+          rrgAvailable={rrgAvailable}
+          availableScopes={availableRrgScopes}
+        />
+        {features.tasks && selectedMarket === 'US' && (
+          <Button variant="secondary" size="sm" onClick={handleCalculate} disabled={isCalculating}>
+            <RefreshCw aria-hidden="true" className={cn(isCalculating && 'motion-safe:animate-spin')} />
             {isCalculating ? 'Calculating...' : 'Refresh'}
           </Button>
-        </Box>
+        )}
+      </div>
+
+      {calculationError && (
+        <Notice tone="error" onDismiss={() => setCalculationError(null)}>
+          Calculation failed: {calculationError}
+        </Notice>
       )}
 
-      {renderCalculationErrorAlert({ mb: 1.5 })}
+      <div role="tabpanel" id={`group-panel-${view}`} aria-labelledby={`group-tab-${view}`}>
+        {view === 'matrix' ? (
+          <Suspense fallback={<TableSkeleton label="Loading group matrix" />}>
+            <GroupMatrixPanel key={selectedMarket} data={matrixQuery.data} isLoading={matrixQuery.isLoading}
+              error={matrixQuery.error} onRetry={() => matrixQuery.refetch()}
+              preferences={matrixPreferences} onPreferencesChange={setMatrixPreferences} />
+          </Suspense>
+        ) : view === 'rrg' ? (
+          <RRGChart
+            data={rrgData}
+            isLoading={isLoadingRRG}
+            error={errorRRG}
+            onSelectGroup={(name) => rrgScope === 'groups' && setSelectedGroup(name)}
+          />
+        ) : errorRankings ? (
+          <Notice
+            tone="error"
+            action={<Button variant="secondary" size="sm" onClick={() => refetchRankings()}>Retry</Button>}
+          >
+            {`Error loading rankings: ${describeRequestError(errorRankings)}`}
+          </Notice>
+        ) : isLoadingRankings ? (
+          <TableSkeleton label="Loading group rankings" rows={12} columns={8} />
+        ) : (
+          <>
+            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <Card className="overflow-hidden">
+                <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                  <div className="border-b border-border p-2">
+                    <TabsList aria-label="Movers period" className="flex w-full">
+                      {PERIODS.map(({ value, label }) => (
+                        <TabsTrigger key={value} value={value} className="flex-1 justify-center px-1.5 whitespace-nowrap">
+                          {label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+                  <TabsContent value={selectedPeriod} className="p-3 outline-none">
+                    {isLoadingMovers ? (
+                      <TableSkeleton label="Loading rank movers" rows={5} columns={3} bare />
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <MoversCard
+                          title="Top Rank Gainers"
+                          groups={movers?.gainers}
+                          isGainers
+                          period={selectedPeriod}
+                        />
+                        <MoversCard
+                          title="Top Rank Losers"
+                          groups={movers?.losers}
+                          isGainers={false}
+                          period={selectedPeriod}
+                        />
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </Card>
 
-      {/* View toggle: ranked table vs Relative Rotation Graph */}
-      <GroupViewTabs
-        view={view}
-        onView={setView}
-        scope={rrgScope}
-        onScope={setRrgScope}
-        rrgAvailable={rrgAvailable}
-        availableScopes={availableRrgScopes}
-        sx={{ mb: 1.5 }}
-      />
+              <Card className="flex min-w-0 flex-col overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
+                  <h2 className="text-sm font-semibold">All Industry Groups</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div
+                      role="group"
+                      aria-label="Rank columns show"
+                      title={showHistoricalRanks ? 'Showing actual historical ranks' : 'Showing rank changes'}
+                      className="inline-flex rounded-md border border-border p-0.5"
+                    >
+                      {[
+                        { value: false, label: 'Change' },
+                        { value: true, label: 'Prior Rank' },
+                      ].map(({ value, label }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          aria-pressed={showHistoricalRanks === value}
+                          onClick={() => setShowHistoricalRanks(value)}
+                          className={cn(
+                            'h-9 cursor-pointer rounded-sm px-2.5 text-xs font-semibold outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring md:h-6',
+                            showHistoricalRanks === value
+                              ? 'bg-accent text-accent-foreground'
+                              : 'text-muted-foreground hover:bg-surface-subtle hover:text-foreground',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {rankings && (
+                      <Badge>{`${selectedMarket} | ${rankings.total_groups} groups | ${rankings.date}`}</Badge>
+                    )}
+                  </div>
+                </div>
+                <LiveGroupRankingsTable
+                  rankings={sortedRankings}
+                  order={order}
+                  orderBy={orderBy}
+                  onSort={handleSort}
+                  onSelectGroup={setSelectedGroup}
+                  showHistoricalRanks={showHistoricalRanks}
+                />
+              </Card>
+            </div>
 
-      <Box role="tabpanel" id={`group-panel-${view}`} aria-labelledby={`group-tab-${view}`}>
-      {view === 'matrix' ? (
-        <Suspense fallback={<TableSkeleton label="Loading group matrix" />}>
-          <GroupMatrixPanel key={selectedMarket} data={matrixQuery.data} isLoading={matrixQuery.isLoading}
-            error={matrixQuery.error} onRetry={() => matrixQuery.refetch()}
-            preferences={matrixPreferences} onPreferencesChange={setMatrixPreferences} />
-        </Suspense>
-      ) : view === 'rrg' ? (
-        <RRGChart
-          data={rrgData}
-          isLoading={isLoadingRRG}
-          error={errorRRG}
-          onSelectGroup={(name) => rrgScope === 'groups' && setSelectedGroup(name)}
-        />
-      ) : errorRankings ? (
-        <QueryErrorAlert title="Error loading rankings" error={errorRankings} onRetry={refetchRankings} />
-      ) : isLoadingRankings ? (
-        <TableSkeleton label="Loading group rankings" rows={12} columns={8} />
-      ) : (
-        <>
-          <Grid container spacing={2}>
-            {/* Left Column: Movers */}
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ height: '100%' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={selectedPeriod} onChange={handlePeriodChange}>
-                <Tab label="1 Week" value="1w" />
-                <Tab label="1 Month" value="1m" />
-                <Tab label="3 Months" value="3m" />
-                <Tab label="6 Months" value="6m" />
-              </Tabs>
-            </Box>
-
-            {/* Movers Cards */}
-            <Box sx={{ p: 2 }}>
-              {isLoadingMovers ? (
-                <TableSkeleton label="Loading rank movers" rows={5} columns={3} bare />
-              ) : (
-                <Grid container spacing={1} direction="column">
-                  <Grid item>
-                    <MoversCard
-                      title="Top Rank Gainers"
-                      groups={movers?.gainers}
-                      isGainers={true}
-                      period={selectedPeriod}
-                    />
-                  </Grid>
-                  <Grid item>
-                    <MoversCard
-                      title="Top Rank Losers"
-                      groups={movers?.losers}
-                      isGainers={false}
-                      period={selectedPeriod}
-                    />
-                  </Grid>
-                </Grid>
-              )}
-            </Box>
-          </Paper>
-            </Grid>
-
-            {/* Right Column: Full Rankings Table */}
-            <Grid item xs={12} md={8}>
-              <Paper elevation={1} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ fontSize: '14px', fontWeight: 600 }}>
-                All Industry Groups
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Tooltip title={showHistoricalRanks ? "Showing actual historical ranks" : "Showing rank changes"}>
-                  <ToggleButtonGroup
-                    value={showHistoricalRanks ? 'ranks' : 'changes'}
-                    exclusive
-                    onChange={(e, newValue) => {
-                      if (newValue !== null) {
-                        setShowHistoricalRanks(newValue === 'ranks');
-                      }
-                    }}
-                    size="small"
-                    sx={{ height: 24 }}
-                  >
-                    <ToggleButton value="changes" sx={{ px: 1, py: 0.25, fontSize: '10px' }}>
-                      Change
-                    </ToggleButton>
-                    <ToggleButton value="ranks" sx={{ px: 1, py: 0.25, fontSize: '10px' }}>
-                      Prior Rank
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                </Tooltip>
-                {rankings && (
-                  <Chip
-                    label={`${selectedMarket} | ${rankings.total_groups} groups | ${rankings.date}`}
-                    size="small"
-                  />
-                )}
-              </Box>
-            </Box>
-            <LiveGroupRankingsTable
-              rankings={sortedRankings}
-              order={order}
-              orderBy={orderBy}
-              onSort={handleSort}
-              onSelectGroup={setSelectedGroup}
-              showHistoricalRanks={showHistoricalRanks}
-            />
-              </Paper>
-            </Grid>
-          </Grid>
-
-          {/* Metadata */}
-          {rankings && (
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
+            {rankings && (
+              <p className="mt-3 text-center text-xs text-muted-foreground tabular-nums">
                 {selectedMarket} data as of {rankings.date} | {rankings.total_groups} groups ranked
-              </Typography>
-            </Box>
-          )}
-        </>
-      )}
+              </p>
+            )}
+          </>
+        )}
+      </div>
 
-      </Box>
-
-      {/* Group Detail Modal */}
       <GroupDetailModal
         group={selectedGroup}
         market={selectedMarket}
         open={!!selectedGroup}
         onClose={() => setSelectedGroup(null)}
       />
-    </Container>
+    </div>
   );
 }
 

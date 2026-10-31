@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
@@ -298,7 +299,7 @@ describe('StaticGroupsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'US Group Rankings' })).toBeInTheDocument();
     // Switch from the table view to the Relative Rotation Graph.
-    fireEvent.click(screen.getByRole('tab', { name: 'RRG' }));
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'RRG' }));
     expect(await screen.findByText(/Relative Rotation Graph/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sectors' })).not.toBeInTheDocument();
   });
@@ -316,7 +317,7 @@ describe('StaticGroupsPage', () => {
   renderPage();
   expect(await screen.findByRole('tab', {name:'Matrix'})).toBeInTheDocument();
   expect(requested).not.toContain('matrix.json');
-  fireEvent.click(screen.getByRole('tab', {name:'Matrix'}));
+  await userEvent.setup().click(screen.getByRole('tab', {name:'Matrix'}));
   expect(await screen.findByText(/IBD classifications are not available/)).toBeInTheDocument();
   expect(requested.every(path=>Boolean(path))).toBe(true);
   vi.unstubAllEnvs();
