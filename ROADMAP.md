@@ -74,6 +74,7 @@ Open:
 - [x] COT positioning (`/cot`, and the COT chart on futures detail): view, participant legend toggles, summary strip, curated-markets table (`aria-sort`, current row) on Tailwind; new `ui/native-select`
 - [x] Validation (Backtest tab): page and the shared `ValidationPanels` (also used on stock detail) on Tailwind
 - [~] Watchlists: tab (watchlist picker, stewardship counts and status filter, icon actions, empty state) and table (keyboard-openable rows, always-reachable remove button, 11px floor) on Tailwind. `UserWatchlistManager` on the new `ui/dialog` (Radix, flex-centred so drag-and-drop measures correctly; nested import dialog; delete confirms in an alert dialog instead of `window.confirm`). Still MUI: `WatchlistChartModal` (migrate together with `AddToWatchlistMenu`, `PeerComparisonModal` and `StockMetricsSidebar`, which open inside it), sparklines, `PriceChangeBar`, `ActionStateBadge`, the evidence drawer
+- [~] Chart viewer: `StockMetricsSidebar` on Tailwind (live and static viewers, watchlist charts). Next: `ChartViewerModal`, `WatchlistChartModal`, `StaticChartViewerModal`, `PeerComparisonModal` and `SetupEngineDrawer` together, since they open on top of each other
 - [ ] The rest (Themes, Operations, assistant, static shells)
 - [ ] Remove MUI and enable Tailwind preflight
 

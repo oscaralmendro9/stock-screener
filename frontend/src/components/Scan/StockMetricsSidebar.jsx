@@ -1,63 +1,97 @@
-import { Box, Typography, Divider, Chip, Button } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import PeopleIcon from '@mui/icons-material/People';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Check, Info, Minus, TrendingDown, TrendingUp, Users, X } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+
 import {
-  getStageColor,
   getRatingColor,
   getGrowthColor,
   getEpsRatingColor,
-  onPalette,
 } from '../../utils/colorUtils';
 import { formatPercent, formatRatio, formatPatternName, getScoreColor } from '../../utils/formatUtils';
 import { resolveMarketCapDisplay } from '../../utils/marketCapUtils';
+
+// The shared colour helpers return MUI palette keys; map them to theme tokens.
+const TONE_CLASS = {
+  'success.main': 'text-gain',
+  'error.main': 'text-loss',
+  'warning.main': 'text-warning',
+  'primary.main': 'text-accent',
+  'text.secondary': 'text-muted-foreground',
+  'text.primary': '',
+};
+const RATING_TONE = { success: 'gain', warning: 'warning', default: 'neutral' };
 
 /**
  * RS Trend icon component
  */
 const RSTrendIcon = ({ trend }) => {
-  if (trend === 1) return <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />;
-  if (trend === -1) return <TrendingDownIcon sx={{ fontSize: 16, color: 'error.main' }} />;
-  return <TrendingFlatIcon sx={{ fontSize: 16, color: 'text.disabled' }} />;
+  if (trend === 1) return <TrendingUp role="img" aria-label="RS rising" className="size-4 text-gain" />;
+  if (trend === -1) return <TrendingDown role="img" aria-label="RS falling" className="size-4 text-loss" />;
+  return <Minus role="img" aria-label="RS flat" className="size-4 text-muted-foreground" />;
 };
 
 /**
- * Boolean indicator (checkmark or X)
+ * Boolean indicator (check or cross)
  */
-const BoolIndicator = ({ value }) => {
-  if (value) return <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />;
-  return <CancelIcon sx={{ fontSize: 16, color: 'text.disabled' }} />;
-};
+const BoolIndicator = ({ value }) => (
+  value
+    ? <Check role="img" aria-label="Yes" className="size-4 text-gain" />
+    : <X role="img" aria-label="No" className="size-4 text-muted-foreground" />
+);
 
 /**
  * Metric row component for 2-column grid
  */
 const MetricRow = ({ label, value, color }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-      {label}
-    </Typography>
-    <Typography variant="body2" fontWeight="medium" sx={{ color: color || 'text.primary', fontSize: '0.8rem' }}>
-      {value}
-    </Typography>
-  </Box>
+  <div className="flex items-center justify-between gap-2">
+    <span className="text-xs text-muted-foreground">{label}</span>
+    <span className={cn('text-[13px] font-medium tabular-nums', TONE_CLASS[color] ?? '')}>{value}</span>
+  </div>
+);
+
+const IconRow = ({ label, children }) => (
+  <div className="flex items-center justify-between gap-2">
+    <span className="text-xs text-muted-foreground">{label}</span>
+    {children}
+  </div>
 );
 
 /**
- * Section header component
+ * Section with a small uppercase header and a 2-column metric grid
  */
-const SectionHeader = ({ children }) => (
-  <Typography
-    variant="caption"
-    color="text.secondary"
-    sx={{ fontWeight: 'bold', letterSpacing: 0.5, fontSize: '0.65rem', mb: 0.5, display: 'block' }}
-  >
-    {children}
-  </Typography>
+const Section = ({ title, children, footer }) => (
+  <section className="border-t border-border pt-3">
+    <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{title}</h3>
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1">{children}</div>
+    {footer}
+  </section>
+);
+
+const About = ({ description }) => (
+  <section>
+    <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">About</h3>
+    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">{description}</p>
+  </section>
+);
+
+const pct = (value) => (value != null ? `${value.toFixed(1)}%` : '-');
+
+const ValuationRows = ({ marketCapMetric, fundamentals }) => (
+  <>
+    <MetricRow label={marketCapMetric.label} value={marketCapMetric.formattedValue} />
+    <MetricRow label="P/E" value={formatRatio(fundamentals?.pe_ratio)} />
+    <MetricRow label="Fwd P/E" value={formatRatio(fundamentals?.forward_pe)} />
+    <MetricRow label="PEG" value={formatRatio(fundamentals?.peg_ratio)} />
+    <MetricRow label="ROE" value={pct(fundamentals?.roe)} />
+    <MetricRow label="Profit" value={pct(fundamentals?.profit_margin)} />
+    <MetricRow label="Inst Own" value={pct(fundamentals?.institutional_ownership)} />
+  </>
+);
+
+const growthRow = (label, value) => (
+  <MetricRow label={label} value={formatPercent(value)} color={getGrowthColor(value)} />
 );
 
 /**
@@ -76,14 +110,14 @@ function StockMetricsSidebar({
   onViewPeers,
   onViewSetupDetails,
 }) {
+  const frame = 'tw flex shrink-0 flex-col gap-3 overflow-auto border-r border-border bg-surface p-4 text-foreground';
+
   // Show loading only if neither stockData nor fundamentals are available
   if (!stockData && !fundamentals) {
     return (
-      <Box sx={{ p: 2, width }}>
-        <Typography variant="body2" color="text.secondary">
-          Loading stock data...
-        </Typography>
-      </Box>
+      <div className="tw p-4 text-sm text-muted-foreground" style={{ width }}>
+        Loading stock data...
+      </div>
     );
   }
 
@@ -92,102 +126,19 @@ function StockMetricsSidebar({
   // Minimal view when only fundamentals are available (e.g., watchlists)
   if (!stockData && fundamentals) {
     return (
-      <Box
-        sx={{
-          width,
-          height,
-          bgcolor: 'background.paper',
-          borderRight: 1,
-          borderColor: 'divider',
-          overflow: 'auto',
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.5,
-        }}
-      >
-        {/* Header */}
-        <Box>
-          <Typography variant="body2" fontWeight="medium" sx={{ lineHeight: 1.3 }}>
-            {fundamentals.symbol}
-          </Typography>
-        </Box>
-
-        {/* About - Company Description */}
-        {fundamentals?.description && (
-          <Box>
-            <SectionHeader>ABOUT</SectionHeader>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: '0.75rem',
-                lineHeight: 1.5,
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {fundamentals.description}
-            </Typography>
-          </Box>
-        )}
-
-        <Divider />
-
-        {/* Growth */}
-        <Box>
-          <SectionHeader>GROWTH</SectionHeader>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-            <MetricRow
-              label="EPS Q/Q"
-              value={formatPercent(fundamentals.eps_growth_qq)}
-              color={getGrowthColor(fundamentals.eps_growth_qq)}
-            />
-            <MetricRow
-              label="Sales Q/Q"
-              value={formatPercent(fundamentals.sales_growth_qq)}
-              color={getGrowthColor(fundamentals.sales_growth_qq)}
-            />
-            <MetricRow
-              label="EPS TTM"
-              value={formatPercent(fundamentals.eps_growth_annual)}
-              color={getGrowthColor(fundamentals.eps_growth_annual)}
-            />
-            <MetricRow
-              label="Rev Growth"
-              value={formatPercent(fundamentals.revenue_growth)}
-              color={getGrowthColor(fundamentals.revenue_growth)}
-            />
-          </Box>
-        </Box>
-
-        <Divider />
-
-        {/* Valuation */}
-        <Box>
-          <SectionHeader>VALUATION</SectionHeader>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-            <MetricRow label={marketCapMetric.label} value={marketCapMetric.formattedValue} />
-            <MetricRow label="P/E" value={formatRatio(fundamentals.pe_ratio)} />
-            <MetricRow label="Fwd P/E" value={formatRatio(fundamentals.forward_pe)} />
-            <MetricRow label="PEG" value={formatRatio(fundamentals.peg_ratio)} />
-            <MetricRow
-              label="ROE"
-              value={fundamentals.roe != null ? `${fundamentals.roe.toFixed(1)}%` : '-'}
-            />
-            <MetricRow
-              label="Profit"
-              value={fundamentals.profit_margin != null ? `${fundamentals.profit_margin.toFixed(1)}%` : '-'}
-            />
-            <MetricRow
-              label="Inst Own"
-              value={fundamentals.institutional_ownership != null ? `${fundamentals.institutional_ownership.toFixed(1)}%` : '-'}
-            />
-          </Box>
-        </Box>
-      </Box>
+      <aside className={frame} style={{ width, height }}>
+        <p className="text-sm font-medium">{fundamentals.symbol}</p>
+        {fundamentals?.description && <About description={fundamentals.description} />}
+        <Section title="Growth">
+          {growthRow('EPS Q/Q', fundamentals.eps_growth_qq)}
+          {growthRow('Sales Q/Q', fundamentals.sales_growth_qq)}
+          {growthRow('EPS TTM', fundamentals.eps_growth_annual)}
+          {growthRow('Rev Growth', fundamentals.revenue_growth)}
+        </Section>
+        <Section title="Valuation">
+          <ValuationRows marketCapMetric={marketCapMetric} fundamentals={fundamentals} />
+        </Section>
+      </aside>
     );
   }
 
@@ -202,309 +153,107 @@ function StockMetricsSidebar({
     stockData?.screeners_run?.includes('setup_engine');
 
   return (
-    <Box
-      sx={{
-        width,
-        height,
-        bgcolor: 'background.paper',
-        borderRight: 1,
-        borderColor: 'divider',
-        overflow: 'auto',
-        p: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1.5,
-      }}
-    >
+    <aside className={frame} style={{ width, height }}>
       {/* Header: Company Name + Rating */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-        <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, lineHeight: 1.3 }}>
-          {stockData.company_name || stockData.symbol}
-        </Typography>
+      <div className="flex items-start justify-between gap-2">
+        <p className="flex-1 text-sm leading-snug font-medium">{stockData.company_name || stockData.symbol}</p>
         {stockData.rating && (
-          <Chip
-            label={stockData.rating}
-            color={getRatingColor(stockData.rating)}
-            size="small"
-            sx={{ fontSize: '0.7rem', height: 22 }}
-          />
+          <Badge tone={RATING_TONE[getRatingColor(stockData.rating)] || 'neutral'}>{stockData.rating}</Badge>
         )}
-      </Box>
+      </div>
 
-      {/* About - Company Description */}
-      {fundamentals?.description && (
-        <Box>
-          <SectionHeader>ABOUT</SectionHeader>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              fontSize: '0.75rem',
-              lineHeight: 1.5,
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-            }}
-          >
-            {fundamentals.description}
-          </Typography>
-        </Box>
-      )}
+      {fundamentals?.description && <About description={fundamentals.description} />}
 
-      <Divider />
+      <Section title="Scores">
+        <MetricRow label="Composite" value={stockData.composite_score?.toFixed(1) || '-'} color="primary.main" />
+        <MetricRow
+          label="EPS Rating"
+          value={stockData.eps_rating != null ? stockData.eps_rating : '-'}
+          color={getEpsRatingColor(stockData.eps_rating)}
+        />
+        <MetricRow label="Minervini" value={stockData.minervini_score?.toFixed(1) || '-'} />
+        <MetricRow label="CANSLIM" value={stockData.canslim_score?.toFixed(1) || '-'} />
+        <MetricRow label="IPO" value={stockData.ipo_score?.toFixed(1) || '-'} />
+        <MetricRow label="Custom" value={stockData.custom_score?.toFixed(1) || '-'} />
+        <MetricRow label="Vol Break" value={stockData.volume_breakthrough_score?.toFixed(1) || '-'} />
+      </Section>
 
-      {/* Scores - Composite + Screener Scores combined */}
-      <Box>
-        <SectionHeader>SCORES</SectionHeader>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-          <MetricRow
-            label="Composite"
-            value={stockData.composite_score?.toFixed(1) || '-'}
-            color="primary.main"
-          />
-          <MetricRow
-            label="EPS Rating"
-            value={stockData.eps_rating != null ? stockData.eps_rating : '-'}
-            color={getEpsRatingColor(stockData.eps_rating)}
-          />
-          <MetricRow label="Minervini" value={stockData.minervini_score?.toFixed(1) || '-'} />
-          <MetricRow label="CANSLIM" value={stockData.canslim_score?.toFixed(1) || '-'} />
-          <MetricRow label="IPO" value={stockData.ipo_score?.toFixed(1) || '-'} />
-          <MetricRow label="Custom" value={stockData.custom_score?.toFixed(1) || '-'} />
-          <MetricRow label="Vol Break" value={stockData.volume_breakthrough_score?.toFixed(1) || '-'} />
-        </Box>
-      </Box>
+      <Section title="Relative Strength">
+        <IconRow label="RS Rating">
+          <span className="inline-flex items-center gap-1 text-[13px] font-medium tabular-nums">
+            {stockData.rs_rating?.toFixed(1) || '-'}
+            <RSTrendIcon trend={stockData.rs_trend} />
+          </span>
+        </IconRow>
+        <MetricRow label="RS 1M" value={stockData.rs_rating_1m?.toFixed(1) || '-'} />
+        <MetricRow label="RS 3M" value={stockData.rs_rating_3m?.toFixed(1) || '-'} />
+        <MetricRow label="RS 12M" value={stockData.rs_rating_12m?.toFixed(1) || '-'} />
+        <MetricRow label="Beta" value={stockData.beta?.toFixed(2) || '-'} />
+        <MetricRow label="β-adj RS" value={stockData.beta_adj_rs?.toFixed(0) || '-'} />
+      </Section>
 
-      <Divider />
+      <Section title="Growth">
+        {growthRow('EPS Q/Q', stockData.eps_growth_qq ?? fundamentals?.eps_growth_qq)}
+        {growthRow('Sales Q/Q', stockData.sales_growth_qq ?? fundamentals?.sales_growth_qq)}
+        {growthRow('EPS Y/Y', stockData.eps_growth_yy ?? fundamentals?.eps_growth_yy)}
+        {growthRow('Sales Y/Y', stockData.sales_growth_yy ?? fundamentals?.sales_growth_yy)}
+        {growthRow('EPS TTM', fundamentals?.eps_growth_annual)}
+        {growthRow('Rev Growth', fundamentals?.revenue_growth)}
+      </Section>
 
-      {/* Relative Strength - 2 column grid */}
-      <Box>
-        <SectionHeader>RELATIVE STRENGTH</SectionHeader>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              RS Rating
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.8rem' }}>
-                {stockData.rs_rating?.toFixed(1) || '-'}
-              </Typography>
-              <RSTrendIcon trend={stockData.rs_trend} />
-            </Box>
-          </Box>
-          <MetricRow label="RS 1M" value={stockData.rs_rating_1m?.toFixed(1) || '-'} />
-          <MetricRow label="RS 3M" value={stockData.rs_rating_3m?.toFixed(1) || '-'} />
-          <MetricRow label="RS 12M" value={stockData.rs_rating_12m?.toFixed(1) || '-'} />
-          <MetricRow label="Beta" value={stockData.beta?.toFixed(2) || '-'} />
-          <MetricRow label="β-adj RS" value={stockData.beta_adj_rs?.toFixed(0) || '-'} />
-        </Box>
-      </Box>
+      <Section title="Valuation">
+        <ValuationRows marketCapMetric={marketCapMetric} fundamentals={fundamentals} />
+      </Section>
 
-      <Divider />
-
-      {/* Growth - 2 column grid with colors */}
-      <Box>
-        <SectionHeader>GROWTH</SectionHeader>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-          <MetricRow
-            label="EPS Q/Q"
-            value={formatPercent(stockData.eps_growth_qq ?? fundamentals?.eps_growth_qq)}
-            color={getGrowthColor(stockData.eps_growth_qq ?? fundamentals?.eps_growth_qq)}
-          />
-          <MetricRow
-            label="Sales Q/Q"
-            value={formatPercent(stockData.sales_growth_qq ?? fundamentals?.sales_growth_qq)}
-            color={getGrowthColor(stockData.sales_growth_qq ?? fundamentals?.sales_growth_qq)}
-          />
-          <MetricRow
-            label="EPS Y/Y"
-            value={formatPercent(stockData.eps_growth_yy ?? fundamentals?.eps_growth_yy)}
-            color={getGrowthColor(stockData.eps_growth_yy ?? fundamentals?.eps_growth_yy)}
-          />
-          <MetricRow
-            label="Sales Y/Y"
-            value={formatPercent(stockData.sales_growth_yy ?? fundamentals?.sales_growth_yy)}
-            color={getGrowthColor(stockData.sales_growth_yy ?? fundamentals?.sales_growth_yy)}
-          />
-          <MetricRow
-            label="EPS TTM"
-            value={formatPercent(fundamentals?.eps_growth_annual)}
-            color={getGrowthColor(fundamentals?.eps_growth_annual)}
-          />
-          <MetricRow
-            label="Rev Growth"
-            value={formatPercent(fundamentals?.revenue_growth)}
-            color={getGrowthColor(fundamentals?.revenue_growth)}
-          />
-        </Box>
-      </Box>
-
-      <Divider />
-
-      {/* Valuation (from fundamentals) - 2 column grid */}
-      <Box>
-        <SectionHeader>VALUATION</SectionHeader>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-          <MetricRow label={marketCapMetric.label} value={marketCapMetric.formattedValue} />
-          <MetricRow label="P/E" value={formatRatio(fundamentals?.pe_ratio)} />
-          <MetricRow label="Fwd P/E" value={formatRatio(fundamentals?.forward_pe)} />
-          <MetricRow label="PEG" value={formatRatio(fundamentals?.peg_ratio)} />
-          <MetricRow
-            label="ROE"
-            value={fundamentals?.roe != null ? `${fundamentals.roe.toFixed(1)}%` : '-'}
-          />
-          <MetricRow
-            label="Profit"
-            value={fundamentals?.profit_margin != null ? `${fundamentals.profit_margin.toFixed(1)}%` : '-'}
-          />
-          <MetricRow
-            label="Inst Own"
-            value={fundamentals?.institutional_ownership != null ? `${fundamentals.institutional_ownership.toFixed(1)}%` : '-'}
-          />
-        </Box>
-      </Box>
-
-      {/* VCP Pattern - Conditional, 2 column grid */}
       {stockData.vcp_detected && (
-        <>
-          <Divider />
-          <Box>
-            <SectionHeader>VCP PATTERN</SectionHeader>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                  Detected
-                </Typography>
-                <BoolIndicator value={stockData.vcp_detected} />
-              </Box>
-              <MetricRow label="Score" value={stockData.vcp_score?.toFixed(1) || '-'} />
-              <MetricRow
-                label="Pivot"
-                value={stockData.vcp_pivot ? `$${stockData.vcp_pivot.toFixed(2)}` : '-'}
-              />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                  Ready
-                </Typography>
-                <BoolIndicator value={stockData.vcp_ready_for_breakout} />
-              </Box>
-            </Box>
-          </Box>
-        </>
+        <Section title="VCP Pattern">
+          <IconRow label="Detected"><BoolIndicator value={stockData.vcp_detected} /></IconRow>
+          <MetricRow label="Score" value={stockData.vcp_score?.toFixed(1) || '-'} />
+          <MetricRow label="Pivot" value={stockData.vcp_pivot ? `$${stockData.vcp_pivot.toFixed(2)}` : '-'} />
+          <IconRow label="Ready"><BoolIndicator value={stockData.vcp_ready_for_breakout} /></IconRow>
+        </Section>
       )}
 
-      {/* Setup Engine - Conditional, 2 column grid */}
       {showSetupSection && (
-        <>
-          <Divider />
-          <Box>
-            <SectionHeader>SETUP ENGINE</SectionHeader>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-              <MetricRow
-                label="Pattern"
-                value={formatPatternName(stockData.se_pattern_primary)}
-              />
-              <MetricRow
-                label="Confidence"
-                value={stockData.se_pattern_confidence != null ? `${stockData.se_pattern_confidence.toFixed(0)}%` : '-'}
-              />
-              <MetricRow
-                label="Setup"
-                value={stockData.se_setup_score?.toFixed(1) || '-'}
-                color={getScoreColor(stockData.se_setup_score)}
-              />
-              <MetricRow
-                label="Quality"
-                value={stockData.se_quality_score?.toFixed(1) || '-'}
-                color={getScoreColor(stockData.se_quality_score)}
-              />
-              <MetricRow
-                label="Readiness"
-                value={stockData.se_readiness_score?.toFixed(1) || '-'}
-                color={getScoreColor(stockData.se_readiness_score)}
-              />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                  Ready
-                </Typography>
-                <BoolIndicator value={stockData.se_setup_ready} />
-              </Box>
-            </Box>
-            {onViewSetupDetails && (
-              <Button
-                variant="outlined"
-                size="small"
-                fullWidth
-                startIcon={<InfoOutlinedIcon />}
-                onClick={onViewSetupDetails}
-                sx={{ textTransform: 'none', mt: 1, fontSize: '0.75rem' }}
-              >
-                View Setup Details
-              </Button>
-            )}
-          </Box>
-        </>
+        <Section
+          title="Setup Engine"
+          footer={onViewSetupDetails && (
+            <Button variant="secondary" size="sm" className="mt-2 w-full" onClick={onViewSetupDetails}>
+              <Info aria-hidden="true" />
+              View Setup Details
+            </Button>
+          )}
+        >
+          <MetricRow label="Pattern" value={formatPatternName(stockData.se_pattern_primary)} />
+          <MetricRow
+            label="Confidence"
+            value={stockData.se_pattern_confidence != null ? `${stockData.se_pattern_confidence.toFixed(0)}%` : '-'}
+          />
+          <MetricRow label="Setup" value={stockData.se_setup_score?.toFixed(1) || '-'} color={getScoreColor(stockData.se_setup_score)} />
+          <MetricRow label="Quality" value={stockData.se_quality_score?.toFixed(1) || '-'} color={getScoreColor(stockData.se_quality_score)} />
+          <MetricRow label="Readiness" value={stockData.se_readiness_score?.toFixed(1) || '-'} color={getScoreColor(stockData.se_readiness_score)} />
+          <IconRow label="Ready"><BoolIndicator value={stockData.se_setup_ready} /></IconRow>
+        </Section>
       )}
 
-      <Divider />
+      <Section title="Price & Technical">
+        <MetricRow label="Price" value={stockData.current_price ? `$${stockData.current_price.toFixed(2)}` : '-'} />
+        <IconRow label="Stage">
+          {stockData.stage
+            ? <Badge tone={stockData.stage === 2 ? 'accent' : 'neutral'}>{`S${stockData.stage}`}</Badge>
+            : <span className="text-[13px]">-</span>}
+        </IconRow>
+        <IconRow label="MA Align"><BoolIndicator value={stockData.ma_alignment} /></IconRow>
+        <IconRow label="Pass Tmpl"><BoolIndicator value={stockData.passes_template} /></IconRow>
+      </Section>
 
-      {/* Price & Technical - 2 column grid */}
-      <Box>
-        <SectionHeader>PRICE & TECHNICAL</SectionHeader>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-          <MetricRow
-            label="Price"
-            value={stockData.current_price ? `$${stockData.current_price.toFixed(2)}` : '-'}
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              Stage
-            </Typography>
-            {stockData.stage ? (
-              <Chip
-                label={`S${stockData.stage}`}
-                size="small"
-                sx={{
-                  ...onPalette(getStageColor(stockData.stage)),
-                  fontSize: '0.65rem',
-                  height: 18,
-                  '& .MuiChip-label': { px: 0.75 },
-                }}
-              />
-            ) : (
-              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>-</Typography>
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              MA Align
-            </Typography>
-            <BoolIndicator value={stockData.ma_alignment} />
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              Pass Tmpl
-            </Typography>
-            <BoolIndicator value={stockData.passes_template} />
-          </Box>
-        </Box>
-      </Box>
-
-      {/* View Industry Peers Button */}
       {stockData.ibd_industry_group && onViewPeers && (
-        <Button
-          variant="outlined"
-          size="small"
-          fullWidth
-          startIcon={<PeopleIcon />}
-          onClick={onViewPeers}
-          sx={{ textTransform: 'none', mt: 'auto' }}
-        >
+        <Button variant="secondary" size="sm" className="mt-auto w-full" onClick={onViewPeers}>
+          <Users aria-hidden="true" />
           View Industry Peers
         </Button>
       )}
-    </Box>
+    </aside>
   );
 }
 
