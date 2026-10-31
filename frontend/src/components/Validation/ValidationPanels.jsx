@@ -1,20 +1,8 @@
 import { Link as RouterLink } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Link,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Notice } from '@/ui/notice';
 
 function formatPercentValue(value) {
   if (value == null) return '-';
@@ -37,37 +25,32 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
-function MetricCard({ title, horizon }) {
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-          {title}
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.75 }}>
-          <MetricRow label="Sample" value={horizon?.sample_size ?? 0} />
-          <MetricRow label="Positive" value={formatRate(horizon?.positive_rate)} />
-          <MetricRow label="Avg Return" value={formatPercentValue(horizon?.avg_return_pct)} />
-          <MetricRow label="Median" value={formatPercentValue(horizon?.median_return_pct)} />
-          <MetricRow label="Avg MFE" value={formatPercentValue(horizon?.avg_mfe_pct)} />
-          <MetricRow label="Avg MAE" value={formatPercentValue(horizon?.avg_mae_pct)} />
-          <MetricRow label="Skipped" value={horizon?.skipped_missing_history ?? 0} />
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
+const TH = 'border-b border-border px-2 py-1.5 font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5 tabular-nums';
 
 function MetricRow({ label, value }) {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
-        {value}
-      </Typography>
-    </Box>
+    <div className="flex justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function MetricCard({ title, horizon }) {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <h4 className="mb-2 text-sm font-semibold">{title}</h4>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        <MetricRow label="Sample" value={horizon?.sample_size ?? 0} />
+        <MetricRow label="Positive" value={formatRate(horizon?.positive_rate)} />
+        <MetricRow label="Avg Return" value={formatPercentValue(horizon?.avg_return_pct)} />
+        <MetricRow label="Median" value={formatPercentValue(horizon?.median_return_pct)} />
+        <MetricRow label="Avg MFE" value={formatPercentValue(horizon?.avg_mfe_pct)} />
+        <MetricRow label="Avg MAE" value={formatPercentValue(horizon?.avg_mae_pct)} />
+        <MetricRow label="Skipped" value={horizon?.skipped_missing_history ?? 0} />
+      </div>
+    </div>
   );
 }
 
@@ -76,100 +59,98 @@ export function ValidationSummaryCards({ horizons }) {
   const fiveSessions = horizons?.find((item) => item.horizon_sessions === 5);
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5 }}>
+    <div className="tw grid gap-3 md:grid-cols-2">
       <MetricCard title="1 Session" horizon={oneSession} />
       <MetricCard title="5 Sessions" horizon={fiveSessions} />
-    </Box>
+    </div>
+  );
+}
+
+function EmptyRow({ colSpan, children }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-2 py-4 text-center text-sm text-muted-foreground">{children}</td>
+    </tr>
   );
 }
 
 export function ValidationRecentEventsTable({ events, showSourceKind = true }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Symbol</TableCell>
-            {showSourceKind && <TableCell>Source</TableCell>}
-            <TableCell>Event</TableCell>
-            <TableCell>Entry</TableCell>
-            <TableCell align="right">1S</TableCell>
-            <TableCell align="right">5S</TableCell>
-            <TableCell align="right">MFE</TableCell>
-            <TableCell align="right">MAE</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
+    <div className="tw overflow-x-auto">
+      <table className="w-full min-w-[560px] border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr>
+            <th scope="col" className={cn(TH, 'text-left')}>Symbol</th>
+            {showSourceKind && <th scope="col" className={cn(TH, 'text-left')}>Source</th>}
+            <th scope="col" className={cn(TH, 'text-left')}>Event</th>
+            <th scope="col" className={cn(TH, 'text-left')}>Entry</th>
+            {['1S', '5S', 'MFE', 'MAE'].map((label) => (
+              <th key={label} scope="col" className={cn(TH, 'text-right')}>{label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
           {(events || []).map((event, index) => (
-            <TableRow key={`${event.source_ref}:${event.event_at}:${event.attributes?.symbol || 'symbol'}:${index}`}>
-              <TableCell>
+            <tr key={`${event.source_ref}:${event.event_at}:${event.attributes?.symbol || 'symbol'}:${index}`}>
+              <td className={cn(TD, 'font-semibold')}>
                 {event.attributes?.symbol ? (
-                  <Link component={RouterLink} to={`/stocks/${encodeURIComponent(event.attributes.symbol)}`} underline="hover">
+                  <RouterLink
+                    to={`/stocks/${encodeURIComponent(event.attributes.symbol)}`}
+                    className="text-accent hover:underline"
+                  >
                     {event.attributes.symbol}
-                  </Link>
+                  </RouterLink>
                 ) : '-'}
-              </TableCell>
+              </td>
               {showSourceKind && (
-                <TableCell>
-                  <Chip size="small" variant="outlined" label={event.source_kind.replace('_', ' ')} />
-                </TableCell>
+                <td className={TD}><Badge>{event.source_kind.replace('_', ' ')}</Badge></td>
               )}
-              <TableCell>{formatDate(event.event_at)}</TableCell>
-              <TableCell>{formatDate(event.entry_at)}</TableCell>
-              <TableCell align="right">{formatPercentValue(event.return_1s_pct)}</TableCell>
-              <TableCell align="right">{formatPercentValue(event.return_5s_pct)}</TableCell>
-              <TableCell align="right">{formatPercentValue(event.mfe_5s_pct)}</TableCell>
-              <TableCell align="right">{formatPercentValue(event.mae_5s_pct)}</TableCell>
-            </TableRow>
+              <td className={TD}>{formatDate(event.event_at)}</td>
+              <td className={TD}>{formatDate(event.entry_at)}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(event.return_1s_pct)}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(event.return_5s_pct)}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(event.mfe_5s_pct)}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(event.mae_5s_pct)}</td>
+            </tr>
           ))}
           {(!events || events.length === 0) && (
-            <TableRow>
-              <TableCell colSpan={showSourceKind ? 8 : 7} align="center">
-                <Typography variant="body2" color="text.secondary">
-                  No validation events are available for this selection.
-                </Typography>
-              </TableCell>
-            </TableRow>
+            <EmptyRow colSpan={showSourceKind ? 8 : 7}>
+              No validation events are available for this selection.
+            </EmptyRow>
           )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 export function ValidationFailureClustersTable({ clusters }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Cluster</TableCell>
-            <TableCell align="right">Sample</TableCell>
-            <TableCell align="right">Avg 5S</TableCell>
-            <TableCell align="right">Median 5S</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
+    <div className="tw overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr>
+            <th scope="col" className={cn(TH, 'text-left')}>Cluster</th>
+            {['Sample', 'Avg 5S', 'Median 5S'].map((label) => (
+              <th key={label} scope="col" className={cn(TH, 'text-right')}>{label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
           {(clusters || []).map((cluster) => (
-            <TableRow key={cluster.cluster_key}>
-              <TableCell>{cluster.label}</TableCell>
-              <TableCell align="right">{cluster.sample_size}</TableCell>
-              <TableCell align="right">{formatPercentValue(cluster.avg_return_pct)}</TableCell>
-              <TableCell align="right">{formatPercentValue(cluster.median_return_pct)}</TableCell>
-            </TableRow>
+            <tr key={cluster.cluster_key}>
+              <td className={cn(TD, 'font-medium')}>{cluster.label}</td>
+              <td className={cn(TD, 'text-right')}>{cluster.sample_size}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(cluster.avg_return_pct)}</td>
+              <td className={cn(TD, 'text-right')}>{formatPercentValue(cluster.median_return_pct)}</td>
+            </tr>
           ))}
           {(!clusters || clusters.length === 0) && (
-            <TableRow>
-              <TableCell colSpan={4} align="center">
-                <Typography variant="body2" color="text.secondary">
-                  No losing clusters are available for this selection.
-                </Typography>
-              </TableCell>
-            </TableRow>
+            <EmptyRow colSpan={4}>No losing clusters are available for this selection.</EmptyRow>
           )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -179,34 +160,26 @@ export function ValidationDegradedAlert({ degradedReasons }) {
   }
 
   return (
-    <Alert severity="info">
+    <Notice tone="info" className="tw">
       Validation is partially degraded: {degradedReasons.join(', ')}.
-    </Alert>
+    </Notice>
   );
 }
 
 export function ValidationSection({ title, degradedReasons, horizons, recentEvents, failureClusters, showSourceKind = true }) {
   return (
-    <Stack spacing={1.5}>
-      {title && (
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
-      )}
+    <div className="tw flex flex-col gap-3">
+      {title && <h3 className="text-sm font-semibold">{title}</h3>}
       <ValidationDegradedAlert degradedReasons={degradedReasons} />
       <ValidationSummaryCards horizons={horizons} />
-      <Box>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-          Recent Events
-        </Typography>
+      <section>
+        <h3 className="mb-1 text-sm font-semibold">Recent Events</h3>
         <ValidationRecentEventsTable events={recentEvents} showSourceKind={showSourceKind} />
-      </Box>
-      <Box>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-          Failure Clusters
-        </Typography>
+      </section>
+      <section>
+        <h3 className="mb-1 text-sm font-semibold">Failure Clusters</h3>
         <ValidationFailureClustersTable clusters={failureClusters} />
-      </Box>
-    </Stack>
+      </section>
+    </div>
   );
 }
