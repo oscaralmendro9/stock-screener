@@ -2,19 +2,14 @@
  * Market coverage: one row per active market saying whether it can run, and
  * in plain words what is missing when it cannot (see coverageProblems.js).
  */
-import {
-  Alert,
-  Box,
-  Chip,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Notice } from '@/ui/notice';
+
 import { marketCoverage } from './coverageProblems';
+
+const TH = 'border-b border-border px-2 py-1.5 text-left font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5 align-top';
 
 const WORKER_LABELS = [
   ['market_jobs', 'Pipeline'],
@@ -32,16 +27,16 @@ function ageLabel(iso) {
 
 function Workers({ workers }) {
   return (
-    <Stack direction="row" spacing={1.5}>
+    <span className="flex flex-wrap gap-x-3 tabular-nums">
       {WORKER_LABELS.map(([family, label]) => {
         const count = workers[family];
         return (
-          <Typography key={family} variant="body2" color={count === 0 ? 'error' : 'text.primary'}>
+          <span key={family} className={count === 0 ? 'text-loss' : undefined}>
             {label}: {count ?? '—'}
-          </Typography>
+          </span>
         );
       })}
-    </Stack>
+    </span>
   );
 }
 
@@ -50,17 +45,17 @@ function Workers({ workers }) {
 function Status({ row, tracked }) {
   const unchecked = uncheckedOf(row, tracked);
   if (!row.problems.length && !unchecked.length && !row.notes.length) {
-    return <Typography variant="body2" color="success.main">OK</Typography>;
+    return <span className="text-gain">OK</span>;
   }
   return (
-    <Box>
+    <div>
       {row.problems.map((problem) => (
-        <Typography key={problem} variant="body2" color="warning.main">{problem}</Typography>
+        <p key={problem} className="text-warning">{problem}</p>
       ))}
       {[...unchecked, ...row.notes].map((line) => (
-        <Typography key={line} variant="body2" color="text.secondary">{line}</Typography>
+        <p key={line} className="text-muted-foreground">{line}</p>
       ))}
-    </Box>
+    </div>
   );
 }
 
@@ -96,55 +91,48 @@ export default function MarketCoverage({ markets, enabledMarkets = [], deploymen
   const allChecked = rows.length > 0 && rows.every((row) => uncheckedOf(row, tracked).length === 0);
 
   return (
-    <Box sx={{ mt: 3 }}>
-      <Typography variant="h6" sx={{ mb: 0.5 }}>Market coverage</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+    <section className="tw mt-6">
+      <h2 className="mb-1 text-base font-semibold">Market coverage</h2>
+      <p className="mb-3 text-sm text-muted-foreground">
         Whether each market can run. The app&apos;s enabled markets are chosen at setup; workers and Beat follow
         ENABLED_MARKETS in the deployment environment.
-      </Typography>
+      </p>
       {needAttention.length > 0 ? (
-        <Alert severity="warning" sx={{ mb: 1.5 }}>
+        <Notice tone="warning" role="alert" className="mb-3">
           {needAttention.length === 1 ? '1 market needs' : `${needAttention.length} markets need`} attention:{' '}
           {needAttention.join(', ')}.
-        </Alert>
+        </Notice>
       ) : allChecked ? (
-        <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>Every market shown is wired up.</Typography>
+        <p className="mb-2 text-sm text-gain">Every market shown is wired up.</p>
       ) : rows.length > 0 && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Some checks are not available yet.</Typography>
+        <p className="mb-2 text-sm text-muted-foreground">Some checks are not available yet.</p>
       )}
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Market</TableCell>
-            <TableCell>In app</TableCell>
-            <TableCell>Workers</TableCell>
-            <TableCell>Daily pipeline</TableCell>
-            <TableCell>Status</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.market}>
-              <TableCell component="th" scope="row">{row.market}</TableCell>
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={row.enabled ? 'Enabled' : 'Not enabled'}
-                  color={row.enabled ? 'success' : 'default'}
-                  variant={row.enabled ? 'filled' : 'outlined'}
-                />
-              </TableCell>
-              <TableCell><Workers workers={row.workers} /></TableCell>
-              <TableCell>
-                <Typography variant="body2">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr>
+              {['Market', 'In app', 'Workers', 'Daily pipeline', 'Status'].map((label) => (
+                <th key={label} scope="col" className={TH}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.market}>
+                <th scope="row" className={cn(TD, 'text-left font-semibold')}>{row.market}</th>
+                <td className={TD}>
+                  <Badge tone={row.enabled ? 'gain' : 'neutral'}>{row.enabled ? 'Enabled' : 'Not enabled'}</Badge>
+                </td>
+                <td className={TD}><Workers workers={row.workers} /></td>
+                <td className={cn(TD, 'tabular-nums')}>
                   {!row.pipelineKnown ? '—' : row.pipelineRun?.started_at ? ageLabel(row.pipelineRun.started_at) : 'Never'}
-                </Typography>
-              </TableCell>
-              <TableCell><Status row={row} tracked={tracked} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Box>
+                </td>
+                <td className={TD}><Status row={row} tracked={tracked} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
