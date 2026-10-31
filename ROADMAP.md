@@ -75,7 +75,8 @@ Open:
 - [x] Validation (Backtest tab): page and the shared `ValidationPanels` (also used on stock detail) on Tailwind
 - [~] Watchlists: tab (watchlist picker, stewardship counts and status filter, icon actions, empty state) and table (keyboard-openable rows, always-reachable remove button, 11px floor) on Tailwind. `UserWatchlistManager` on the new `ui/dialog` (Radix, flex-centred so drag-and-drop measures correctly; nested import dialog; delete confirms in an alert dialog instead of `window.confirm`). Still MUI: sparklines, `PriceChangeBar`, `ActionStateBadge`, the evidence drawer
 - [x] Chart viewer: `ChartViewerModal`, `WatchlistChartModal` and `StaticChartViewerModal` on a full-screen Radix dialog with a shared header (`ChartViewerChrome`: no traffic-light boxes, accent for top-20 group rank and EPS ≥ 80), `StockMetricsSidebar`, `PeerComparisonModal` (`ui/dialog`), `SetupEngineDrawer` (`ui/sheet`) and `MarketThemesList` (Radix popover). Keys stay with the viewer (Space/Shift+Space, D, Esc closes the inner panel first) and pause while the peers dialog is on top
-- [ ] The rest (Themes, Operations, assistant, static shells)
+- [x] Shared bits: `PriceSparkline`, `RSSparkline` (native title + `role="img"` label instead of MUI tooltips, token colours), `ActionStateBadge` (a button only when it opens evidence), `PriceChangeBar`, `QueryErrorAlert` (on `ui/notice`)
+- [ ] The rest (Themes, Operations, assistant, evidence drawer, static shells)
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

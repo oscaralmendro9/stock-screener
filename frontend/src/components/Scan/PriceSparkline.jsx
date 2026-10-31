@@ -1,5 +1,4 @@
 import { useMemo, memo } from 'react';
-import { Box, Tooltip, Typography, useTheme } from '@mui/material';
 
 import { baseValue, monotoneXPath, scaleLinear } from './sparklineGeometry';
 
@@ -8,6 +7,9 @@ import { baseValue, monotoneXPath, scaleLinear } from './sparklineGeometry';
 // pixels) and the curve keeps its shape under the horizontal stretch.
 const VIEW_WIDTH = 1000;
 const MARGIN = 2;
+const UP = 'var(--gain)';
+const DOWN = 'var(--loss)';
+const FLAT = 'var(--disabled-foreground)';
 
 /**
  * Price Sparkline Component
@@ -16,7 +18,7 @@ const MARGIN = 2;
  * over the last 30 trading days. Uses normalized prices for
  * consistent visual comparison across stocks.
  *
- * Color coding (theme success/error, so it follows light/dark mode):
+ * Color coding (gain/loss tokens, so it follows light/dark mode):
  * - Green: Price up overall (30-day change positive)
  * - Red: Price down overall (30-day change negative)
  * - Grey: Flat
@@ -33,13 +35,12 @@ function PriceSparkline({
   showChange = true,  // Whether to show the 1-day change text
   sparklineWidth = 60,  // Width of the inner sparkline chart when showChange is true
 }) {
-  const { palette } = useTheme();
 
   const viewHeight = typeof height === 'number' ? height : 28;
 
   const { hasData, line, area, dotY, color } = useMemo(() => {
     if (!data || !Array.isArray(data) || data.length === 0) {
-      return { hasData: false, color: palette.text.disabled };
+      return { hasData: false, color: FLAT };
     }
 
     const minVal = Math.min(...data);
@@ -50,7 +51,7 @@ function PriceSparkline({
     const padding = range * 0.05;
 
     // trend: 1 = up, -1 = down, 0 = flat
-    const color = trend === 1 ? palette.success.main : trend === -1 ? palette.error.main : palette.text.disabled;
+    const color = trend === 1 ? UP : trend === -1 ? DOWN : FLAT;
 
     const domain = [minVal - padding, maxVal + padding];
     const y = scaleLinear(domain, [viewHeight - MARGIN, MARGIN]);
@@ -66,7 +67,7 @@ function PriceSparkline({
     const area = `${line}L${VIEW_WIDTH},${base}L0,${base}Z`;
 
     return { hasData: true, line, area, color };
-  }, [data, trend, palette, viewHeight]);
+  }, [data, trend, viewHeight]);
 
   // Format 1-day change for display
   const changeText = useMemo(() => {
@@ -75,9 +76,9 @@ function PriceSparkline({
     return `${sign}${change1d.toFixed(1)}%`;
   }, [change1d]);
 
-  const changeColor = useMemo(() => {
-    if (change1d === null || change1d === undefined) return 'text.secondary';
-    return change1d >= 0 ? 'success.main' : 'error.main';
+  const changeClass = useMemo(() => {
+    if (change1d === null || change1d === undefined) return 'text-muted-foreground';
+    return change1d >= 0 ? 'text-gain' : 'text-loss';
   }, [change1d]);
 
   // Tooltip content
@@ -102,80 +103,56 @@ function PriceSparkline({
   // No data - show placeholder
   if (!hasData) {
     return (
-      <Box
-        sx={{
-          width,
-          height,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'text.disabled',
-          fontSize: 11,
-        }}
+      <div
+        className="flex items-center justify-center text-[11px] text-disabled-foreground"
+        style={{ width, height }}
       >
         -
-      </Box>
+      </div>
     );
   }
 
+  // The native title is the hover hint; the label carries the same summary
+  // to screen readers.
   return (
-    <Tooltip title={tooltipText} arrow placement="top">
-      <Box
-        sx={{
-          width,
-          height,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-        }}
+    <div
+      role="img"
+      aria-label={tooltipText}
+      title={tooltipText}
+      className="flex items-center gap-1"
+      style={{ width, height }}
+    >
+      {/* Sparkline Chart */}
+      <div
+        className="h-full min-w-0"
+        style={{ width: showChange ? sparklineWidth : '100%', flex: showChange ? '1 1 auto' : 1 }}
       >
-        {/* Sparkline Chart */}
-        <Box
-          sx={{
-            width: showChange ? sparklineWidth : '100%',
-            height: '100%',
-            flex: showChange ? '1 1 auto' : 1,
-            minWidth: 0,
-          }}
-        >
-          {dotY === undefined ? (
-            <svg
-              width="100%"
-              height="100%"
-              viewBox={`0 0 ${VIEW_WIDTH} ${viewHeight}`}
-              preserveAspectRatio="none"
-              style={{ display: 'block' }}
-            >
-              <path d={area} fill={color} fillOpacity={0.25} />
-              <path d={line} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            </svg>
-          ) : (
-            // Unstretched, so the dot stays round.
-            <svg width="100%" height="100%" style={{ display: 'block' }}>
-              <circle cx="50%" cy={dotY} r={3} stroke={color} strokeWidth={1.5} fill={color} fillOpacity={0.25} />
-            </svg>
-          )}
-        </Box>
-
-        {/* 1-Day Change Badge */}
-        {showChange && changeText && (
-          <Typography
-            sx={{
-              // 11px floor; aligned digits in the UI font rather than monospace.
-              fontSize: 11,
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              color: changeColor,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
+        {dotY === undefined ? (
+          <svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${VIEW_WIDTH} ${viewHeight}`}
+            preserveAspectRatio="none"
+            style={{ display: 'block' }}
           >
-            {changeText}
-          </Typography>
+            <path d={area} fill={color} fillOpacity={0.25} />
+            <path d={line} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          </svg>
+        ) : (
+          // Unstretched, so the dot stays round.
+          <svg width="100%" height="100%" style={{ display: 'block' }}>
+            <circle cx="50%" cy={dotY} r={3} stroke={color} strokeWidth={1.5} fill={color} fillOpacity={0.25} />
+          </svg>
         )}
-      </Box>
-    </Tooltip>
+      </div>
+
+      {/* 1-Day Change Badge: 11px floor, aligned digits in the UI font */}
+      {showChange && changeText && (
+        <span className={`shrink-0 text-[11px] font-semibold whitespace-nowrap tabular-nums ${changeClass}`}>
+          {changeText}
+        </span>
+      )}
+    </div>
   );
 }
 
