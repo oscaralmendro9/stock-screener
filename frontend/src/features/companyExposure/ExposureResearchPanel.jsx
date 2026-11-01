@@ -1,6 +1,8 @@
-import {
-  Alert, Box, Chip, Divider, List, ListItem, Paper, Stack, Typography,
-} from '@mui/material';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
+
+const PILL = 'inline-flex h-6 items-center rounded-full border px-2 text-[11px] whitespace-nowrap';
+const QUOTE = 'm-0 mt-1 border-l-2 border-border pl-2 text-sm';
 
 // Presentational view of one research job and, when ready, its shadow
 // preview. The preview is an unaccepted research result: it never claims
@@ -60,74 +62,63 @@ function ClaimCard({ claim }) {
   const held = claim.active_holds?.length > 0
     || reasons.length > 0
     || claim.freshness_state !== 'current';
+  const primary = claim.support_basis?.startsWith('primary') && reasons.length === 0;
   return (
-    <Paper variant="outlined" sx={{ p: 1.5 }} data-testid="exposure-claim">
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 0.75 }}>
-        <Chip size="small" label={claim.claim_kind.replaceAll('_', ' ')} />
-        <Chip
-          size="small"
-          variant="outlined"
-          color={claim.support_basis?.startsWith('primary') && reasons.length === 0 ? 'success' : 'default'}
-          label={SUPPORT_LABELS[claim.support_basis] || claim.support_basis}
-        />
-        <Chip size="small" variant="outlined" label={STATUS_LABELS[claim.commercial_status] || claim.commercial_status} />
+    <div className="rounded-md border border-border p-3" data-testid="exposure-claim">
+      <div className="mb-1.5 flex flex-wrap gap-2">
+        <span className={cn(PILL, 'border-transparent bg-surface-subtle')}>{claim.claim_kind.replaceAll('_', ' ')}</span>
+        <span className={cn(PILL, primary ? 'border-gain/60 text-gain' : 'border-border')}>
+          {SUPPORT_LABELS[claim.support_basis] || claim.support_basis}
+        </span>
+        <span className={cn(PILL, 'border-border')}>{STATUS_LABELS[claim.commercial_status] || claim.commercial_status}</span>
         {claim.conclusion !== 'supported' && (
-          <Chip size="small" color="warning" label={`Conclusion: ${claim.conclusion}`} />
+          <span className={cn(PILL, 'border-transparent bg-warning/15 text-warning')}>{`Conclusion: ${claim.conclusion}`}</span>
         )}
-        {claim.carried_forward && <Chip size="small" variant="outlined" label="Carried forward" />}
+        {claim.carried_forward && <span className={cn(PILL, 'border-border')}>Carried forward</span>}
         {(claim.active_holds || []).map((hold) => (
-          <Chip key={hold} size="small" color="warning" label={`Hold: ${hold}`} />
+          <span key={hold} className={cn(PILL, 'border-transparent bg-warning/15 text-warning')}>{`Hold: ${hold}`}</span>
         ))}
         {reasons.map((reason) => (
-          <Chip key={`check-${reason}`} size="small" color="warning" variant="outlined" label={`Check: ${reason}`} />
+          <span key={`check-${reason}`} className={cn(PILL, 'border-warning/60 text-warning')}>{`Check: ${reason}`}</span>
         ))}
-      </Stack>
-      <Typography>{claim.statement}</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+      </div>
+      <p>{claim.statement}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
         Supported as of {shortDate(claim.supported_as_of)}
         {claim.fresh_until ? ` · usable until ${shortDate(claim.fresh_until)}` : ''}
         {' · '}freshness {claim.freshness_state}
         {claim.reporting_scope === 'segment_or_subsidiary' && claim.scope_label
           ? ` · scope: ${claim.scope_label}` : ''}
-      </Typography>
-      <Typography variant="body2" sx={{ mt: 0.5 }}>
+      </p>
+      <p className="mt-1 text-sm">
         Materiality: {materialityText(claim.materiality)}
-      </Typography>
+      </p>
       {/* The wording a displayed measure rests on, shown as plain text. */}
       {(claim.materiality?.evidence || []).map((item) => (
-        <Typography
-          key={`${item.role}-${item.passage_id}`}
-          variant="body2"
-          component="blockquote"
-          sx={{ m: 0, mt: 0.5, pl: 1, borderLeft: 2, borderColor: 'divider' }}
-        >
-          <Typography variant="caption" color="text.secondary" component="span">
-            Materiality {item.role}:{' '}
-          </Typography>
+        <blockquote key={`${item.role}-${item.passage_id}`} className={QUOTE}>
+          <span className="text-[11px] text-muted-foreground">Materiality {item.role}:{' '}</span>
           {item.quote}
-        </Typography>
+        </blockquote>
       ))}
       {held && (
-        <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+        <p className="mt-1 text-sm text-warning">
           Held from new automated use until reviewed or refreshed.
-        </Typography>
+        </p>
       )}
-      <List dense disablePadding sx={{ mt: 0.5 }}>
+      <ul className="mt-1">
         {(claim.evidence || []).map((item) => (
-          <ListItem key={item.link_id} disableGutters sx={{ display: 'block' }}>
-            <Typography variant="caption" color="text.secondary">
+          <li key={item.link_id} className="py-1">
+            <p className="text-[11px] text-muted-foreground">
               {item.direction === 'conflicting' ? 'Conflicting' : 'Supporting'}
               {' · '}{item.evidence_role.replaceAll('_', ' ')}
               {item.language && item.language !== 'en' ? ` · ${item.language}` : ''}
-            </Typography>
+            </p>
             {/* Original passages render as plain text, never as HTML. */}
-            <Typography variant="body2" component="blockquote" sx={{ m: 0, pl: 1, borderLeft: 2, borderColor: 'divider' }}>
-              {item.quote}
-            </Typography>
-          </ListItem>
+            <blockquote className={cn(QUOTE, 'mt-0')}>{item.quote}</blockquote>
+          </li>
         ))}
-      </List>
-    </Paper>
+      </ul>
+    </div>
   );
 }
 
@@ -138,77 +129,69 @@ export default function ExposureResearchPanel({ job, preview }) {
     (item) => item.outcome !== 'complete_for_requested_scope',
   );
   return (
-    <Box data-testid="exposure-research-panel">
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-        <Typography variant="subtitle1" fontWeight={700}>Research job</Typography>
-        <Chip size="small" label={job.state || 'queued'} />
-        <Chip size="small" variant="outlined" label="Research progress — not accepted" />
-      </Stack>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+    <div data-testid="exposure-research-panel" className="tw text-foreground">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-bold">Research job</h3>
+        <span className={cn(PILL, 'border-transparent bg-surface-subtle')}>{job.state || 'queued'}</span>
+        <span className={cn(PILL, 'border-border')}>Research progress — not accepted</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
         {(job.stages || []).map((stage) => (
-          <Chip
-            key={stage.stage}
-            size="small"
-            variant="outlined"
-            label={`${stage.stage.replaceAll('_', ' ')}: ${stage.pause_reason || stage.status}`}
-          />
+          <span key={stage.stage} className={cn(PILL, 'border-border')}>
+            {`${stage.stage.replaceAll('_', ' ')}: ${stage.pause_reason || stage.status}`}
+          </span>
         ))}
-      </Stack>
+      </div>
       {condition && (
-        <Alert severity={job.state === 'terminal_failure' ? 'error' : 'warning'} sx={{ mt: 1 }}>
+        <Notice tone={job.state === 'terminal_failure' ? 'error' : 'warning'} className="mt-2">
           {condition}
-        </Alert>
+        </Notice>
       )}
 
       {preview && (
-        <Box sx={{ mt: 2 }}>
-          <Divider sx={{ mb: 1.5 }} />
-          <Alert severity="info">
+        <div className="mt-4">
+          <hr className="mb-3 border-border" />
+          <Notice>
             Shadow preview — research result for review only. It does not change theme membership
             or any live basket.
-          </Alert>
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+          </Notice>
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Dossier revision {preview.revision_number} · {preview.assessment_revision_id}
-          </Typography>
-          <Stack spacing={1} sx={{ mt: 1 }}>
+          </p>
+          <div className="mt-2 flex flex-col gap-2">
             {preview.claims.map((claim) => <ClaimCard key={claim.claim_revision_id} claim={claim} />)}
             {!preview.claims.length && (
-              <Typography color="text.secondary">
+              <p className="text-muted-foreground">
                 No supported claims in the reviewed evidence. This is not evidence of no exposure.
-              </Typography>
+              </p>
             )}
-          </Stack>
+          </div>
           {(preview.conflicts || []).length > 0 && (
-            <Box sx={{ mt: 1.5 }} data-testid="exposure-conflicts">
-              <Typography variant="subtitle2">Same-date disagreements (held for review)</Typography>
+            <div className="mt-3" data-testid="exposure-conflicts">
+              <h4 className="text-sm font-semibold">Same-date disagreements (held for review)</h4>
               {preview.conflicts.flatMap((conflict) => (conflict.evidence || []).map((item, index) => (
-                <Typography
-                  key={`${conflict.proposition}:${item.passage_id}:${index}`}
-                  variant="body2"
-                  component="blockquote"
-                  sx={{ m: 0, mt: 0.5, pl: 1, borderLeft: 2, borderColor: 'divider' }}
-                >
-                  <Typography variant="caption" color="text.secondary" component="span">
+                <blockquote key={`${conflict.proposition}:${item.passage_id}:${index}`} className={QUOTE}>
+                  <span className="text-[11px] text-muted-foreground">
                     Set aside ({(item.commercial_status || 'unknown').replaceAll('_', ' ')}):{' '}
-                  </Typography>
+                  </span>
                   {/* Original passages render as plain text, never as HTML. */}
                   {item.quote}
-                </Typography>
+                </blockquote>
               )))}
-            </Box>
+            </div>
           )}
           {gaps.length > 0 && (
-            <Box sx={{ mt: 1.5 }}>
-              <Typography variant="subtitle2">Coverage gaps</Typography>
+            <div className="mt-3">
+              <h4 className="text-sm font-semibold">Coverage gaps</h4>
               {gaps.map((item, index) => (
-                <Typography key={`${item.route}:${item.reason}:${index}`} variant="body2" color="text.secondary">
+                <p key={`${item.route}:${item.reason}:${index}`} className="text-sm text-muted-foreground">
                   {item.route} · {item.outcome.replaceAll('_', ' ')}{item.reason ? ` · ${item.reason}` : ''}
-                </Typography>
+                </p>
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

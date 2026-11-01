@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography,
-} from '@mui/material';
+import { Button } from '@/ui/button';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
 import {
   getResearchJob, getResearchJobPreview, requestExposureResearch,
@@ -98,75 +99,72 @@ export default function ExposureResearchWorkspace() {
   const canSubmit = Boolean(adminKey && symbol.trim() && themeId.trim()) && !request.isPending;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, mt: 3 }} data-testid="exposure-research-workspace">
-      <Typography variant="h6">Company exposure research (shadow)</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+    <section className="tw mt-6 rounded-lg border border-border bg-surface p-4 text-foreground" data-testid="exposure-research-workspace">
+      <h2 className="text-lg font-semibold">Company exposure research (shadow)</h2>
+      <p className="mb-3 text-sm text-muted-foreground">
         Verify one US listing against one economic theme from primary filings. Results are
         previews for review and never change theme membership.
-      </Typography>
+      </p>
       {!adminKey ? (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <TextField
-            size="small"
-            type="password"
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Field
             label="Admin key"
+            type="password"
             value={keyDraft}
             onChange={(event) => setKeyDraft(event.target.value)}
             autoComplete="off"
           />
           <Button
-            variant="outlined"
+            variant="secondary"
+            size="sm"
             disabled={!keyDraft}
             onClick={() => { setAdminKey(keyDraft); setKeyDraft(''); }}
           >
             Unlock
           </Button>
-        </Stack>
+        </div>
       ) : (
-        <Box
-          component="form"
-          onSubmit={(event) => { event.preventDefault(); if (canSubmit) request.mutate(); }}
-        >
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-            <TextField
-              size="small"
-              label="US symbol"
-              value={symbol}
-              onChange={(event) => setSymbol(event.target.value)}
-            />
-            <TextField
-              size="small"
+        <form onSubmit={(event) => { event.preventDefault(); if (canSubmit) request.mutate(); }}>
+          <div className="flex flex-col gap-2 md:flex-row md:items-end">
+            <Field label="US symbol" value={symbol} onChange={(event) => setSymbol(event.target.value)} />
+            <Field
               label="Economic theme ID"
               value={themeId}
               onChange={(event) => setThemeId(event.target.value)}
-              sx={{ minWidth: 320 }}
+              className="md:min-w-80"
             />
-            <TextField
-              select
-              size="small"
-              label="Kind"
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-            >
-              <MenuItem value="verify">Verify</MenuItem>
-              <MenuItem value="refresh">Refresh</MenuItem>
-            </TextField>
-            <Button type="submit" variant="contained" disabled={!canSubmit}>
+            <NativeSelect label="Kind" value={kind} onChange={setKind} className="md:w-32">
+              <option value="verify">Verify</option>
+              <option value="refresh">Refresh</option>
+            </NativeSelect>
+            <Button type="submit" size="sm" disabled={!canSubmit}>
               Request research
             </Button>
-            <Button variant="text" onClick={changeKey}>
+            <Button type="button" variant="ghost" size="sm" onClick={changeKey}>
               Change key
             </Button>
-          </Stack>
-        </Box>
+          </div>
+        </form>
       )}
-      {message && <Alert severity={message.severity} sx={{ mt: 1.5 }}>{message.text}</Alert>}
-      {job.isError && <Alert severity="error" sx={{ mt: 1.5 }}>{errorCode(job.error)}</Alert>}
+      {message && <Notice tone={message.severity === 'error' ? 'error' : 'info'} className="mt-3">{message.text}</Notice>}
+      {job.isError && <Notice tone="error" className="mt-3">{errorCode(job.error)}</Notice>}
       {job.data && (
-        <Box sx={{ mt: 2 }}>
+        <div className="mt-4">
           <ExposureResearchPanel job={job.data} preview={preview.data} />
-        </Box>
+        </div>
       )}
-    </Paper>
+    </section>
+  );
+}
+
+function Field({ label, className, ...props }) {
+  return (
+    <label className={cn('flex min-w-0 flex-col gap-0.5', className)}>
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      <input
+        className="h-11 w-full rounded-md border border-border bg-surface px-2.5 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8"
+        {...props}
+      />
+    </label>
   );
 }
