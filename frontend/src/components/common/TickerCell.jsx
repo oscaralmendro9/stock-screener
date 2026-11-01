@@ -1,67 +1,25 @@
-import { Box, Typography } from '@mui/material';
+import { cn } from '@/lib/cn';
 
 function TickerCell({ symbol, companyName, align = 'left' }) {
-  const alignItems = align === 'center' ? 'center' : 'flex-start';
-  const textAlign = align === 'center' ? 'center' : 'left';
+  const column = cn('tw flex min-w-0 flex-col gap-0.5 leading-tight', align === 'center' ? 'items-center text-center' : 'items-start text-left');
 
   if (!symbol) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems,
-          gap: 0.25,
-          minWidth: 0,
-        }}
-      >
-        <Typography
-          component="span"
-          variant="body2"
-          color="text.secondary"
-          sx={{ lineHeight: 1.2 }}
-        >
-          -
-        </Typography>
-      </Box>
+      <span className={column}>
+        <span className="text-sm text-muted-foreground">-</span>
+      </span>
     );
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems,
-        gap: 0.25,
-        minWidth: 0,
-      }}
-    >
-      <Typography
-        component="span"
-        variant="body2"
-        sx={{ fontWeight: 600, lineHeight: 1.2 }}
-      >
-        {symbol}
-      </Typography>
+    <span className={column}>
+      <span className="text-sm font-semibold">{symbol}</span>
       {companyName ? (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          noWrap
-          title={companyName}
-          sx={{
-            display: 'block',
-            lineHeight: 1.2,
-            minWidth: 0,
-            maxWidth: '100%',
-            textAlign,
-          }}
-        >
+        <span title={companyName} className="block max-w-full min-w-0 truncate text-[11px] text-muted-foreground">
           {companyName}
-        </Typography>
+        </span>
       ) : null}
-    </Box>
+    </span>
   );
 }
 
