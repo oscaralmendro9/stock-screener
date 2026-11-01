@@ -119,7 +119,7 @@ describe('FilterPanel', () => {
       // SE Score is a minOnly range input — find its single spinbutton
       // by locating the label first, then the input within the same grid item
       const seScoreLabel = screen.getByText('SE Score');
-      const seScoreContainer = seScoreLabel.closest('[class*="MuiGrid-item"]');
+      const seScoreContainer = seScoreLabel.closest('[data-filter-cell]');
       const input = within(seScoreContainer).getByRole('spinbutton');
 
       await user.type(input, '70');
@@ -140,7 +140,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       const pvtLabel = screen.getByText('Pvt Dist');
-      const pvtContainer = pvtLabel.closest('[class*="MuiGrid-item"]');
+      const pvtContainer = pvtLabel.closest('[data-filter-cell]');
       const inputs = within(pvtContainer).getAllByRole('spinbutton');
       // Pvt Dist has both min and max inputs
       expect(inputs.length).toBe(2);
@@ -166,7 +166,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       const seReadyLabel = screen.getByText('SE Ready');
-      const seReadyContainer = seReadyLabel.closest('[class*="MuiGrid-item"]');
+      const seReadyContainer = seReadyLabel.closest('[data-filter-cell]');
       const yesBtn = within(seReadyContainer).getByText('Yes');
 
       await user.click(yesBtn);
@@ -184,7 +184,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       const rsHiLabel = screen.getByText('RS Hi');
-      const rsHiContainer = rsHiLabel.closest('[class*="MuiGrid-item"]');
+      const rsHiContainer = rsHiLabel.closest('[data-filter-cell]');
       const noBtn = within(rsHiContainer).getByText('No');
 
       await user.click(noBtn);
@@ -202,7 +202,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       const bdLabel = screen.getByText('RS Blue Dot');
-      const bdContainer = bdLabel.closest('[class*="MuiGrid-item"]');
+      const bdContainer = bdLabel.closest('[data-filter-cell]');
       const yesBtn = within(bdContainer).getByText('Yes');
 
       await user.click(yesBtn);
@@ -221,7 +221,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       const seReadyLabel = screen.getByText('SE Ready');
-      const seReadyContainer = seReadyLabel.closest('[class*="MuiGrid-item"]');
+      const seReadyContainer = seReadyLabel.closest('[data-filter-cell]');
       const yesBtn = within(seReadyContainer).getByText('Yes');
 
       await user.click(yesBtn);
@@ -242,20 +242,18 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
 
-      const marketCapContainer = screen.getByText('Mkt Cap (local)').closest('[class*="MuiGrid-item"]');
+      const marketCapContainer = screen.getByText('Mkt Cap (local)').closest('[data-filter-cell]');
       const marketCapSelect = within(marketCapContainer).getByRole('combobox');
-      await user.click(marketCapSelect);
-      await user.click(await screen.findByRole('option', { name: '>$1B' }));
+      await user.selectOptions(marketCapSelect, within(marketCapSelect).getByRole('option', { name: '>$1B' }));
 
       expect(onFilterChange).toHaveBeenCalledWith(
         'minMarketCap',
         1000000000
       );
 
-      const volumeContainer = screen.getByText('Dollar Vol (local)').closest('[class*="MuiGrid-item"]');
+      const volumeContainer = screen.getByText('Dollar Vol (local)').closest('[data-filter-cell]');
       const volumeSelect = within(volumeContainer).getByRole('combobox');
-      await user.click(volumeSelect);
-      await user.click(await screen.findByRole('option', { name: '>$100M' }));
+      await user.selectOptions(volumeSelect, within(volumeSelect).getByRole('option', { name: '>$100M' }));
 
       expect(onFilterChange).toHaveBeenLastCalledWith(
         'minVolume',
@@ -308,8 +306,7 @@ describe('FilterPanel', () => {
 
       const user = userEvent.setup();
       // Find the "SE Ready: Yes" chip in the expanded active area
-      const chip = screen.getByText('SE Ready: Yes').closest('.MuiChip-root');
-      const deleteBtn = within(chip).getByTestId('CancelIcon');
+      const deleteBtn = screen.getByRole('button', { name: 'Remove SE Ready: Yes' });
 
       await user.click(deleteBtn);
       expect(onFilterChange).toHaveBeenCalledWith(

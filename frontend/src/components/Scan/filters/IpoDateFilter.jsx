@@ -1,4 +1,5 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { useId } from 'react';
+import { cn } from '@/lib/cn';
 
 /**
  * IPO Date filter with chip-based preset selector
@@ -14,6 +15,7 @@ const IPO_PRESETS = [
 ];
 
 function IpoDateFilter({ value, onChange }) {
+  const labelId = useId();
   const handleChipClick = (presetValue) => {
     // Toggle behavior: click again to clear
     if (value === presetValue) {
@@ -24,32 +26,28 @@ function IpoDateFilter({ value, onChange }) {
   };
 
   return (
-    <Box sx={{ minWidth: 120 }}>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}
-      >
-        IPO Age
-      </Typography>
-      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-        {IPO_PRESETS.map((preset) => (
-          <Chip
-            key={preset.value}
-            label={preset.label}
-            size="small"
-            variant={value === preset.value ? 'filled' : 'outlined'}
-            color={value === preset.value ? 'primary' : 'default'}
-            onClick={() => handleChipClick(preset.value)}
-            sx={{
-              height: 22,
-              fontSize: '0.65rem',
-              '& .MuiChip-label': { px: 0.75 },
-            }}
-          />
-        ))}
-      </Box>
-    </Box>
+    <div className="tw min-w-30">
+      <span id={labelId} className="mb-1 block text-[11px] text-muted-foreground">IPO Age</span>
+      <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-1">
+        {IPO_PRESETS.map((preset) => {
+          const on = value === preset.value;
+          return (
+            <button
+              key={preset.value}
+              type="button"
+              aria-pressed={on}
+              onClick={() => handleChipClick(preset.value)}
+              className={cn(
+                'h-11 cursor-pointer rounded-full border px-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-[22px]',
+                on ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-surface text-foreground hover:bg-surface-subtle',
+              )}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

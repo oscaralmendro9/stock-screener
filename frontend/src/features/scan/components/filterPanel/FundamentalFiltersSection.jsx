@@ -1,4 +1,4 @@
-import { Box, Divider, Grid, TextField, Typography } from '@mui/material';
+import Grid from './FilterGrid';
 import {
   CompactRangeInput,
   CompactSelect,
@@ -26,26 +26,15 @@ function FundamentalFiltersSection({
     >
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={1.5}>
-          <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}
-            >
-              Symbol
-            </Typography>
-            <TextField
-              size="small"
+          <label className="tw flex flex-col">
+            <span className="mb-1 block text-[11px] text-muted-foreground">Symbol</span>
+            <input
               value={filters.symbolSearch || ''}
               onChange={(event) => updateFilter('symbolSearch', event.target.value)}
               placeholder="Search..."
-              sx={{
-                width: '100%',
-                '& .MuiOutlinedInput-root': { height: 28 },
-                '& .MuiOutlinedInput-input': { padding: '4px 8px', fontSize: '0.75rem' },
-              }}
+              className="h-11 w-full rounded-md border border-border bg-surface px-2 font-[inherit] text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-7"
             />
-          </Box>
+          </label>
         </Grid>
         <Grid item xs={6} sm={3} md={1.5}>
           <CompactSelect
@@ -140,14 +129,10 @@ function FundamentalFiltersSection({
         </Grid>
       </Grid>
 
-      <Divider sx={{ my: 1.5 }} />
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 1, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5 }}
-      >
+      <hr className="my-3 border-border" />
+      <p className="tw mb-2 text-[11px] tracking-wide text-muted-foreground uppercase">
         Cross-Market (USD-normalised)
-      </Typography>
+      </p>
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={3}>
           <CompactMultiSelect
