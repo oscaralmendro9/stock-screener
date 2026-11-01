@@ -1,20 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardActionArea,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Container,
-  Grid,
-  Stack,
-  Typography,
-} from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { Play } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
+import { Pill, Spinner } from '../themeUi';
 import {
   dismissAlert,
   getAlerts,
@@ -401,97 +390,74 @@ function ThemesPage() {
     refetchRankings();
   };
 
-  if (!runtimeReady) {
-    return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  const loadingPage = (
+    <div className="tw my-8 flex min-h-[400px] items-center justify-center">
+      <Spinner label="Loading themes" />
+    </div>
+  );
 
-  if (economicCatalogQuery.isPending) {
-    return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  if (!runtimeReady) return loadingPage;
+
+  if (economicCatalogQuery.isPending) return loadingPage;
 
   if (economicMode) {
     return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-          spacing={2}
-          sx={{ mb: 3 }}
-        >
-          <Box>
-            <Typography variant="h4">Economic Themes</Typography>
-            <Typography color="text.secondary">
+      <div className="tw my-8 text-foreground">
+        <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-3xl font-semibold">Economic Themes</h1>
+            <p className="text-muted-foreground">
               Global taxonomy · generation {economicCatalog.generation_id}
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
+            </p>
+          </div>
+          <div className="flex gap-2">
             {/* Ingested sources still feed economic evidence (#471). */}
-            <Button variant="outlined" onClick={() => setSourcesManagerOpen(true)}>
+            <Button variant="secondary" size="sm" onClick={() => setSourcesManagerOpen(true)}>
               Content sources
             </Button>
             <Button
-              variant="outlined"
+              variant="secondary"
+              size="sm"
               onClick={() => economicReviewQuery.refetch()}
               disabled={economicReviewQuery.isFetching}
             >
               Refresh taxonomy review
             </Button>
-          </Stack>
-        </Stack>
+          </div>
+        </div>
 
-        <Grid container spacing={2}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(economicCatalog.themes || []).map((theme) => (
-            <Grid item xs={12} md={6} lg={4} key={theme.economic_theme_id}>
-              <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardActionArea
-                  sx={{ height: '100%', alignItems: 'stretch' }}
-                  onClick={() => setSelectedEconomicThemeId(theme.economic_theme_id)}
-                >
-                  <CardContent>
-                    <Stack direction="row" justifyContent="space-between" gap={1}>
-                      <Typography variant="h6">{theme.display_name}</Typography>
-                      <Chip size="small" label={theme.lifecycle || 'unavailable'} />
-                    </Stack>
-                    <Typography color="text.secondary" sx={{ my: 1 }}>
-                      {theme.definition || 'Definition unavailable.'}
-                    </Typography>
-                    <Stack spacing={0.5}>
-                      {ECONOMIC_METRICS.map(([key, label]) => (
-                        <Stack direction="row" justifyContent="space-between" key={key}>
-                          <Typography variant="body2">{label}</Typography>
-                          <Typography variant="body2" fontWeight={700}>
-                            {metricValue(theme.metrics?.[key])}
-                          </Typography>
-                        </Stack>
-                      ))}
-                    </Stack>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
+            <button
+              key={theme.economic_theme_id}
+              type="button"
+              onClick={() => setSelectedEconomicThemeId(theme.economic_theme_id)}
+              className="h-full cursor-pointer rounded-lg border border-border bg-surface p-4 text-left outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex justify-between gap-2">
+                <span className="text-lg font-semibold">{theme.display_name}</span>
+                <Pill tone="muted">{theme.lifecycle || 'unavailable'}</Pill>
+              </span>
+              <span className="my-2 block text-muted-foreground">{theme.definition || 'Definition unavailable.'}</span>
+              <span className="flex flex-col gap-1">
+                {ECONOMIC_METRICS.map(([key, label]) => (
+                  <span className="flex justify-between text-sm" key={key}>
+                    <span>{label}</span>
+                    <span className="font-bold tabular-nums">{metricValue(theme.metrics?.[key])}</span>
+                  </span>
+                ))}
+              </span>
+            </button>
           ))}
-        </Grid>
+        </div>
 
-        <Box sx={{ mt: 4 }}>
+        <div className="mt-8">
           <EconomicTaxonomyReview
             review={economicReviewQuery.data}
             onRefresh={() => economicReviewQuery.refetch()}
             isRefreshing={economicReviewQuery.isFetching}
           />
-        </Box>
+        </div>
 
         <EconomicThemeDetailModal
           open={Boolean(selectedEconomicTheme)}
@@ -503,30 +469,24 @@ function ThemesPage() {
           open={sourcesManagerOpen}
           onClose={() => setSourcesManagerOpen(false)}
         />
-      </Container>
+      </div>
     );
   }
 
   if (themeView === 'flat' && errorRankings) {
     return (
-      <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
-        <Alert severity="error">Error loading themes: {errorRankings.message}</Alert>
-        <Box mt={2}>
-          <Button
-            variant="contained"
-            startIcon={<PlayArrowIcon />}
-            onClick={() => handleRunPipeline()}
-            disabled={isPipelineRunning}
-          >
-            {isPipelineRunning ? 'Running Pipeline...' : 'Run Discovery Pipeline'}
-          </Button>
-        </Box>
-      </Container>
+      <div className="tw my-8">
+        <Notice tone="error">Error loading themes: {errorRankings.message}</Notice>
+        <Button size="sm" className="mt-4" onClick={() => handleRunPipeline()} disabled={isPipelineRunning}>
+          <Play aria-hidden="true" />
+          {isPipelineRunning ? 'Running Pipeline...' : 'Run Discovery Pipeline'}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ mt: 4, mb: 4 }}>
+    <div className="tw my-8 text-foreground">
       <ThemesPageHeader
         selectedPipeline={selectedPipeline}
         onPipelineChange={handlePipelineChangeWithReset}
@@ -576,9 +536,7 @@ function ThemesPage() {
 
       {themeView === 'grouped' ? (
         isBootstrappingVariant ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
-            <CircularProgress />
-          </Box>
+          <div className="flex min-h-[300px] items-center justify-center"><Spinner label="Loading theme groups" /></div>
         ) : (
           <ThemeTaxonomyTable
             pipeline={selectedPipeline}
@@ -646,18 +604,18 @@ function ThemesPage() {
       <ModelSettingsModal open={modelSettingsOpen} onClose={() => setModelSettingsOpen(false)} />
 
       {economicCatalog?.generation_id && (
-        <Box sx={{ mt: 4 }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
+        <div className="mt-8">
+          <Notice className="mb-4">
             Economic Taxonomy preview — production remains on the legacy theme view.
-          </Alert>
+          </Notice>
           <EconomicTaxonomyReview
             review={economicReviewQuery.data}
             onRefresh={() => economicReviewQuery.refetch()}
             isRefreshing={economicReviewQuery.isFetching}
           />
-        </Box>
+        </div>
       )}
-    </Container>
+    </div>
   );
 }
 
