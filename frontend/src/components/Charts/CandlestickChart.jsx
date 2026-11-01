@@ -1,5 +1,8 @@
-import { useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
-import { Box, CircularProgress, Alert, AlertTitle, Button, ToggleButtonGroup, ToggleButton, useTheme, Typography } from '@mui/material';
+import { useContext, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
+import { ColorModeContext } from '../../contexts/ColorModeContext';
 import { createPriceChartSeries } from './createPriceChartSeries';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPriceHistory, fetchRSLine, priceHistoryKeys, PRICE_HISTORY_STALE_TIME } from '../../api/priceHistory';
@@ -19,6 +22,16 @@ const debounce = (fn, ms) => {
   };
   return debounced;
 };
+
+// The chart draws on canvas, which can't read CSS variables: these mirror the
+// surface, muted-foreground and border tokens in styles/tailwind.css.
+const CHART_CHROME = {
+  dark: { background: '#0f0f10', text: '#8f9196', grid: '#232427' },
+  light: { background: '#ffffff', text: '#5f6368', grid: '#e6e6e6' },
+};
+
+const TOGGLE = 'h-8 cursor-pointer px-2.5 text-xs font-medium outline-none first:rounded-l-md last:rounded-r-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-40';
+const toggleTone = (on) => (on ? 'bg-surface-subtle text-foreground' : 'text-muted-foreground hover:text-foreground');
 
 /**
  * TradingView-style candlestick chart component
@@ -68,8 +81,8 @@ function CandlestickChart({
   const [showRSLine, setShowRSLine] = useState(true); // RS line overlay toggle
   const [legendData, setLegendData] = useState(null); // OHLC legend data on hover
   const [rsBandTop, setRsBandTop] = useState(0.66); // top margin of the live RS band
-  const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
+  const { mode } = useContext(ColorModeContext);
+  const isDarkMode = mode !== 'light';
 
   const queryClient = useQueryClient();
 
@@ -187,11 +200,7 @@ function CandlestickChart({
       width: chartWidth,
       height: chartHeight,
       // Derived from the mode alone, so the isDarkMode dep below covers it.
-      chrome: {
-        background: theme.palette.background.paper,
-        text: theme.palette.text.secondary,
-        grid: theme.palette.divider,
-      },
+      chrome: CHART_CHROME[isDarkMode ? 'dark' : 'light'],
       interactive,
     });
     chartRef.current = chart;
@@ -499,44 +508,14 @@ function CandlestickChart({
   const rsLineVisible = !compact && rsStripShown;
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: height,
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className="tw relative flex w-full flex-col" style={{ height }}>
       {/* Top-left overlay row: OHLC legend with the timeframe/RS toggles
           immediately to its right, so the buttons never cover the price. */}
       {!compact && !showLoading && !showError && !showNoData && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
+        <div className="absolute top-2.5 left-2.5 z-10 flex flex-wrap items-center gap-2">
           {/* OHLC Legend - tracks the hovered candle */}
           {legendData && (
-            <Box
-              sx={{
-                bgcolor: 'rgba(30, 30, 30, 0.85)',
-                borderRadius: 1,
-                px: 1.5,
-                py: 0.5,
-                display: 'flex',
-                gap: 2,
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-              }}
-            >
+            <div className="flex gap-4 rounded-md bg-[rgba(30,30,30,0.85)] px-3 py-1 text-[13px] tabular-nums">
               <span style={{ color: '#999' }}>
                 O <span style={{ color: '#fff' }}>{legendData.open.toFixed(2)}</span>
               </span>
@@ -559,51 +538,42 @@ function CandlestickChart({
                   {legendData.changePercent >= 0 ? '+' : ''}{legendData.changePercent.toFixed(2)}%
                 </span>
               )}
-            </Box>
+            </div>
           )}
 
           {/* Timeframe toggle */}
           {!hideTimeframeToggle && (
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 0.5,
-                bgcolor: 'background.paper',
-                borderRadius: 1,
-                boxShadow: 1,
-              }}
-            >
-              <ToggleButtonGroup
-                value={timeframe}
-                exclusive
-                onChange={(e, newTimeframe) => {
-                  if (newTimeframe !== null) {
-                    setTimeframe(newTimeframe);
-                  }
-                }}
-                size="small"
-              >
-                <ToggleButton value="daily">Daily</ToggleButton>
-                <ToggleButton value="weekly">Weekly</ToggleButton>
-              </ToggleButtonGroup>
+            <div className="flex gap-1 rounded-md bg-surface shadow-sm">
+              <div role="group" aria-label="Timeframe" className="flex rounded-md border border-border">
+                {[['daily', 'Daily'], ['weekly', 'Weekly']].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={timeframe === value}
+                    onClick={() => setTimeframe(value)}
+                    className={cn(TOGGLE, toggleTone(timeframe === value))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               {/* RS line overlay toggle — shown only where RS data can load
                   (live charts, or static charts whose bundle carries rs_line). */}
               {rsAvailable && (
-                <ToggleButtonGroup size="small">
-                  <ToggleButton
-                    value="rs"
-                    selected={showRSLine}
-                    disabled={effectiveTimeframe !== 'daily'}
-                    onClick={() => setShowRSLine((prev) => !prev)}
-                    title="RS line (stock vs. benchmark) with blue-dot leadership signals"
-                  >
-                    RS
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                <button
+                  type="button"
+                  aria-pressed={showRSLine}
+                  disabled={effectiveTimeframe !== 'daily'}
+                  onClick={() => setShowRSLine((prev) => !prev)}
+                  title="RS line (stock vs. benchmark) with blue-dot leadership signals"
+                  className={cn(TOGGLE, 'rounded-md border border-border', toggleTone(showRSLine))}
+                >
+                  RS
+                </button>
               )}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* Chart Container - always rendered so useLayoutEffect can initialize */}
@@ -619,130 +589,57 @@ function CandlestickChart({
           of the 'rs' scale) so the lower line is clearly the relative-strength
           overlay, not another moving average. */}
       {rsLineVisible && (
-        <Typography
-          variant="caption"
-          sx={{
-            position: 'absolute',
-            top: `${(rsBandTop * 100).toFixed(1)}%`,
-            left: 8,
-            zIndex: 10,
-            color: '#FFA726',
-            fontFamily: 'monospace',
-            fontWeight: 600,
-            fontSize: '0.65rem',
-            letterSpacing: '0.05em',
-            pointerEvents: 'none',
-            textShadow: '0 0 3px rgba(0, 0, 0, 0.6)',
-          }}
+        <span
+          className="pointer-events-none absolute left-2 z-10 text-[11px] font-semibold tracking-wider"
+          style={{ top: `${(rsBandTop * 100).toFixed(1)}%`, color: '#FFA726', textShadow: '0 0 3px rgba(0, 0, 0, 0.6)' }}
         >
           RS
-        </Typography>
+        </span>
       )}
 
       {/* Loading skeleton overlay */}
       {showLoading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
+        <div className="absolute inset-0">
           <ChartSkeleton height={height} />
-        </Box>
+        </div>
       )}
 
       {/* Refresh indicator - shows when fetching fresh data while displaying cached data */}
       {showRefreshIndicator && (
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 10,
-            right: 10,
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            bgcolor: 'rgba(30, 30, 30, 0.85)',
-            borderRadius: 1,
-            px: 1.5,
-            py: 0.5,
-          }}
-        >
-          <CircularProgress size={14} sx={{ color: '#87FBFB' }} />
-          <Typography variant="caption" sx={{ color: '#87FBFB', fontSize: '0.7rem' }}>
-            Refreshing...
-          </Typography>
-        </Box>
+        <div role="status" className="absolute right-2.5 bottom-2.5 z-10 flex items-center gap-2 rounded-md bg-[rgba(30,30,30,0.85)] px-3 py-1 text-[11px]" style={{ color: '#87FBFB' }}>
+          <span aria-hidden="true" className="inline-block size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />
+          Refreshing...
+        </div>
       )}
 
       {/* Last updated indicator */}
       {!compact && !showLoading && !showError && !showNoData && lastUpdatedText && !showRefreshIndicator && (
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 10,
-            right: 10,
-            zIndex: 10,
-            bgcolor: 'rgba(30, 30, 30, 0.7)',
-            borderRadius: 1,
-            px: 1,
-            py: 0.25,
-          }}
-        >
-          <Typography variant="caption" sx={{ color: '#999', fontSize: '0.65rem' }}>
-            Updated {lastUpdatedText}
-          </Typography>
-        </Box>
+        <div className="absolute right-2.5 bottom-2.5 z-10 rounded-md bg-[rgba(30,30,30,0.7)] px-2 py-0.5 text-[11px]" style={{ color: '#999' }}>
+          Updated {lastUpdatedText}
+        </div>
       )}
 
       {/* Error overlay */}
       {showError && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: 'background.paper',
-            p: 3,
-          }}
-        >
-          <Alert severity="error" sx={{ maxWidth: '100%' }}>
-            <AlertTitle>Failed to load chart data</AlertTitle>
+        <div className="absolute inset-0 flex items-center justify-center bg-surface p-6">
+          <Notice
+            tone="error"
+            className="max-w-full"
+            action={<Button variant="secondary" size="sm" onClick={() => effectiveRefetch()}>Retry</Button>}
+          >
+            <p className="font-semibold">Failed to load chart data</p>
             {effectiveError.message || 'An error occurred while fetching the chart data'}
-            <Button onClick={() => effectiveRefetch()} variant="outlined" size="small" sx={{ mt: 1 }}>
-              Retry
-            </Button>
-          </Alert>
-        </Box>
+          </Notice>
+        </div>
       )}
 
       {/* No data overlay */}
       {showNoData && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Alert severity="info">No historical data available for {symbol}</Alert>
-        </Box>
+        <div className="absolute inset-0 flex items-center justify-center bg-surface">
+          <Notice>No historical data available for {symbol}</Notice>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 

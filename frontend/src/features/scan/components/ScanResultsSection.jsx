@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Box, Button, LinearProgress, Paper, Typography } from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 import { Download } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
@@ -80,15 +81,15 @@ export default function ScanResultsSection({
     return (
       <>
         {resultsFetching && (
-          <Box sx={{ mb: 1 }} role="status" aria-live="polite">
-            <LinearProgress />
-            <Typography variant="caption" color="text.secondary">Updating results…</Typography>
-          </Box>
+          <div className="tw mb-2" role="status" aria-live="polite">
+            <span className="block h-1 overflow-hidden rounded-full bg-surface-subtle"><span className="block h-full w-1/3 rounded-full bg-accent motion-safe:animate-pulse" /></span>
+            <span className="text-[11px] text-muted-foreground">Updating results…</span>
+          </div>
         )}
         {resultsError && (
-          <Alert severity="error" action={<Button color="inherit" size="small" onClick={onRetry}>Retry</Button>} sx={{ mb: 1 }}>
+          <Notice tone="error" className="tw mb-2" action={<Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button>}>
             {typeof errorMessage === 'string' ? errorMessage : 'The results request failed. Your previous results are still shown.'}
-          </Alert>
+          </Notice>
         )}
         <div className="tw mb-3 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
@@ -180,17 +181,17 @@ export default function ScanResultsSection({
   }
 
   return (
-    <Paper sx={{ p: 5, textAlign: 'center' }}>
+    <div className="tw rounded-lg border border-border bg-surface p-10 text-center text-foreground">
       {resultsFetching && (
-        <Box sx={{ mb: 2 }} role="status" aria-live="polite">
-          <LinearProgress />
-          <Typography variant="caption" color="text.secondary">Updating results…</Typography>
-        </Box>
+        <div className="mb-4" role="status" aria-live="polite">
+          <span className="block h-1 overflow-hidden rounded-full bg-surface-subtle"><span className="block h-full w-1/3 rounded-full bg-accent motion-safe:animate-pulse" /></span>
+          <span className="text-[11px] text-muted-foreground">Updating results…</span>
+        </div>
       )}
-      <Typography variant="h6">
+      <h3 className="text-lg font-semibold">
         {resultsError ? 'Could not update scan results' : 'No stocks match the applied logic'}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+      </h3>
+      <p className="mt-2 text-sm text-muted-foreground">
         {resultsError
           ? (typeof errorMessage === 'string' ? errorMessage : 'The results request failed.')
           : (
@@ -199,10 +200,10 @@ export default function ScanResultsSection({
                 {' '}Try disabling one setup, switching “match all” to “match any,” or widening a range.
               </>
             )}
-      </Typography>
-      <Button variant="outlined" onClick={onRetry} sx={{ mt: 2 }}>
+      </p>
+      <Button variant="secondary" onClick={onRetry} className="mt-4">
         Retry Loading Results
       </Button>
-    </Paper>
+    </div>
   );
 }

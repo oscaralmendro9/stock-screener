@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Container, Paper, Typography } from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 import {
   cancelScan,
   createScan,
@@ -785,14 +786,14 @@ function ScanPage() {
 
   if (!runtimeReady) {
     return (
-      <Container maxWidth={false} disableGutters sx={{ pt: 1 }}>
+      <div className="tw pt-2">
         <PageSkeleton label="Loading scan" />
-      </Container>
+      </div>
     );
   }
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ pt: 1 }}>
+    <div className="tw pt-2">
       <ScanControlBar
         currentScanId={currentScanId}
         scanHistory={scanHistory}
@@ -833,28 +834,26 @@ function ScanPage() {
       />
 
       {lateCreatedScanId && (
-        <Alert
-          severity="info"
-          role="status"
-          sx={{ mb: 2 }}
+        <Notice
+          className="mb-4"
           action={(
-            <Button color="inherit" size="small" onClick={() => handleUserLoadScan(lateCreatedScanId)}>
+            <Button variant="secondary" size="sm" onClick={() => handleUserLoadScan(lateCreatedScanId)}>
               Open scan
             </Button>
           )}
         >
           A scan you started was created while you were viewing another scan.
-        </Alert>
+        </Notice>
       )}
       {showingPreviousResults && (
-        <Alert severity="info" role="status" sx={{ mb: 2 }}>
+        <Notice className="mb-4">
           Showing your previous results until the new scan finishes.
-        </Alert>
+        </Notice>
       )}
       {viewScanFinished && publishedSourceNotice && (
-        <Alert severity={publishedSourceNotice.severity} role="status" sx={{ mb: 2 }}>
+        <Notice tone={publishedSourceNotice.severity === 'warning' ? 'warning' : 'info'} role="status" className="mb-4">
           {publishedSourceNotice.text}
-        </Alert>
+        </Notice>
       )}
 
       {viewScanFinished && (
@@ -910,11 +909,9 @@ function ScanPage() {
       )}
 
       {!currentScanId && (
-        <Paper sx={{ p: 5, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">
-            Click &quot;Start Scan&quot; to begin scanning all stocks in your universe
-          </Typography>
-        </Paper>
+        <div className="rounded-lg border border-border bg-surface p-10 text-center text-muted-foreground">
+          Click &quot;Start Scan&quot; to begin scanning all stocks in your universe
+        </div>
       )}
 
       <ChartViewerModal
@@ -943,7 +940,7 @@ function ScanPage() {
           opportunityStateAvailable={opportunityStateAvailable}
         />
       )}
-    </Container>
+    </div>
   );
 }
 
