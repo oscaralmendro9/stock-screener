@@ -1,4 +1,3 @@
-import { alpha } from '@mui/material/styles';
 
 export const groupRsTone = (value) => {
   if (!Number.isFinite(value)) return 'neutral';
@@ -10,27 +9,12 @@ export const groupRsTone = (value) => {
   return 'neutral';
 };
 
-// Same visual language as the Scan score tints (translucent theme
-// success/error, normal text), on the RS bands above so the table, the group
-// matrix and its legend, and data-rs-tone all agree.
-const RS_TINTS = {
-  'up-strong': ['success', 0.42],
-  'up-soft': ['success', 0.2],
-  'down-soft': ['error', 0.2],
-  'down-strong': ['error', 0.34],
-};
 
-// Tailwind form of the same tints for migrated tables.
+// Translucent gain/loss tints on the RS bands above, so the tables, the group
+// matrix and its legend, and data-rs-tone all agree.
 export const GROUP_RS_TINT_CLASS = {
   'up-strong': 'bg-gain/40',
   'up-soft': 'bg-gain/20',
   'down-soft': 'bg-loss/20',
   'down-strong': 'bg-loss/35',
-};
-
-export const groupRsCellSx = (value) => {
-  const tint = RS_TINTS[groupRsTone(value)];
-  if (!tint) return {};
-  const [tone, opacity] = tint;
-  return { backgroundColor: (theme) => alpha(theme.palette[tone].main, opacity) };
 };

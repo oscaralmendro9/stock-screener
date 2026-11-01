@@ -19,6 +19,7 @@ Tailwind + shadcn following `DESIGN.md`.
 - [x] Global search palette (Ctrl/⌘+K or `/`): symbols by ticker or company name, page jumps, direct ticker fallback. Futures and options underlyings join it in phases 2–3
 - [x] Assistant drawer on `ui/sheet` now that `AssistantChat` (header, health pill, composer, message bubbles with Tailwind markdown styles, tool and source disclosures) and its watchlist dialog (`ui/dialog`, native select) are on Tailwind. Covered by tests only: the assistant is off in this install. The pre-auth loading screen is on Tailwind too
 - [x] App screens: server login, first-run bootstrap setup (native select, checkbox fieldset, ARIA progress bar, toned status pills) and the theme pipeline progress card (neutral card with toned title instead of a filled header) on Tailwind. Covered by tests only here: auth is off locally, bootstrap is done and the pipeline is the legacy Themes one
+- [x] Static site shells: home, scan, groups (rankings, movers, the group detail now reusing the live overview), breadth (with the by-group attribution), options pages, COT section, screen selector and the chart grid on Tailwind
 - [~] Spanish/English i18n — dropped for now: the app stays in English
 
 ## Phase 2 — Futures module
@@ -80,7 +81,7 @@ Open:
 - [x] `OpportunityEvidenceDrawer` on `ui/sheet` (tests only so far: this install has no opportunity-state evidence to open)
 - [x] More shared bits: `TickerCell`, `MarketBadge` (neutral ink instead of a colour per market, full name in a native title), `FieldAvailabilityChip` (button plus `ui/dialog`; one wrapper stops clicks reaching the row, including from the portalled dialog) and the loading skeletons (`TableSkeleton`, `PageSkeleton`). `CandlestickChart` chrome (legend, `aria-pressed` Daily/Weekly and RS toggles, refresh and error overlays) is on Tailwind; its canvas colours come from a per-mode table that mirrors the tokens. The screener page container and results section use `ui/notice` instead of MUI alerts.
 - [~] Operations: page (hash-driven ARIA tabs with arrow/Home/End keys, job console with native filters, progress bars, lease cards, queue/worker/alert tables, confirm dialogs on `ui/dialog`), `MarketCoverage`, `ThemeSourceHealth`, `InactiveMarkets` and `SchedulesSection` (per-market chips open Radix popovers, Run confirms on `ui/dialog`, tones exposed as `data-tone`/`data-variant`) on Tailwind. Still MUI: the social-signal health panel and the exposure research workspace (both features off in this install)
-- [ ] The rest (Themes, static shells)
+- [ ] The rest (Themes)
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)
