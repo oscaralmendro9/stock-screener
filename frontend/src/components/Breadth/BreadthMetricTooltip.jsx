@@ -1,43 +1,48 @@
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Info } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover';
 
 import { breadthMetricDefinitions } from './breadthMetricDefinitions';
 
 
+// Toggletip: opens on mouse hover, on click/tap and from the keyboard, so the
+// formula is reachable on phones where hover does not exist.
 function BreadthMetricTooltip({ metric, compact = false }) {
+  const [open, setOpen] = useState(false);
   const definition = breadthMetricDefinitions[metric];
   if (!definition) return null;
 
-  const title = (
-    <Box sx={{ p: 0.5 }}>
-      <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
-        {definition.formulaOrigin}
-        {definition.groupOrigin ? ` · ${definition.groupOrigin}` : ''}
-      </Typography>
-      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-        {definition.description}
-      </Typography>
-      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-        History: {definition.requiredHistory}
-      </Typography>
-      {definition.liquidityRule && (
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-          Liquidity: {definition.liquidityRule}
-        </Typography>
-      )}
-    </Box>
-  );
+  const hover = (next) => (event) => {
+    if (event.pointerType === 'mouse') setOpen(next);
+  };
 
   return (
-    <Tooltip title={title} arrow>
-      <IconButton
-        size="small"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         aria-label={`${definition.label} formula details`}
-        sx={{ p: compact ? 0.15 : 0.3, ml: 0.25 }}
+        onPointerEnter={hover(true)}
+        onPointerLeave={hover(false)}
+        className={cn(
+          'ml-0.5 inline-grid shrink-0 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+          compact ? 'size-4' : 'size-5',
+        )}
       >
-        <InfoOutlinedIcon sx={{ fontSize: compact ? 12 : 14 }} />
-      </IconButton>
-    </Tooltip>
+        <Info aria-hidden="true" className={compact ? 'size-3' : 'size-3.5'} />
+      </PopoverTrigger>
+      <PopoverContent onOpenAutoFocus={(event) => event.preventDefault()}>
+        <p className="font-semibold">
+          {definition.formulaOrigin}
+          {definition.groupOrigin ? ` · ${definition.groupOrigin}` : ''}
+        </p>
+        <p className="mt-1">{definition.description}</p>
+        <p className="mt-1">History: {definition.requiredHistory}</p>
+        {definition.liquidityRule && (
+          <p className="mt-1">Liquidity: {definition.liquidityRule}</p>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

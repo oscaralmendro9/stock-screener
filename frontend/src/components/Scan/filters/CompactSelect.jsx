@@ -1,11 +1,10 @@
-import { Box, FormControl, Select, MenuItem, Typography } from '@mui/material';
+import { NativeSelect } from '@/ui/native-select';
 
 /**
  * Compact dropdown select for categorical filters
  */
 function CompactSelect({ label, value, options, onChange, placeholder = 'All' }) {
-  const handleChange = (e) => {
-    const val = e.target.value;
+  const handleChange = (val) => {
     if (val === '') {
       onChange(null);
     } else {
@@ -16,38 +15,14 @@ function CompactSelect({ label, value, options, onChange, placeholder = 'All' })
   };
 
   return (
-    <Box sx={{ minWidth: 80 }}>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}
-      >
-        {label}
-      </Typography>
-      <FormControl size="small" fullWidth>
-        <Select
-          value={value ?? ''}
-          onChange={handleChange}
-          displayEmpty
-          sx={{
-            height: 28,
-            fontSize: '0.75rem',
-            '& .MuiSelect-select': {
-              padding: '4px 8px',
-            },
-          }}
-        >
-          <MenuItem value="">
-            <em>{placeholder}</em>
-          </MenuItem>
-          {options.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </Box>
+    <NativeSelect label={label} value={value ?? ''} onChange={handleChange} className="tw min-w-20">
+      <option value="">{placeholder}</option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 

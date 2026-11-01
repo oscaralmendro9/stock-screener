@@ -1,14 +1,7 @@
 import { useEffect, useRef } from 'react';
-import {
-  Box,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+
+import { Sheet, SheetContent, SheetTitle } from '@/ui/sheet';
+
 import { recordOpportunityEvidenceOpen } from '../../features/opportunityState/opportunityTelemetry';
 import ActionStateBadge from './ActionStateBadge';
 
@@ -44,43 +37,39 @@ const formatCode = (value) => {
 
 function Section({ title, children }) {
   return (
-    <Box component="section" sx={{ mb: 2.5 }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75 }}>
-        {title}
-      </Typography>
+    <section className="mb-5">
+      <h3 className="mb-1.5 text-sm font-semibold">{title}</h3>
       {children}
-    </Box>
+    </section>
   );
 }
 
 function Detail({ label, value }) {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 0.35 }}>
-      <Typography variant="body2" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" sx={{ textAlign: 'right' }}>{formatValue(value)}</Typography>
-    </Box>
+    <div className="flex justify-between gap-4 py-0.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right tabular-nums">{formatValue(value)}</span>
+    </div>
   );
 }
 
 function EvidenceList({ values, formatItem = formatCode }) {
   if (!Array.isArray(values) || values.length === 0) {
-    return <Typography variant="body2" color="text.secondary">{NOT_AVAILABLE}</Typography>;
+    return <p className="text-sm text-muted-foreground">{NOT_AVAILABLE}</p>;
   }
 
   return (
-    <List dense disablePadding>
+    <ul className="flex flex-col gap-0.5">
       {values.map((value, index) => (
-        <ListItem key={`${String(value)}-${index}`} disableGutters sx={{ py: 0.15 }}>
-          <ListItemText primary={formatItem(value)} primaryTypographyProps={{ variant: 'body2' }} />
-        </ListItem>
+        <li key={`${String(value)}-${index}`} className="text-sm">{formatItem(value)}</li>
       ))}
-    </List>
+    </ul>
   );
 }
 
 function EvidenceDetails({ values, formatValues = false }) {
   if (!isRecord(values) || Object.keys(values).length === 0) {
-    return <Typography variant="body2" color="text.secondary">{NOT_AVAILABLE}</Typography>;
+    return <p className="text-sm text-muted-foreground">{NOT_AVAILABLE}</p>;
   }
 
   return Object.entries(values).map(([key, value]) => (
@@ -122,65 +111,63 @@ function OpportunityEvidenceDrawer({
     : {};
 
   return (
-    <Drawer
-      anchor="right"
-      open={isOpen}
-      onClose={onClose}
-      PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 2 } }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 2 }}>
-        <Typography id="opportunity-evidence-title" component="h2" variant="h6">
+    <Sheet open={isOpen} onOpenChange={(next) => { if (!next) onClose?.(); }}>
+      <SheetContent
+        side="right"
+        showClose
+        closeLabel="Close opportunity evidence"
+        aria-describedby={undefined}
+        className="p-4 sm:w-[420px]"
+      >
+        <SheetTitle id="opportunity-evidence-title" className="mb-4 pr-10 text-lg font-semibold">
           Opportunity evidence
-        </Typography>
-        <IconButton aria-label="Close opportunity evidence" onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+        </SheetTitle>
 
-      <Section title="Action state">
-        <ActionStateBadge state={row.action_state} />
-      </Section>
+        <Section title="Action state">
+          <ActionStateBadge state={row.action_state} />
+        </Section>
 
-      <Section title="Resilience score">
-        <Typography variant="h4" component="p">{formatScore(row.resilience_score)}</Typography>
-      </Section>
+        <Section title="Resilience score">
+          <p className="text-3xl font-semibold tabular-nums">{formatScore(row.resilience_score)}</p>
+        </Section>
 
-      <Section title="Score pillars">
-        {PILLARS.map(([key, label]) => <Detail key={key} label={label} value={scorePillars[key]} />)}
-      </Section>
+        <Section title="Score pillars">
+          {PILLARS.map(([key, label]) => <Detail key={key} label={label} value={scorePillars[key]} />)}
+        </Section>
 
-      <Section title="Data availability">
-        <EvidenceDetails values={evidence.data_availability} formatValues />
-      </Section>
+        <Section title="Data availability">
+          <EvidenceDetails values={evidence.data_availability} formatValues />
+        </Section>
 
-      <Section title="Metrics">
-        <EvidenceDetails values={evidence.metrics} />
-      </Section>
+        <Section title="Metrics">
+          <EvidenceDetails values={evidence.metrics} />
+        </Section>
 
-      <Section title="Passed checks">
-        <EvidenceList values={evidence.passed_checks} />
-      </Section>
+        <Section title="Passed checks">
+          <EvidenceList values={evidence.passed_checks} />
+        </Section>
 
-      <Section title="Failed checks">
-        <EvidenceList values={evidence.failed_checks} />
-      </Section>
+        <Section title="Failed checks">
+          <EvidenceList values={evidence.failed_checks} />
+        </Section>
 
-      <Section title="Warnings">
-        <EvidenceList values={evidence.warnings} />
-      </Section>
+        <Section title="Warnings">
+          <EvidenceList values={evidence.warnings} />
+        </Section>
 
-      <Section title="Action reasons">
-        <EvidenceList values={evidence.action_reasons} formatItem={(reason) => String(reason)} />
-      </Section>
+        <Section title="Action reasons">
+          <EvidenceList values={evidence.action_reasons} formatItem={(reason) => String(reason)} />
+        </Section>
 
-      <Section title="Provenance">
-        <Detail label="Market" value={evidence.market} />
-        <Detail label="MIC" value={evidence.mic} />
-        <Detail label="Benchmark" value={evidence.benchmark_symbol} />
-        <Detail label="As-of date" value={evidence.as_of_date} />
-        <Detail label="Benchmark date" value={evidence.benchmark_as_of_date} />
-      </Section>
-    </Drawer>
+        <Section title="Provenance">
+          <Detail label="Market" value={evidence.market} />
+          <Detail label="MIC" value={evidence.mic} />
+          <Detail label="Benchmark" value={evidence.benchmark_symbol} />
+          <Detail label="As-of date" value={evidence.as_of_date} />
+          <Detail label="Benchmark date" value={evidence.benchmark_as_of_date} />
+        </Section>
+      </SheetContent>
+    </Sheet>
   );
 }
 

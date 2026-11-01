@@ -30,6 +30,10 @@ vi.mock('../../api/stocks', () => ({
   getStockValidation: (...args) => getStockValidation(...args),
 }));
 
+vi.mock('../../contexts/RuntimeContext', () => ({
+  useRuntime: () => ({ features: { themes: true } }),
+}));
+
 vi.mock('../../contexts/StrategyProfileContext', () => ({
   useStrategyProfileData: () => strategyProfileState.current,
 }));
@@ -45,8 +49,8 @@ vi.mock('../common/AddToWatchlistMenu', () => ({
   default: () => <div data-testid="add-to-watchlist" />,
 }));
 
-vi.mock('../Scan/StockMetricsSidebar', () => ({
-  default: () => <div data-testid="stock-metrics-sidebar" />,
+vi.mock('../../pages/OptionsChainPage', () => ({
+  OptionsChainView: ({ symbol, embedded }) => <div data-testid="options-chain-view">{symbol}{embedded ? ' embedded' : ''}</div>,
 }));
 
 describe('StockDetails', () => {
@@ -299,7 +303,7 @@ describe('StockDetails', () => {
 
     expect(await screen.findByRole('heading', { name: 'NVDA' })).toBeInTheDocument();
     expect(screen.getByText(/workspace is partially degraded/i)).toBeInTheDocument();
-    expect(screen.getByTestId('stock-metrics-sidebar')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Key statistics' })).toBeInTheDocument();
     expect(screen.getByTestId('candlestick-chart')).toHaveTextContent('NVDA');
     expect(screen.getByText('Decision Summary')).toBeInTheDocument();
     expect(screen.getByText('Event Risk & Action Plan')).toBeInTheDocument();
@@ -398,5 +402,34 @@ describe('StockDetails', () => {
     expect(await screen.findByRole('heading', { name: 'NVDA' })).toBeInTheDocument();
     expect(getStockDecisionDashboard).toHaveBeenCalledWith('NVDA', 'default');
     expect(screen.queryByText(/strategy profile data is unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('opens the option chain as a tab, linkable with ?tab=options', async () => {
+    getStockDecisionDashboard.mockResolvedValue({
+      symbol: 'NVDA',
+      info: { name: 'NVIDIA Corp' },
+      fundamentals: {},
+      technicals: {},
+      chart: { chart_data: {}, price_history: [] },
+      degraded_reasons: [],
+    });
+    getStockValidation.mockResolvedValue({
+      symbol: 'NVDA', lookback_days: 365, source_breakdown: null, recent_events: [], failure_clusters: [], freshness: {}, degraded_reasons: [],
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/stocks/NVDA?tab=options']}>
+        <Routes>
+          <Route path="/stocks/:ticker" element={<StockDetails />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('options-chain-view')).toHaveTextContent('NVDA embedded');
+    expect(screen.getByRole('button', { name: 'Options' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByTestId('candlestick-chart')).not.toBeInTheDocument();
+
+    screen.getByRole('button', { name: 'Overview' }).click();
+    expect(await screen.findByTestId('candlestick-chart')).toBeInTheDocument();
   });
 });

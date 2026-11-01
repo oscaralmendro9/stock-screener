@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createTheme, ThemeProvider } from '@mui/material';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DailySocialSignalsCard from './DailySocialSignalsCard';
@@ -12,9 +11,9 @@ function renderCard(onOpen = vi.fn(), market = 'US') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <DailySocialSignalsCard market={market} onOpen={onOpen} />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>,
   );
   return onOpen;

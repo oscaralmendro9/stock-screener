@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 
 import OptionsSymbolDetailView from '../../features/options/OptionsSymbolDetailView';
@@ -47,15 +48,16 @@ export default function StaticOptionsSymbolPage() {
   });
 
   if (manifestQuery.isLoading || (detailSetup.options && detailQuery.isLoading)) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
+    return <div role="status" aria-label="Loading" className="tw flex justify-center p-12"><span aria-hidden="true" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" /></div>;
   }
   if (manifestQuery.isError || detailSetup.setupError || detailQuery.isError || !detailQuery.data) {
     return (
-      <Alert severity="info">
-        <Typography variant="h6" component="h1">{symbol || 'This symbol'} is not in the published options cohort</Typography>
-        <Typography variant="body2" sx={{ mb: 1 }}>Static detail files exist only for today’s advertised symbols.</Typography>
-        <Button component={RouterLink} to="/options" color="inherit">Back to Command Center</Button>
-      </Alert>
+      <div className="tw">
+        <Notice action={<Button asChild variant="secondary" size="sm"><RouterLink to="/options">Back to Command Center</RouterLink></Button>}>
+          <h1 className="text-lg font-semibold">{symbol || 'This symbol'} is not in the published options cohort</h1>
+          <p className="text-sm">Static detail files exist only for today’s advertised symbols.</p>
+        </Notice>
+      </div>
     );
   }
 

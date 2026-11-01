@@ -1,29 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  TableSortLabel,
-  Paper,
-  Chip,
-  Typography,
-  Box,
-  IconButton,
-  ListSubheader,
-  MenuItem,
-  TextField,
-  styled,
-} from '@mui/material';
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, ChartLine, X } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { NativeSelect } from '@/ui/native-select';
 import RSSparkline from './RSSparkline';
 import PriceSparkline from './PriceSparkline';
 import FieldAvailabilityChip from './FieldAvailabilityChip';
@@ -52,7 +31,7 @@ import {
   formatLocalCurrency,
   formatPatternName,
 } from '../../utils/formatUtils';
-import { heatClass, heatClassStyles } from '../../utils/scoreHeat';
+import { heatClass, heatFill, heatStep } from '../../utils/scoreHeat';
 
 // Row height constant for virtualization
 const ROW_HEIGHT = 48;
@@ -284,102 +263,71 @@ const getStatusChipProps = (row) => {
   return null;
 };
 
-// Static body-cell styles live on the row as class selectors so each render
-// only resolves one style object per row, instead of running MUI's `sx`
-// resolution for ~48 cells per row on every page, sort, or scroll update.
-const CELL_WIDTHS = [35, 40, 42, 45, 50, 55, 60, 65, 70, 75, 80, 110, 140, 180];
-const COLOR_CLASS_PATHS = [
-  'text.primary',
-  'text.secondary',
-  'text.disabled',
-  'primary.main',
-  'success.main',
-  'warning.main',
-  'error.main',
-];
-const colorClass = (path) => (
-  COLOR_CLASS_PATHS.includes(path) ? `rt-c-${path.replace('.', '-')}` : ''
-);
-const resolvePaletteColor = (palette, path) => (
-  path.split('.').reduce((value, key) => value?.[key], palette)
-);
+// colorUtils speaks MUI palette paths; these are the same tones as tokens.
+const TONE_CLASS = {
+  'text.primary': 'text-foreground',
+  'text.secondary': 'text-muted-foreground',
+  'text.disabled': 'text-disabled-foreground',
+  'primary.main': 'text-accent',
+  'success.main': 'text-gain',
+  'warning.main': 'text-warning',
+  'error.main': 'text-loss',
+};
+const toneClass = (path) => TONE_CLASS[path] ?? '';
+// getRatingColor and the status chip use MUI colour names.
+const RATING_CLASS = { success: 'text-gain', warning: 'text-warning', default: 'text-muted-foreground' };
+const PILL = 'inline-flex h-[18px] shrink-0 items-center rounded-full border px-1.5 text-[11px] leading-none whitespace-nowrap';
+const STATUS_PILL = { warning: 'border-warning/60 text-warning', info: 'border-border text-muted-foreground' };
+
+// Fixed column widths as literal classes (Tailwind only emits classes it can
+// see), so each cell resolves a class instead of an inline style.
+const WIDTH = {
+  35: 'w-[35px] min-w-[35px]',
+  40: 'w-[40px] min-w-[40px]',
+  42: 'w-[42px] min-w-[42px]',
+  45: 'w-[45px] min-w-[45px]',
+  48: 'w-[48px] min-w-[48px]',
+  50: 'w-[50px] min-w-[50px]',
+  55: 'w-[55px] min-w-[55px]',
+  60: 'w-[60px] min-w-[60px]',
+  65: 'w-[65px] min-w-[65px]',
+  70: 'w-[70px] min-w-[70px]',
+  75: 'w-[75px] min-w-[75px]',
+  80: 'w-[80px] min-w-[80px]',
+  105: 'w-[105px] min-w-[105px]',
+  110: 'w-[110px] min-w-[110px]',
+  140: 'w-[140px] min-w-[140px]',
+  180: 'w-[180px] min-w-[180px]',
+};
+const TD = 'border-b border-border px-1.5 py-1';
+const NUM = 'tabular-nums';
+const ELLIPSIS = 'max-w-0 truncate';
+
 const stopPropagation = (event) => event.stopPropagation();
 // Screener scores: 0 means "could not score" (insufficient data, error, no
 // breakthrough; see VolumeBreakthroughScanner._insufficient_data_result), not a
 // weak score, so it stays untinted.
-const scoreHeatClass = (score) => heatClass(Number(score?.toFixed(1)) === 0 ? null : score);
-const stageFill = (theme, stage) => {
-  const fill = resolvePaletteColor(theme.palette, getStageColor(stage));
-  return { backgroundColor: fill, color: theme.palette.getContrastText(fill) };
-};
+const scoreValue = (score) => (Number(score?.toFixed(1)) === 0 ? null : score);
+function ScoreTd({ score, width, strong = false }) {
+  const value = scoreValue(score);
+  const heat = heatStep(value);
+  return (
+    <td
+      className={cn(TD, WIDTH[width], NUM, 'text-center', strong && 'font-semibold', heatClass(value))}
+      style={heat ? { backgroundColor: heatFill(heat) } : undefined}
+    >
+      {score != null ? score.toFixed(1) : '-'}
+    </td>
+  );
+}
 
-const ResultRow = styled(TableRow)(({ theme }) => ({
-  height: ROW_HEIGHT,
-  cursor: 'default',
-  '&.rt-clickable': { cursor: 'pointer' },
-  ...Object.fromEntries(CELL_WIDTHS.map((width) => [
-    `& .rt-w${width}`,
-    { width, minWidth: width },
-  ])),
-  ...Object.fromEntries(COLOR_CLASS_PATHS.map((path) => [
-    `& .${colorClass(path)}`,
-    { color: resolvePaletteColor(theme.palette, path) },
-  ])),
-  ...heatClassStyles(theme.palette),
-  '& .rt-mono': { fontFamily: 'monospace' },
-  '& .rt-strong': { fontWeight: 600 },
-  '& .rt-ellipsis': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  '& .rt-p2': { padding: '2px' },
-  '& .rt-p4': { padding: '4px' },
-  '& .rt-py4': { paddingTop: theme.spacing(0.5), paddingBottom: theme.spacing(0.5) },
-  '& .rt-symbol': {
-    width: SYMBOL_COLUMN_WIDTH,
-    minWidth: SYMBOL_COLUMN_WIDTH,
-    maxWidth: SYMBOL_COLUMN_WIDTH,
-    paddingTop: '4px',
-    paddingBottom: '4px',
-    overflow: 'hidden',
-  },
-  '& .rt-sym-stack': {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: theme.spacing(0.25),
-    minWidth: 0,
-  },
-  '& .rt-sym-line': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    minWidth: 0,
-    whiteSpace: 'nowrap',
-  },
-  '& .rt-sym-sub': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    minWidth: 0,
-  },
-  '& .rt-sym-text': { fontWeight: 600, lineHeight: 1.2, flexShrink: 0 },
-  '& .rt-sym-company': { display: 'block', lineHeight: 1.2, minWidth: 0, flex: 1 },
-  '& .rt-chart-button': { color: theme.palette.primary.main, padding: 0 },
-  '& .rt-icon': { fontSize: 14 },
-  '& .rt-dot': {
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    backgroundColor: theme.palette.primary.main,
-    display: 'inline-block',
-  },
-  '& .rt-stage': {
-    ...stageFill(theme, null),
-    padding: '1px 4px',
-    borderRadius: '2px',
-    fontSize: '10px',
-    fontWeight: 500,
-  },
-  // After .rt-stage: same specificity, so the per-stage fill must come later.
-  ...Object.fromEntries([1, 2, 3, 4].map((stage) => [`& .rt-stage-${stage}`, stageFill(theme, stage)])),
-}));
+const check = (value, falseClass = 'text-disabled-foreground') => (
+  value
+    ? <Check data-testid="CheckIcon" aria-label="Yes" className="mx-auto size-3.5 text-gain" />
+    : <X data-testid="CloseIcon" aria-label="No" className={cn('mx-auto size-3.5', falseClass)} />
+);
+const BlueDot = ({ title }) => <span title={title} className="inline-block size-2.5 rounded-full bg-accent" />;
+const Dash = () => <span className="text-disabled-foreground">-</span>;
 
 /**
  * Memoized table row component to prevent unnecessary re-renders
@@ -416,40 +364,34 @@ const VirtualTableRow = memo(function VirtualTableRow({
     onOpenChart?.(row.symbol);
   }, [chartEnabled, onOpenChart, row.symbol]);
 
-  const check = (value, falseClass = 'rt-c-text-disabled') => (
-    value
-      ? <CheckIcon className="rt-icon rt-c-success-main" />
-      : <CloseIcon className={`rt-icon ${falseClass}`} />
-  );
+  const stageTone = toneClass(getStageColor(row.stage));
 
   return (
-    <ResultRow
-      hover
+    <tr
       onClick={handleRowClick}
       onMouseEnter={handleRowHover}
-      className={onRowClick && chartEnabled ? 'rt-clickable' : undefined}
+      className={cn('h-12 hover:bg-surface-subtle', onRowClick && chartEnabled && 'cursor-pointer')}
     >
       {showActions && (
-        <TableCell align="center" onClick={stopPropagation} className="rt-p2 rt-w60">
+        <td onClick={stopPropagation} className={cn(TD, WIDTH[60], 'p-0.5 text-center whitespace-nowrap')}>
           {chartEnabled ? (
-            <IconButton
-              size="small"
+            <button
+              type="button"
+              aria-label={`Open ${row.symbol} chart`}
               onClick={handleChartClick}
-              className="rt-chart-button"
+              className="inline-grid size-7 cursor-pointer place-items-center rounded-md text-accent outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <ShowChartIcon className="rt-icon" />
-            </IconButton>
+              <ChartLine data-testid="ShowChartIcon" aria-hidden="true" className="size-3.5" />
+            </button>
           ) : null}
           {showWatchlistMenu ? <AddToWatchlistMenu symbols={row.symbol} size="small" /> : null}
-        </TableCell>
+        </td>
       )}
 
-      <TableCell className="rt-symbol">
-        <div className="rt-sym-stack">
-          <div className="rt-sym-line">
-            <Typography component="span" variant="body2" className="rt-sym-text">
-              {row.symbol}
-            </Typography>
+      <td className={cn(TD, 'w-[210px] max-w-[210px] min-w-[210px] overflow-hidden')}>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+            <span className="shrink-0 text-sm leading-tight font-semibold">{row.symbol}</span>
             <MarketBadge market={row.market} exchange={row.exchange} />
             <FieldAvailabilityChip
               fieldAvailability={row.field_availability}
@@ -457,60 +399,35 @@ const VirtualTableRow = memo(function VirtualTableRow({
             />
           </div>
           {row.company_name || statusChip || row.matched_groups?.length ? (
-            <div className="rt-sym-sub">
+            <div className="flex min-w-0 items-center gap-1">
               {row.company_name ? (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  title={row.company_name}
-                  className="rt-sym-company"
-                >
+                <span title={row.company_name} className="block min-w-0 flex-1 truncate text-[11px] leading-tight text-muted-foreground">
                   {row.company_name}
-                </Typography>
+                </span>
               ) : null}
               {statusChip ? (
-                <Chip
-                  label={statusChip.label}
-                  color={statusChip.color}
-                  size="small"
-                  title={statusChip.title}
-                  sx={{ height: 18, fontSize: 10, flexShrink: 0 }}
-                />
+                <span title={statusChip.title} className={cn(PILL, STATUS_PILL[statusChip.color])}>{statusChip.label}</span>
               ) : null}
               {row.matched_groups?.length ? (
-                <Chip
-                  label={row.matched_groups.length === 1
+                <span
+                  title={`Matched setups: ${row.matched_groups.map((group) => group.name).join(', ')}`}
+                  className={cn(PILL, 'block max-w-[105px] truncate border-border pt-[3px] text-foreground')}
+                >
+                  {row.matched_groups.length === 1
                     ? row.matched_groups[0].name
                     : `${row.matched_groups[0].name} +${row.matched_groups.length - 1}`}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  title={`Matched setups: ${row.matched_groups.map((group) => group.name).join(', ')}`}
-                  sx={{
-                    height: 18,
-                    maxWidth: 105,
-                    fontSize: 9,
-                    flexShrink: 0,
-                    '& .MuiChip-label': { px: 0.65, overflow: 'hidden', textOverflow: 'ellipsis' },
-                  }}
-                />
+                </span>
               ) : null}
             </div>
           ) : null}
         </div>
-      </TableCell>
+      </td>
 
-      <TableCell align="center" className="rt-p4 rt-w110">
-        <RSSparkline
-          data={row.rs_sparkline_data}
-          trend={row.rs_trend}
-          width={100}
-          height={28}
-        />
-      </TableCell>
+      <td className={cn(TD, WIDTH[110], 'p-1 text-center')}>
+        <RSSparkline data={row.rs_sparkline_data} trend={row.rs_trend} width={100} height={28} />
+      </td>
 
-      <TableCell align="center" className="rt-p4 rt-w110">
+      <td className={cn(TD, WIDTH[110], 'p-1 text-center')}>
         <PriceSparkline
           data={row.price_sparkline_data}
           trend={row.price_trend}
@@ -519,100 +436,53 @@ const VirtualTableRow = memo(function VirtualTableRow({
           width={100}
           height={28}
         />
-      </TableCell>
+      </td>
 
-      <TableCell align="center" className="rt-c-text-secondary rt-w80 rt-ellipsis">
-        {row.gics_sector || '-'}
-      </TableCell>
-
-      <TableCell align="left" className="rt-c-text-secondary rt-w140 rt-ellipsis">
-        {row.ibd_industry_group || '-'}
-      </TableCell>
-
-      <TableCell align="left" className="rt-c-text-secondary rt-w180 rt-py4">
+      <td className={cn(TD, WIDTH[80], ELLIPSIS, 'text-center text-muted-foreground')}>{row.gics_sector || '-'}</td>
+      <td className={cn(TD, WIDTH[140], ELLIPSIS, 'text-left text-muted-foreground')}>{row.ibd_industry_group || '-'}</td>
+      <td className={cn(TD, WIDTH[180], 'text-left text-muted-foreground')}>
         <MarketThemesList themes={row.market_themes} variant="compact" />
-      </TableCell>
+      </td>
 
-      <TableCell
-        align="center"
+      <td
         title={getGroupRankTooltip(row)}
-        className={`rt-mono rt-w45 ${colorClass(getGroupRankColor(row.ibd_group_rank))}${
-          row.ibd_group_rank && row.ibd_group_rank <= 20 ? ' rt-strong' : ''
-        }`}
+        className={cn(TD, WIDTH[45], NUM, 'text-center', toneClass(getGroupRankColor(row.ibd_group_rank)), row.ibd_group_rank && row.ibd_group_rank <= 20 && 'font-semibold')}
       >
         {row.ibd_group_rank ?? '-'}
-      </TableCell>
+      </td>
 
-      <TableCell align="center" className={`rt-mono rt-w50 rt-strong ${scoreHeatClass(row.composite_score)}`}>
-        {row.composite_score?.toFixed(1) || '-'}
-      </TableCell>
+      <ScoreTd score={row.composite_score} width={50} strong />
+      <ScoreTd score={row.minervini_score} width={45} />
+      <ScoreTd score={row.canslim_score} width={45} />
+      <ScoreTd score={row.ipo_score} width={45} />
+      <ScoreTd score={row.custom_score} width={45} />
+      <ScoreTd score={row.volume_breakthrough_score} width={50} />
+      <ScoreTd score={row.se_setup_score} width={45} />
 
-      <TableCell align="center" className={`rt-mono rt-w45 ${scoreHeatClass(row.minervini_score)}`}>
-        {row.minervini_score != null ? row.minervini_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w45 ${scoreHeatClass(row.canslim_score)}`}>
-        {row.canslim_score != null ? row.canslim_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w45 ${scoreHeatClass(row.ipo_score)}`}>
-        {row.ipo_score != null ? row.ipo_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w45 ${scoreHeatClass(row.custom_score)}`}>
-        {row.custom_score != null ? row.custom_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w50 ${scoreHeatClass(row.volume_breakthrough_score)}`}>
-        {row.volume_breakthrough_score != null ? row.volume_breakthrough_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w45 ${scoreHeatClass(row.se_setup_score)}`}>
-        {row.se_setup_score != null ? row.se_setup_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-c-text-secondary rt-w55 rt-ellipsis">
-        {row.se_pattern_primary || '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w50">
+      <td className={cn(TD, WIDTH[55], ELLIPSIS, 'text-center text-muted-foreground')}>{row.se_pattern_primary || '-'}</td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center')}>
         {row.se_distance_to_pivot_pct != null ? `${row.se_distance_to_pivot_pct.toFixed(1)}%` : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w45">
+      </td>
+      <td className={cn(TD, WIDTH[45], NUM, 'text-center')}>
         {row.se_bb_width_pctile_252 != null ? row.se_bb_width_pctile_252.toFixed(0) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w45">
+      </td>
+      <td className={cn(TD, WIDTH[45], NUM, 'text-center')}>
         {row.se_volume_vs_50d != null ? `${row.se_volume_vs_50d.toFixed(1)}x` : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w35">
+      </td>
+      <td className={cn(TD, WIDTH[35], 'text-center')}>
         {row.se_rs_line_new_high == null ? '-' : check(row.se_rs_line_new_high)}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w42">
-        {row.se_rs_line_blue_dot ? (
-          <span className="rt-dot" title="Setup Engine RS line at new high before price" />
-        ) : (
-          <span className="rt-c-text-disabled">-</span>
-        )}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w42">
+      </td>
+      <td className={cn(TD, WIDTH[42], 'text-center')}>
+        {row.se_rs_line_blue_dot ? <BlueDot title="Setup Engine RS line at new high before price" /> : <Dash />}
+      </td>
+      <td className={cn(TD, WIDTH[42], 'text-center')}>
         {row.rs_line_blue_dot_recent ? (
-          <span
-            className="rt-dot"
-            title={row.rs_line_new_high_date ? `RS blue dot: latest RS high ${row.rs_line_new_high_date}` : 'RS blue dot within 5 trading days'}
-          />
-        ) : (
-          <span className="rt-c-text-disabled">-</span>
-        )}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w55">
+          <BlueDot title={row.rs_line_new_high_date ? `RS blue dot: latest RS high ${row.rs_line_new_high_date}` : 'RS blue dot within 5 trading days'} />
+        ) : <Dash />}
+      </td>
+      <td className={cn(TD, WIDTH[55], NUM, 'text-right')}>
         {row.se_pivot_price != null ? `$${row.se_pivot_price.toFixed(2)}` : '-'}
-      </TableCell>
+      </td>
 
       <OpportunityResultCells
         row={row}
@@ -620,112 +490,89 @@ const VirtualTableRow = memo(function VirtualTableRow({
         onOpenEvidence={onOpenOpportunity}
       />
 
-      <TableCell align="center" className="rt-mono rt-w40">
-        {row.rs_rating?.toFixed(0) || '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w40">
-        {row.rs_rating_1m?.toFixed(0) || '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w40">
-        {row.rs_rating_3m?.toFixed(0) || '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w45">
-        {row.rs_rating_12m?.toFixed(0) || '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w45">
-        {row.beta != null ? row.beta.toFixed(2) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w45">
-        {row.beta_adj_rs != null ? row.beta_adj_rs.toFixed(0) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w55 ${colorClass(getEpsRatingColor(row.eps_rating))}`}>
+      <td className={cn(TD, WIDTH[40], NUM, 'text-center')}>{row.rs_rating?.toFixed(0) || '-'}</td>
+      <td className={cn(TD, WIDTH[40], NUM, 'text-center')}>{row.rs_rating_1m?.toFixed(0) || '-'}</td>
+      <td className={cn(TD, WIDTH[40], NUM, 'text-center')}>{row.rs_rating_3m?.toFixed(0) || '-'}</td>
+      <td className={cn(TD, WIDTH[45], NUM, 'text-center')}>{row.rs_rating_12m?.toFixed(0) || '-'}</td>
+      <td className={cn(TD, WIDTH[45], NUM, 'text-center')}>{row.beta != null ? row.beta.toFixed(2) : '-'}</td>
+      <td className={cn(TD, WIDTH[45], NUM, 'text-center')}>{row.beta_adj_rs != null ? row.beta_adj_rs.toFixed(0) : '-'}</td>
+      <td className={cn(TD, WIDTH[55], NUM, 'text-center', toneClass(getEpsRatingColor(row.eps_rating)))}>
         {row.eps_rating != null ? row.eps_rating : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w40">
+      </td>
+      <td className={cn(TD, WIDTH[40], 'text-center')}>
         {row.stage != null ? (
-          <span className={`rt-stage rt-stage-${row.stage}`}>
+          // Stage reads by its tone in text, not a filled traffic-light box.
+          <span data-stage={row.stage} className={cn('text-[11px] font-semibold', stageTone || 'text-muted-foreground')}>
             S{row.stage}
           </span>
         ) : (
           '-'
         )}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w65">
-        {formatLocalCurrency(row.current_price, row.currency)}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w60">
-        {formatLargeNumber(row.volume, getCurrencyPrefix(row.currency))}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w75">
+      </td>
+      <td className={cn(TD, WIDTH[65], NUM, 'text-right')}>{formatLocalCurrency(row.current_price, row.currency)}</td>
+      <td className={cn(TD, WIDTH[60], NUM, 'text-right')}>{formatLargeNumber(row.volume, getCurrencyPrefix(row.currency))}</td>
+      <td className={cn(TD, WIDTH[75], NUM, 'text-right')}>
         {mcapDisplay === MCAP_DISPLAY.USD
           ? formatLargeNumber(row.market_cap_usd, '$')
           : formatLargeNumber(row.market_cap, getCurrencyPrefix(row.currency))}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w70">
-        {formatLargeNumber(row.adv_usd, '$')}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w50 ${colorClass(getIpoAgeColor(row.ipo_date))}`}>
-        {formatIpoAge(row.ipo_date)}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w50 ${colorClass(getGrowthColor(row.eps_growth_qq))}`}>
+      </td>
+      <td className={cn(TD, WIDTH[70], NUM, 'text-right')}>{formatLargeNumber(row.adv_usd, '$')}</td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center', toneClass(getIpoAgeColor(row.ipo_date)))}>{formatIpoAge(row.ipo_date)}</td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center', toneClass(getGrowthColor(row.eps_growth_qq)))}>
         {row.eps_growth_qq != null ? `${row.eps_growth_qq.toFixed(0)}%` : '-'}
-      </TableCell>
-
-      <TableCell align="center" className={`rt-mono rt-w50 ${colorClass(getGrowthColor(row.sales_growth_qq))}`}>
+      </td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center', toneClass(getGrowthColor(row.sales_growth_qq)))}>
         {row.sales_growth_qq != null ? `${row.sales_growth_qq.toFixed(0)}%` : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w50">
-        {row.adr_percent != null ? `${row.adr_percent.toFixed(1)}%` : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w35">
-        {check(row.ma_alignment, 'rt-c-error-main')}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w40">
-        {check(row.vcp_detected)}
-      </TableCell>
-
-      <TableCell align="center" className="rt-mono rt-w50">
-        {row.vcp_score != null ? row.vcp_score.toFixed(1) : '-'}
-      </TableCell>
-
-      <TableCell align="right" className="rt-mono rt-w55">
-        {row.vcp_pivot != null ? row.vcp_pivot.toFixed(2) : '-'}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w35">
-        {check(row.vcp_ready_for_breakout)}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w40">
-        {check(row.passes_template)}
-      </TableCell>
-
-      <TableCell align="center" className="rt-w80">
-        <Chip
-          label={row.rating}
-          color={getRatingColor(row.rating)}
-          size="small"
-        />
-      </TableCell>
-    </ResultRow>
+      </td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center')}>{row.adr_percent != null ? `${row.adr_percent.toFixed(1)}%` : '-'}</td>
+      <td className={cn(TD, WIDTH[35], 'text-center')}>{check(row.ma_alignment, 'text-loss')}</td>
+      <td className={cn(TD, WIDTH[40], 'text-center')}>{check(row.vcp_detected)}</td>
+      <td className={cn(TD, WIDTH[50], NUM, 'text-center')}>{row.vcp_score != null ? row.vcp_score.toFixed(1) : '-'}</td>
+      <td className={cn(TD, WIDTH[55], NUM, 'text-right')}>{row.vcp_pivot != null ? row.vcp_pivot.toFixed(2) : '-'}</td>
+      <td className={cn(TD, WIDTH[35], 'text-center')}>{check(row.vcp_ready_for_breakout)}</td>
+      <td className={cn(TD, WIDTH[40], 'text-center')}>{check(row.passes_template)}</td>
+      <td className={cn(TD, WIDTH[80], 'text-center text-xs font-semibold whitespace-nowrap', RATING_CLASS[getRatingColor(row.rating)])}>
+        {row.rating}
+      </td>
+    </tr>
   );
 });
+
+/** Rows-per-page picker, range and previous/next buttons (1-based pages). */
+function Pagination({ total, page, perPage, onPageChange, onPerPageChange }) {
+  const from = total === 0 ? 0 : (page - 1) * perPage + 1;
+  const to = Math.min(total, page * perPage);
+  const last = Math.max(1, Math.ceil(total / perPage));
+  const nav = 'grid size-11 cursor-pointer place-items-center rounded-md text-foreground outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 md:size-8';
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 px-3 py-1.5 text-xs text-muted-foreground">
+      <label className="flex items-center gap-2">
+        Rows per page:
+        <select
+          value={perPage}
+          onChange={(e) => {
+            onPerPageChange?.(Number(e.target.value));
+            onPageChange(1); // Reset to first page when changing per-page
+          }}
+          className="h-8 cursor-pointer rounded-md border border-border bg-surface px-1.5 font-[inherit] text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
+      <span className="tabular-nums">{`${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()}`}</span>
+      <span className="flex gap-1">
+        <button type="button" aria-label="Go to previous page" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className={nav}>
+          <ChevronLeft aria-hidden="true" className="size-4" />
+        </button>
+        <button type="button" aria-label="Go to next page" disabled={page >= last} onClick={() => onPageChange(page + 1)} className={nav}>
+          <ChevronRight aria-hidden="true" className="size-4" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+const FRAME = 'tw rounded-lg border border-border bg-surface text-foreground';
 
 /**
  * Display scan results in a sortable, paginated table with row virtualization
@@ -782,10 +629,6 @@ function ResultsTable({
     );
   }, []);
 
-  const handleChangePage = useCallback((event, newPage) => {
-    onPageChange(newPage + 1); // Material-UI uses 0-based pages, API uses 1-based
-  }, [onPageChange]);
-
   const handleRequestSort = useCallback((property) => {
     const isAsc = sortBy === property && sortOrder === 'asc';
     onSortChange(property, isAsc ? 'desc' : 'asc');
@@ -819,27 +662,19 @@ function ResultsTable({
 
   if (!results || results.length === 0) {
     return (
-      <Paper sx={{ p: 3, textAlign: 'center' }}>
-        <Typography variant="body1" color="text.secondary">
-          No results found
-        </Typography>
-      </Paper>
+      <div className={cn(FRAME, 'p-6 text-center text-muted-foreground')}>
+        No results found
+      </div>
     );
   }
 
   const pagination = (
-    <TablePagination
-      rowsPerPageOptions={[10, 25, 50, 100]}
-      component="div"
-      count={total}
-      rowsPerPage={perPage}
-      page={page - 1} // Material-UI uses 0-based pages
-      onPageChange={handleChangePage}
-      onRowsPerPageChange={(e) => {
-        const nextPerPage = Number(e.target.value);
-        onPerPageChange?.(nextPerPage);
-        onPageChange(1); // Reset to first page when changing per-page
-      }}
+    <Pagination
+      total={total}
+      page={page}
+      perPage={perPage}
+      onPageChange={onPageChange}
+      onPerPageChange={onPerPageChange}
     />
   );
   const opportunityDrawer = (
@@ -857,7 +692,7 @@ function ResultsTable({
   const mobileBadge = (row) => {
     const status = getStatusChipProps(row);
     if (status) {
-      return <Chip label={status.label} color={status.color} title={status.title} size="small" sx={{ height: 18, fontSize: 10 }} />;
+      return <span title={status.title} className={cn(PILL, STATUS_PILL[status.color])}>{status.label}</span>;
     }
     if (showOpportunityState) {
       return (
@@ -873,7 +708,7 @@ function ResultsTable({
       );
     }
     return row.rating
-      ? <Chip label={row.rating} color={getRatingColor(row.rating)} variant="outlined" size="small" sx={{ height: 18, fontSize: 10 }} />
+      ? <span className={cn(PILL, 'border-border', RATING_CLASS[getRatingColor(row.rating)])}>{row.rating}</span>
       : null;
   };
 
@@ -890,52 +725,46 @@ function ResultsTable({
     const listedIds = new Set([...commonIds, ...moreSorts.map(([id]) => id)]);
     if (sortBy && !listedIds.has(sortBy)) moreSorts.push([sortBy, sortName(sortBy)]);
     return (
-      <Paper elevation={1}>
+      <div className={FRAME}>
         {sortingEnabled ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-            <TextField
-              select
-              size="small"
+          <div className="flex items-end gap-2 border-b border-border px-3 py-2">
+            <NativeSelect
               label="Sort by"
               value={sortBy ?? ''}
-              onChange={(event) => onSortChange(event.target.value, sortOrder)}
-              sx={{ minWidth: 170 }}
+              onChange={(value) => onSortChange(value, sortOrder)}
+              className="w-44"
             >
-              {MOBILE_SORT_FIELDS.map(([id, label]) => <MenuItem key={id} value={id}>{label}</MenuItem>)}
-              {moreSorts.length ? <ListSubheader>More sorts</ListSubheader> : null}
-              {moreSorts.map(([id, label]) => <MenuItem key={id} value={id}>{label}</MenuItem>)}
-            </TextField>
-            <IconButton
+              {MOBILE_SORT_FIELDS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              {moreSorts.length ? (
+                <optgroup label="More sorts">
+                  {moreSorts.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </optgroup>
+              ) : null}
+            </NativeSelect>
+            <button
+              type="button"
               aria-label={sortOrder === 'asc' ? 'Sorted ascending; switch to descending' : 'Sorted descending; switch to ascending'}
               onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="grid size-11 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {sortOrder === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
-            </IconButton>
-          </Box>
+              {sortOrder === 'asc' ? <ArrowUp aria-hidden="true" className="size-4" /> : <ArrowDown aria-hidden="true" className="size-4" />}
+            </button>
+          </div>
         ) : null}
-        <Box ref={parentRef} role="list" aria-label="Scan results" sx={{ maxHeight: 'calc(100dvh - 300px)', minHeight: 240, overflow: 'auto' }}>
-          <Box sx={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+        <div ref={parentRef} role="list" aria-label="Scan results" className="max-h-[calc(100dvh-300px)] min-h-60 overflow-auto">
+          <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
             {virtualRows.map((virtualRow) => {
               const row = results[virtualRow.index];
               const chartEnabled = row.is_scannable !== false &&
                 (isChartEnabled ? isChartEnabled(row.symbol) : Boolean(onOpenChart));
               return (
-                <Box
+                <div
                   key={row.symbol}
                   role="listitem"
                   aria-setsize={results.length}
                   aria-posinset={virtualRow.index + 1}
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: MOBILE_CARD_HEIGHT,
-                    transform: `translateY(${virtualRow.start}px)`,
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                    overflow: 'hidden',
-                  }}
+                  className="absolute inset-x-0 top-0 overflow-hidden border-b border-border"
+                  style={{ height: MOBILE_CARD_HEIGHT, transform: `translateY(${virtualRow.start}px)` }}
                 >
                   <StockRowCard
                     row={row}
@@ -958,78 +787,79 @@ function ResultsTable({
                     )}
                     onOpen={chartEnabled ? () => handleRowClick(row.symbol) : null}
                   />
-                </Box>
+                </div>
               );
             })}
-          </Box>
-        </Box>
-        {pagination}
+          </div>
+        </div>
+        <div className="border-t border-border">{pagination}</div>
         {opportunityDrawer}
-      </Paper>
+      </div>
     );
   }
 
   return (
-    <Paper elevation={1}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 2, py: 0.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-          Market Cap display:
-        </Typography>
-        <Chip
-          label={mcapDisplay === MCAP_DISPLAY.USD ? 'USD' : 'Local'}
-          size="small"
-          variant="outlined"
+    <div className={FRAME}>
+      <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-1 text-[11px] text-muted-foreground">
+        Market Cap display:
+        <button
+          type="button"
           onClick={toggleMcapDisplay}
           data-testid="mcap-display-toggle"
-          sx={{ cursor: 'pointer', fontSize: 11, height: 20 }}
-        />
-      </Box>
-      <TableContainer
-        ref={parentRef}
-        sx={{
-          maxHeight: 'calc(100vh - 280px)',
-          overflow: 'auto',
-        }}
-      >
-        <Table
-          stickyHeader
-          size="small"
-          sx={{
+          aria-label={`Market cap in ${mcapDisplay === MCAP_DISPLAY.USD ? 'USD' : 'local currency'}; switch`}
+          className="h-6 cursor-pointer rounded-full border border-border px-2 text-[11px] text-foreground outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {mcapDisplay === MCAP_DISPLAY.USD ? 'USD' : 'Local'}
+        </button>
+      </div>
+      <div ref={parentRef} className="max-h-[calc(100vh-280px)] overflow-auto">
+        <table
+          className="border-separate border-spacing-0 text-[13px]"
+          style={{
             minWidth: (showActions
               ? TABLE_MIN_WIDTH.WITH_ACTIONS
               : TABLE_MIN_WIDTH.WITHOUT_ACTIONS) +
               (showOpportunityState ? OPPORTUNITY_COLUMNS_WIDTH : 0),
           }}
         >
-          <TableHead>
-            <TableRow>
-              {visibleColumns.map((column) => (
-                <TableCell
-                  key={column.id}
-                  align={column.id === 'symbol' ? 'left' : 'center'}
-                  sx={{
-                    width: column.width,
-                    minWidth: column.width,
-                    maxWidth: column.width,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {column.sortable && sortingEnabled ? (
-                    <TableSortLabel
-                      active={sortBy === column.id}
-                      direction={sortBy === column.id ? sortOrder : 'asc'}
-                      onClick={() => handleRequestSort(column.id)}
-                    >
-                      {column.label}
-                    </TableSortLabel>
-                  ) : (
-                    column.label
-                  )}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
+          <thead>
+            <tr>
+              {visibleColumns.map((column) => {
+                const active = sortBy === column.id;
+                const sortable = column.sortable && sortingEnabled;
+                const Arrow = active && sortOrder === 'desc' ? ArrowDown : ArrowUp;
+                return (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    aria-sort={sortable && active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                    className={cn(
+                      'sticky top-0 z-[1] border-b border-border bg-surface px-1.5 py-2 text-xs font-semibold whitespace-nowrap text-muted-foreground',
+                      column.id === 'symbol' ? 'text-left' : 'text-center',
+                    )}
+                    style={{ width: column.width, minWidth: column.width, maxWidth: column.width }}
+                  >
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRequestSort(column.id)}
+                        className={cn(
+                          'group inline-flex cursor-pointer items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+                          active && 'text-foreground',
+                        )}
+                      >
+                        {column.label}
+                        <Arrow aria-hidden="true" className={cn('size-3 shrink-0', active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40')} />
+                      </button>
+                    ) : (
+                      column.label
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
             {/* Spacer for virtualization - pushes content down to correct position */}
             {virtualRows.length > 0 && virtualRows[0].start > 0 && (
               <tr style={{ height: virtualRows[0].start }} />
@@ -1059,14 +889,14 @@ function ResultsTable({
             {virtualRows.length > 0 && (
               <tr style={{ height: rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0) }} />
             )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
 
-      {pagination}
+      <div className="border-t border-border">{pagination}</div>
 
       {opportunityDrawer}
-    </Paper>
+    </div>
   );
 }
 

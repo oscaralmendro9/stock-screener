@@ -1,159 +1,46 @@
-import { Box, Skeleton, CircularProgress, Typography, useTheme } from '@mui/material';
+// Fixed bar heights (no Math.random) so the placeholder doesn't change on re-render.
+const PRICE_BARS = Array.from({ length: 40 }, (_, i) => 20 + Math.sin(i * 0.3) * 30 + ((i * 37) % 20));
+const VOLUME_BARS = Array.from({ length: 40 }, (_, i) => 20 + ((i * 53) % 60));
+const PULSE = 'rounded-sm bg-surface-subtle motion-safe:animate-pulse';
 
 /**
- * Chart skeleton placeholder that shows chart structure while loading
+ * Chart skeleton placeholder that shows chart structure while loading.
+ * Same chrome as the loaded chart, from the theme tokens.
  */
-const ChartSkeleton = ({ height }) => {
-  // Same chrome as the loaded chart (createPriceChartSeries), from the theme.
-  const { palette } = useTheme();
-  const bgColor = palette.background.paper;
-  const lineColor = palette.divider;
-  const skeletonColor = palette.action.hover;
+const ChartSkeleton = ({ height }) => (
+  <div className="tw relative flex w-full flex-col bg-surface p-4" style={{ height }}>
+    <div className="flex flex-1">
+      {/* Price axis labels */}
+      <div className="flex w-[60px] flex-col justify-between pr-2">
+        {[...Array(6)].map((_, i) => <span key={i} className={`${PULSE} h-3 w-10`} />)}
+      </div>
 
-  return (
-    <Box
-      sx={{
-        width: '100%',
-        height: height,
-        bgcolor: bgColor,
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        p: 2,
-      }}
-    >
-      {/* Y-axis area */}
-      <Box sx={{ display: 'flex', flex: 1 }}>
-        {/* Price axis labels (left side simulation) */}
-        <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pr: 1 }}>
-          {[...Array(6)].map((_, i) => (
-            <Skeleton
-              key={i}
-              variant="text"
-              width={40}
-              height={16}
-              sx={{ bgcolor: skeletonColor }}
-            />
-          ))}
-        </Box>
-
-        {/* Chart area */}
-        <Box sx={{ flex: 1, position: 'relative', borderLeft: `1px solid ${lineColor}`, borderBottom: `1px solid ${lineColor}` }}>
-          {/* Horizontal grid lines */}
-          {[...Array(5)].map((_, i) => (
-            <Box
-              key={i}
-              sx={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: `${(i + 1) * 16.67}%`,
-                borderTop: `1px dashed ${lineColor}`,
-                opacity: 0.5,
-              }}
-            />
-          ))}
-
-          {/* Candlestick skeleton bars */}
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            height: '70%',
-            gap: '2px',
-            px: 1,
-            pt: 2,
-          }}>
-            {[...Array(40)].map((_, i) => {
-              // Create varied heights for realistic look
-              const minHeight = 20;
-              const height = minHeight + Math.sin(i * 0.3) * 30 + Math.random() * 20;
-
-              return (
-                <Box
-                  key={i}
-                  sx={{
-                    flex: 1,
-                    maxWidth: 12,
-                    height: `${height}%`,
-                    bgcolor: skeletonColor,
-                    borderRadius: 0.5,
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                    animationDelay: `${i * 0.02}s`,
-                    '@keyframes pulse': {
-                      '0%, 100%': { opacity: 0.4 },
-                      '50%': { opacity: 0.7 },
-                    },
-                  }}
-                />
-              );
-            })}
-          </Box>
-
-          {/* Volume skeleton bars at bottom */}
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            height: '25%',
-            gap: '2px',
-            px: 1,
-            borderTop: `1px solid ${lineColor}`,
-            pt: 0.5,
-          }}>
-            {[...Array(40)].map((_, i) => {
-              const height = 20 + Math.random() * 60;
-              return (
-                <Box
-                  key={i}
-                  sx={{
-                    flex: 1,
-                    maxWidth: 12,
-                    height: `${height}%`,
-                    bgcolor: skeletonColor,
-                    borderRadius: 0.5,
-                    opacity: 0.5,
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                    animationDelay: `${i * 0.02}s`,
-                  }}
-                />
-              );
-            })}
-          </Box>
-        </Box>
-      </Box>
-
-      {/* X-axis area (time labels) */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-around', pt: 1, pl: 8 }}>
-        {[...Array(6)].map((_, i) => (
-          <Skeleton
-            key={i}
-            variant="text"
-            width={50}
-            height={16}
-            sx={{ bgcolor: skeletonColor }}
-          />
+      {/* Chart area */}
+      <div className="relative flex-1 border-b border-l border-border">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="absolute inset-x-0 border-t border-dashed border-border opacity-50" style={{ top: `${(i + 1) * 16.67}%` }} />
         ))}
-      </Box>
 
-      {/* Loading indicator */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 1,
-        }}
-      >
-        <CircularProgress size={32} sx={{ color: 'text.disabled' }} />
-        <Typography variant="caption" color="text.secondary">
-          Loading chart...
-        </Typography>
-      </Box>
-    </Box>
-  );
-};
+        <div className="flex h-[70%] items-end gap-0.5 px-2 pt-4">
+          {PRICE_BARS.map((h, i) => <span key={i} className={`${PULSE} max-w-3 flex-1`} style={{ height: `${h}%` }} />)}
+        </div>
+
+        <div className="flex h-1/4 items-end gap-0.5 border-t border-border px-2 pt-1">
+          {VOLUME_BARS.map((h, i) => <span key={i} className={`${PULSE} max-w-3 flex-1 opacity-50`} style={{ height: `${h}%` }} />)}
+        </div>
+      </div>
+    </div>
+
+    {/* Time axis labels */}
+    <div className="flex justify-around pt-2 pl-16">
+      {[...Array(6)].map((_, i) => <span key={i} className={`${PULSE} h-3 w-12`} />)}
+    </div>
+
+    <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+      <span role="progressbar" aria-label="Loading chart" className="inline-block size-8 rounded-full border-2 border-border border-t-disabled-foreground motion-safe:animate-spin" />
+      <span className="text-[11px] text-muted-foreground">Loading chart...</span>
+    </div>
+  </div>
+);
 
 export default ChartSkeleton;

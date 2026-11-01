@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  Box,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Tab,
-  Tabs,
-  Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { TabBar } from '../../features/themes/themeUi';
 import { ManageSourcesContent } from './ManageSourcesModal';
 import { ThemePolicySettingsContent } from './ThemePolicySettingsModal';
 
@@ -21,20 +12,18 @@ function ThemeSettingsDialog({ open, onClose, pipeline, initialTab = 0 }) {
   }, [open, initialTab]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-      <DialogTitle sx={{ pb: 0 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Theme Settings</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mt: 1 }}>
-          <Tab label="Content Sources" />
-          <Tab label="Policy Controls" />
-        </Tabs>
-      </DialogTitle>
-      <DialogContent dividers>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Theme Settings" size="xl">
+        <TabBar
+          label="Theme settings"
+          className="mb-4"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 0, label: 'Content Sources' },
+            { value: 1, label: 'Policy Controls' },
+          ]}
+        />
         {tab === 0 && <ManageSourcesContent />}
         {tab === 1 && <ThemePolicySettingsContent pipeline={pipeline} />}
       </DialogContent>

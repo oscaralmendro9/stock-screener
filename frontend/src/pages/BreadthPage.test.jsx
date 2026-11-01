@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -255,7 +255,7 @@ describe('BreadthPage', () => {
       expect(breadthApi.getBreadthSummary).toHaveBeenCalledWith('KR');
       expect(stocksApi.getPriceHistory).toHaveBeenCalledWith('069500.KS', '1mo');
     });
-    expect(screen.getByRole('combobox', { name: /market/i })).toHaveTextContent('KR');
+    expect(screen.getByRole('combobox', { name: /market/i })).toHaveValue('KR');
   });
 
   it('does not request unsupported Australia breadth when AU is enabled', async () => {
@@ -274,7 +274,7 @@ describe('BreadthPage', () => {
     expect(breadthApi.getCurrentBreadth).not.toHaveBeenCalledWith('AU');
     // Header selector shows the global selection (AU); the page falls back
     // to a breadth-capable market for its data requests.
-    expect(screen.getByRole('combobox', { name: /market/i })).toHaveTextContent('AU');
+    expect(screen.getByRole('combobox', { name: /market/i })).toHaveValue('AU');
   });
 
   it('resyncs the default market when runtime primary market data loads late', async () => {
@@ -356,8 +356,7 @@ describe('BreadthPage', () => {
     renderBreadthPage();
 
     const marketSelect = await screen.findByRole('combobox', { name: /market/i });
-    fireEvent.mouseDown(marketSelect);
-    await user.click(await screen.findByRole('option', { name: /United States/i }));
+    await user.selectOptions(marketSelect, await screen.findByRole('option', { name: /United States/i }));
 
     await waitFor(() => {
       expect(breadthApi.getCurrentBreadth).toHaveBeenCalledWith('US');
@@ -386,8 +385,7 @@ describe('BreadthPage', () => {
     ).toBeInTheDocument();
 
     const marketSelect = screen.getByRole('combobox', { name: /market/i });
-    fireEvent.mouseDown(marketSelect);
-    await user.click(await screen.findByRole('option', { name: /United States/i }));
+    await user.selectOptions(marketSelect, await screen.findByRole('option', { name: /United States/i }));
 
     await waitFor(() => {
       expect(breadthApi.getCurrentBreadth).toHaveBeenCalledWith('US');

@@ -3,8 +3,8 @@
  *
  * These functions return MUI palette keys ('success.main', ...) for stock
  * metrics like stage, ratings, growth percentages, and industry group rankings,
- * so colours follow the active light/dark theme. Use them in `sx`; for a badge
- * fill, spread onPalette(key) to get readable text as well.
+ * so colours follow the active light/dark theme; Tailwind callers map them
+ * to tokens (text-gain, text-loss, ...).
  */
 
 /**
@@ -77,22 +77,4 @@ export const getGroupRankColor = (rank) => {
   if (rank <= 20) return 'success.main';   // Top ~10%
   if (rank >= 177) return 'error.main';    // Bottom ~10%
   return 'warning.main';                    // Middle
-};
-
-/**
- * Background plus readable text for a theme palette key used as a badge fill.
- * '<tone>.main' uses that tone's contrastText; light greys get dark text; any
- * other key (e.g. 'text.secondary') gets the inverse surface colour. A missing
- * key (e.g. getScoreColor(null)) falls back to a neutral grey.
- * @param {string|null|undefined} key - Palette key such as 'success.main' or 'grey.400'
- * @returns {{bgcolor: string, color: string}} sx props
- */
-export const onPalette = (key) => {
-  const fill = key || 'grey.500';
-  return {
-    bgcolor: fill,
-    color: fill.endsWith('.main')
-      ? fill.replace(/\.main$/, '.contrastText')
-      : fill.startsWith('grey.') ? 'grey.900' : 'background.paper',
-  };
 };

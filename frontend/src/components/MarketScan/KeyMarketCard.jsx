@@ -1,9 +1,10 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { cn } from '@/lib/cn';
+import { Card } from '@/ui/card';
+import { Change } from '@/ui/change';
 import PriceSparkline from '../Scan/PriceSparkline';
 import { formatLocalCurrency } from '../../utils/formatUtils';
 
-const toneOf = (value) => (value > 0 ? 'success.main' : value < 0 ? 'error.main' : 'text.secondary');
-const signed = (value) => `${value > 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+const toneClass = (value) => (value > 0 ? 'text-gain' : value < 0 ? 'text-loss' : 'text-muted-foreground');
 
 // Index/ETF tile on the Daily page. The 1D change and the sparkline's trend are
 // labelled separately: a green day inside a falling window must not read as a
@@ -21,26 +22,19 @@ export default function KeyMarketCard({ item, currency }) {
   const periodChange = first ? (last / first - 1) * 100 : null;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{ p: 1.5, height: '100%', border: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column' }}
-    >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
-        <Typography noWrap sx={{ fontWeight: 700, fontSize: '13px', minWidth: 0 }}>
-          {item.symbol}
-        </Typography>
-        <Typography sx={{ color: toneOf(item.change_1d), fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap' }}>
-          <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>1D </Box>
-          {item.change_1d != null ? signed(item.change_1d) : '-'}
-        </Typography>
-      </Box>
-      <Typography variant="caption" noWrap sx={{ color: 'text.secondary' }}>
-        {item.display_name}
-      </Typography>
-      <Typography sx={{ mt: 0.5, fontSize: '17px', fontWeight: 600 }}>
-        {formatLocalCurrency(item.latest_close, currency)}
-      </Typography>
-      <Box sx={{ mt: 0.75, flex: 1, minHeight: 36 }}>
+    <Card className="flex h-full flex-col p-3">
+      <span title={item.symbol} className="truncate text-sm font-semibold">{item.symbol}</span>
+      <span className="truncate text-xs text-muted-foreground">{item.display_name}</span>
+      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2">
+        <span className="text-lg font-semibold tabular-nums">
+          {formatLocalCurrency(item.latest_close, currency)}
+        </span>
+        <span className="flex items-baseline gap-1 text-xs">
+          <span className="text-muted-foreground">1D</span>
+          <Change value={item.change_1d != null ? item.change_1d / 100 : null} />
+        </span>
+      </div>
+      <div className="mt-1.5 min-h-9 flex-1">
         <PriceSparkline
           data={closes}
           trend={trend}
@@ -49,15 +43,12 @@ export default function KeyMarketCard({ item, currency }) {
           height={36}
           showChange={false}
         />
-      </Box>
+      </div>
       {periodChange != null && sessions > 0 && (
-        <Typography
-          variant="caption"
-          sx={{ alignSelf: 'flex-end', mt: 0.25, color: toneOf(periodChange), fontWeight: 600 }}
-        >
+        <span className={cn('mt-0.5 self-end text-xs font-medium tabular-nums', toneClass(periodChange))}>
           {`${sessions}D ${periodChange > 0 ? '▲' : periodChange < 0 ? '▼' : '–'} ${Math.abs(periodChange).toFixed(1)}%`}
-        </Typography>
+        </span>
       )}
-    </Paper>
+    </Card>
   );
 }

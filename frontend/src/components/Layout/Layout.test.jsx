@@ -110,7 +110,7 @@ describe('Layout', () => {
     runtimeState.primaryMarket = 'HK';
     renderInApp();
 
-    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Breadth' }));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Market' }));
 
     expect(loadedPaths).toEqual(['/breadth']);
     await vi.waitFor(() => expect(api.getBreadthBootstrap).toHaveBeenCalledWith('HK'));
@@ -122,7 +122,7 @@ describe('Layout', () => {
     runtimeState.primaryMarket = 'HK';
     renderInApp('/');
 
-    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Scan' }));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Screener' }));
 
     await vi.waitFor(() => expect(api.getScanBootstrap).toHaveBeenCalledWith(null, 'HK'));
   });
@@ -134,7 +134,7 @@ describe('Layout', () => {
     useRuntimeActivityMock.mockReturnValue({ data: null });
     renderInApp(openPath);
 
-    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Scan' }));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Screener' }));
     await act(async () => {});
 
     expect(api.getScanBootstrap).not.toHaveBeenCalled();
@@ -147,9 +147,9 @@ describe('Layout', () => {
     runtimeState.primaryMarket = 'SG';
     renderInApp();
 
-    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Breadth' }));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Market' }));
     fireEvent.mouseEnter(screen.getByRole('link', { name: 'Groups' }));
-    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Daily' }));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Home' }));
 
     await vi.waitFor(() => expect(api.getDailySnapshot).toHaveBeenCalledWith('SG'));
     expect(api.getBreadthBootstrap).toHaveBeenCalledWith('US');
@@ -160,7 +160,7 @@ describe('Layout', () => {
     useRuntimeActivityMock.mockReturnValue({ data: null });
     api.getScanBootstrap.mockRejectedValue(new Error('404'));
     renderInApp('/');
-    const scanLink = screen.getByRole('link', { name: 'Scan' });
+    const scanLink = screen.getByRole('link', { name: 'Screener' });
 
     fireEvent.mouseEnter(scanLink);
     await vi.waitFor(() => expect(api.getScanBootstrap).toHaveBeenCalledTimes(1));
@@ -177,7 +177,7 @@ describe('Layout', () => {
     runtimeState.primaryMarket = 'HK';
     renderInApp();
 
-    fireEvent.focus(screen.getByRole('link', { name: 'Daily' }));
+    fireEvent.focus(screen.getByRole('link', { name: 'Home' }));
 
     await vi.waitFor(() => expect(api.getDailySnapshot).toHaveBeenCalledWith('HK'));
   });
@@ -356,6 +356,13 @@ describe('Layout', () => {
     expect(screen.queryByTitle(/scheduled tasks/i)).not.toBeInTheDocument();
   });
 
+  it('links the Stock Scanner mark back to Home', () => {
+    useRuntimeActivityMock.mockReturnValue({ data: null });
+    renderInApp('/scan');
+
+    expect(screen.getByRole('link', { name: 'Stock Scanner' })).toHaveAttribute('href', '/');
+  });
+
   describe('on a phone-width screen', () => {
     beforeEach(() => {
       // useMediaQuery(breakpoints.down('md')) matches.
@@ -387,22 +394,23 @@ describe('Layout', () => {
 
       const nav = screen.getByRole('navigation', { name: 'Main' });
       expect(within(nav).getAllByRole('link').map((link) => link.textContent))
-        .toEqual(['Daily', 'Scan', 'Breadth', 'Groups']);
-      expect(within(nav).getByRole('link', { name: 'Scan' })).toHaveAttribute('aria-current', 'page');
-      expect(screen.queryByRole('link', { name: 'Backtest' })).not.toBeInTheDocument();
+        .toEqual(['Home', 'Screener', 'Groups', 'Market']);
+      expect(within(nav).getByRole('link', { name: 'Screener' })).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByRole('link', { name: 'Watchlists' })).not.toBeInTheDocument();
 
       fireEvent.click(within(nav).getByRole('button', { name: 'More' }));
       const sheet = screen.getByRole('list', { name: 'More' });
-      expect(within(sheet).getByRole('link', { name: 'Backtest' })).toBeInTheDocument();
+      expect(within(sheet).getByRole('link', { name: 'Futures' })).toBeInTheDocument();
+      expect(within(sheet).getByRole('link', { name: 'Watchlists' })).toBeInTheDocument();
       expect(within(sheet).getByRole('button', { name: 'Default' })).toBeInTheDocument();
       expect(within(sheet).getByRole('button', { name: /mode$/ })).toBeInTheDocument();
     });
 
     it('highlights More when the current page lives in the sheet', () => {
-      renderAt('/validation');
+      renderAt('/watchlists');
 
       const nav = screen.getByRole('navigation', { name: 'Main' });
-      expect(within(nav).getByRole('button', { name: 'More' })).toHaveClass('Mui-selected');
+      expect(within(nav).getByRole('button', { name: 'More' })).toHaveAttribute('data-active', 'true');
     });
 
     it('collapses the runtime status to its badge but keeps the full label', () => {
@@ -416,7 +424,7 @@ describe('Layout', () => {
       renderInApp('/');
 
       const nav = screen.getByRole('navigation', { name: 'Main' });
-      fireEvent.touchStart(within(nav).getByRole('link', { name: 'Breadth' }));
+      fireEvent.touchStart(within(nav).getByRole('link', { name: 'Market' }));
 
       expect(loadedPaths).toEqual(['/breadth']);
       await vi.waitFor(() => expect(api.getBreadthBootstrap).toHaveBeenCalledWith('US'));
@@ -436,9 +444,13 @@ describe('Layout', () => {
       renderInApp('/');
 
       fireEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name: 'More' }));
-      fireEvent.touchStart(within(screen.getByRole('list', { name: 'More' })).getByRole('link', { name: 'Backtest' }));
+      // A real touch carries coordinates; the sheet's scroll lock reads them.
+      fireEvent.touchStart(
+        within(screen.getByRole('list', { name: 'More' })).getByRole('link', { name: 'Watchlists' }),
+        { touches: [{ clientX: 0, clientY: 0 }], changedTouches: [{ clientX: 0, clientY: 0 }] },
+      );
 
-      expect(loadedPaths).toEqual(['/validation']);
+      expect(loadedPaths).toEqual(['/watchlists']);
     });
   });
 });

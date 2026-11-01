@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ColorModeContext } from '../contexts/ColorModeContext';
@@ -64,11 +63,11 @@ describe('static Social isolation', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={createTheme()}>
+        <>
           <ColorModeContext.Provider value={{ toggleColorMode: vi.fn() }}>
             <StaticAppShell />
           </ColorModeContext.Provider>
-        </ThemeProvider>
+        </>
       </QueryClientProvider>
     );
 

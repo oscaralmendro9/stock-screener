@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Paper,
-  Typography,
-} from '@mui/material';
+import { Notice } from '@/ui/notice';
 import FilterPanel from '../../components/Scan/FilterPanel';
 import GuidedFilterBuilderDialog from '../../features/scan/components/GuidedFilterBuilderDialog';
 import ResultsTable from '../../components/Scan/ResultsTable';
@@ -350,31 +345,31 @@ function StaticScanPage() {
   }
 
   if (manifestQuery.isError || scanManifestQuery.isError) {
-    return <Alert severity="error">Failed to load the static scan dataset.</Alert>;
+    return <Notice tone="error" className="tw">Failed to load the static scan dataset.</Notice>;
   }
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}>
+    <div className="tw text-foreground">
+      <h1 className="mb-1 text-2xl font-bold tracking-tight">
         Daily Scan
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '12px' }}>
+      </h1>
+      <p className="mb-4 text-xs text-muted-foreground">
         Run {scanManifestQuery.data.run_id} as of {scanManifestQuery.data.as_of_date}.
-      </Typography>
+      </p>
 
-      <Paper elevation={0} sx={{ p: 1.5, mb: 1.5, border: '1px solid', borderColor: 'divider' }}>
-        <Box display="flex" alignItems="baseline" gap={1.5}>
-          <Typography variant="body1" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+      <div className="mb-3 rounded-lg border border-border bg-surface p-3">
+        <div className="flex items-baseline gap-3">
+          <span className="font-semibold tabular-nums">
             {(hydrationComplete ? filteredRows.length : hydrationState.loadedRows).toLocaleString()}
-          </Typography>
-          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '10px' }}>
+          </span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
             of {scanManifestQuery.data.rows_total.toLocaleString()} rows
             {scanManifestQuery.data.charts?.available
               ? ` · ${(scanManifestQuery.data.charts.symbols_total ?? scanManifestQuery.data.charts.limit).toLocaleString()} charts`
               : ''}
-          </Typography>
-        </Box>
-      </Paper>
+          </span>
+        </div>
+      </div>
 
       {hydrationComplete && presetScreens?.length > 0 && (
         <ScreenSelector
@@ -386,22 +381,22 @@ function StaticScanPage() {
       )}
 
       {!hydrationComplete && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Notice className="mb-4">
           Loading full scan dataset: {hydrationState.loadedRows.toLocaleString()} /{' '}
           {scanManifestQuery.data.rows_total.toLocaleString()} rows. Filtering and sorting unlock after hydration completes.
-        </Alert>
+        </Notice>
       )}
 
       {hydrationState.status === 'error' && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Notice tone="warning" className="mb-4">
           Background hydration failed. Showing the exported first page only.
-        </Alert>
+        </Notice>
       )}
 
       {chartIndexQuery.isError && scanManifestQuery.data.charts?.path ? (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Notice tone="warning" className="mb-4">
           Static chart payloads failed to load. Scan results remain available without chart modals.
-        </Alert>
+        </Notice>
       ) : null}
 
       {hydrationComplete && (
@@ -475,7 +470,7 @@ function StaticScanPage() {
         filterOptions={normalizeScanFilterOptions(scanManifestQuery.data.filter_options)}
         opportunityStateAvailable={showOpportunityState}
       />
-    </Box>
+    </div>
   );
 }
 

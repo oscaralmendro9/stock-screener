@@ -14,5 +14,5 @@
   document.documentElement.dataset.colorMode = mode;
   var meta = document.querySelector('meta[name="theme-color"]');
   // background.paper per mode in src/theme.js.
-  if (meta) meta.setAttribute('content', mode === 'light' ? '#ffffff' : '#12151c');
+  if (meta) meta.setAttribute('content', mode === 'light' ? '#ffffff' : '#0f0f10');
 })();

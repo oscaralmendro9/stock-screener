@@ -4,39 +4,18 @@
  * Polls runtime activity, live job inventory, and telemetry summaries so
  * operators can inspect queued/running/stuck jobs and cancel supported work.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  FormControl,
-  InputLabel,
-  LinearProgress,
-  MenuItem,
-  Select,
-  Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Tabs,
-  TextField,
-  Typography,
-} from '@mui/material';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+
 import { fetchAlerts, acknowledgeAlert } from '../api/telemetry';
 import { cancelOperationsJob, fetchOperationsJobs, releasePipelineChain } from '../api/operations';
 import { getBootstrapStatus } from '../api/appRuntime';
@@ -61,37 +40,43 @@ const POLL_MS = 30000;
 const EMPTY_ARRAY = [];
 const EMPTY_LEASES = { external_fetch_global: null, market_workload: {} };
 
-const SEVERITY_COLOR = {
+// Badge tones per status. Red is kept for things that need a hand (stuck,
+// failed, open critical); in-flight work reads as accent.
+const SEVERITY_TONE = {
   warning: 'warning',
-  critical: 'error',
+  critical: 'loss',
 };
 
-const STATE_COLOR = {
-  open: 'error',
+const STATE_TONE = {
+  open: 'loss',
   acknowledged: 'warning',
-  closed: 'default',
+  closed: 'neutral',
 };
 
-const ACTIVITY_STATUS_COLOR = {
-  running: 'info',
+const ACTIVITY_STATUS_TONE = {
+  running: 'accent',
   queued: 'warning',
-  completed: 'success',
-  failed: 'error',
-  idle: 'default',
+  completed: 'gain',
+  failed: 'loss',
+  idle: 'neutral',
   stale: 'warning',
-  stuck: 'error',
+  stuck: 'loss',
 };
 
-const JOB_STATE_COLOR = {
+const JOB_STATE_TONE = {
   queued: 'warning',
   waiting: 'warning',
-  reserved: 'info',
-  running: 'info',
+  reserved: 'accent',
+  running: 'accent',
   stale: 'warning',
-  stuck: 'error',
-  cancelled: 'default',
-  failed: 'error',
+  stuck: 'loss',
+  cancelled: 'neutral',
+  failed: 'loss',
 };
+
+const TH = 'border-b border-border px-2 py-1.5 text-left font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5 align-top';
+const H2 = 'mt-6 mb-2 text-base font-semibold';
 
 function formatLagSeconds(seconds) {
   if (seconds == null) return '—';
@@ -143,9 +128,9 @@ const NO_WORKER_WAIT_REASON = 'no_worker_for_queue';
 function Blocker({ job }) {
   if (job.wait_reason !== NO_WORKER_WAIT_REASON) return job.wait_reason || '—';
   return (
-    <Typography variant="caption" color="error">
+    <span className="text-xs text-loss">
       No responding worker reads {job.queue}. Start one, or cancel this job.
-    </Typography>
+    </span>
   );
 }
 
@@ -163,6 +148,37 @@ function resolveDeterminatePercent(percent, current, total) {
   return null;
 }
 
+// Determinate bar, or an indeterminate one when value is null.
+function ProgressBar({ value, label }) {
+  const determinate = value != null;
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={determinate ? 0 : undefined}
+      aria-valuemax={determinate ? 100 : undefined}
+      aria-valuenow={determinate ? Math.round(value) : undefined}
+      className="relative h-1.5 overflow-hidden rounded-full bg-surface-subtle"
+    >
+      {determinate ? (
+        <div className="h-full rounded-full bg-accent" style={{ width: `${value}%` }} />
+      ) : (
+        <div className="absolute inset-y-0 w-1/3 rounded-full bg-accent/60 motion-safe:animate-pulse" />
+      )}
+    </div>
+  );
+}
+
+function Spinner({ label = 'Loading' }) {
+  return (
+    <span role="progressbar" aria-label={label} className="inline-block size-5 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+  );
+}
+
+function EmptyNote({ children }) {
+  return <p className="p-6 text-center text-sm text-muted-foreground">{children}</p>;
+}
+
 const missingKeys = (statuses) => Object.keys(statuses ?? {}).filter((key) => statuses[key] === 'missing');
 
 // Derived stages and optional features never gate readiness, so surface the
@@ -176,12 +192,10 @@ function UnpublishedDataAlert({ status }) {
   if (features.length > 0) lines.push(`Features: ${features.join(', ')}`);
   if (lines.length === 0) return null;
   return (
-    <Alert severity="warning" role="status" sx={{ mb: 1.5 }}>
-      <Typography variant="body2" fontWeight={700}>Not yet published</Typography>
-      {lines.map((line) => (
-        <Typography key={line} variant="body2">{line}</Typography>
-      ))}
-    </Alert>
+    <Notice tone="warning" className="mb-3">
+      <p className="font-semibold">Not yet published</p>
+      {lines.map((line) => <p key={line}>{line}</p>)}
+    </Notice>
   );
 }
 
@@ -190,48 +204,50 @@ function FreshnessRow({ summary }) {
   const drift = summary.universe_drift;
 
   return (
-    <TableRow>
-      <TableCell>{summary.market}</TableCell>
-      <TableCell>{formatLagSeconds(summary.freshness_lag?.lag_seconds)}</TableCell>
-      <TableCell>{formatLagSeconds(summary.benchmark_age?.age_seconds)}</TableCell>
-      <TableCell>
-        <Stack direction="row" spacing={1} alignItems="center">
+    <tr>
+      <td className={TD}>{summary.market}</td>
+      <td className={cn(TD, 'tabular-nums')}>{formatLagSeconds(summary.freshness_lag?.lag_seconds)}</td>
+      <td className={cn(TD, 'tabular-nums')}>{formatLagSeconds(summary.benchmark_age?.age_seconds)}</td>
+      <td className={cn(TD, 'tabular-nums')}>
+        <span className="inline-flex items-center gap-2">
           <span>{drift?.current_size ?? '—'}</span>
           {drift?.delta != null && drift.delta !== 0 && (
-            <Chip
-              label={`${drift.delta > 0 ? '+' : ''}${drift.delta}`}
-              size="small"
-              color={Math.abs(drift.delta) > (drift.prior_size || 1) * 0.05 ? 'warning' : 'default'}
-            />
+            <Badge tone={Math.abs(drift.delta) > (drift.prior_size || 1) * 0.05 ? 'warning' : 'neutral'}>
+              {`${drift.delta > 0 ? '+' : ''}${drift.delta}`}
+            </Badge>
           )}
-        </Stack>
-      </TableCell>
-      <TableCell>
+        </span>
+      </td>
+      <td className={cn(TD, 'tabular-nums')}>
         {completeness?.bucket_counts && completeness?.symbols_total
           ? `${Math.round((completeness.bucket_counts['0-25'] / completeness.symbols_total) * 100)}%`
           : '—'}
-      </TableCell>
-    </TableRow>
+      </td>
+    </tr>
+  );
+}
+
+function Table({ head, children, minWidth }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 text-sm" style={minWidth ? { minWidth } : undefined}>
+        <thead>
+          <tr>
+            {head.map((label) => <th key={label} scope="col" className={TH}>{label}</th>)}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
   );
 }
 
 function FreshnessTable({ summaries }) {
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Market</TableCell>
-          <TableCell>Freshness</TableCell>
-          <TableCell>Benchmark age</TableCell>
-          <TableCell>Universe</TableCell>
-          <TableCell>Low completeness 0-25</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {summaries.map((summary) => (
-          <FreshnessRow key={summary.market} summary={summary} />
-        ))}
-      </TableBody>
+    <Table head={['Market', 'Freshness', 'Benchmark age', 'Universe', 'Low completeness 0-25']}>
+      {summaries.map((summary) => (
+        <FreshnessRow key={summary.market} summary={summary} />
+      ))}
     </Table>
   );
 }
@@ -275,32 +291,75 @@ function useHashTab(visibleIds) {
   return [activeId, select];
 }
 
+// Tab list with the ARIA tabs keyboard pattern (arrows, Home, End move and
+// select). Plain buttons because the tab is the URL hash, set on click.
+function SectionTabs({ tabs, activeId, onSelect, context }) {
+  const listRef = useRef(null);
+  const focusTab = (id) => listRef.current?.querySelector(`#ops-tab-${id}`)?.focus();
+  const onKeyDown = (event) => {
+    const index = tabs.findIndex((tab) => tab.id === activeId);
+    const next = {
+      ArrowRight: tabs[(index + 1) % tabs.length],
+      ArrowLeft: tabs[(index - 1 + tabs.length) % tabs.length],
+      Home: tabs[0],
+      End: tabs[tabs.length - 1],
+    }[event.key];
+    if (!next) return;
+    event.preventDefault();
+    onSelect(next.id);
+    focusTab(next.id);
+  };
+  return (
+    <div
+      ref={listRef}
+      role="tablist"
+      aria-label="Operations sections"
+      onKeyDown={onKeyDown}
+      className="flex gap-1 overflow-x-auto border-b border-border"
+    >
+      {tabs.map((tab) => {
+        const selected = tab.id === activeId;
+        const count = tab.badge?.(context);
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`ops-tab-${tab.id}`}
+            aria-controls={`ops-panel-${tab.id}`}
+            aria-selected={selected}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onSelect(tab.id)}
+            className={cn(
+              '-mb-px inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10',
+              selected ? 'border-accent text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <span>{tab.label}</span>
+            {count ? <Badge tone="loss" className="h-5">{count}</Badge> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Every visible panel stays mounted and is hidden with `hidden`: the social
 // and exposure panels hold an admin key in state, and job filters and dialogs
 // must survive a tab switch.
 function TabPanel({ id, activeId, visibleIds, children }) {
   if (!visibleIds.includes(id)) return null;
   return (
-    <Box
+    <div
       role="tabpanel"
       id={`ops-panel-${id}`}
       aria-labelledby={`ops-tab-${id}`}
       hidden={id !== activeId}
       tabIndex={0}
-      sx={{ pt: 2 }}
+      className="pt-4 outline-none"
     >
       {children}
-    </Box>
-  );
-}
-
-function TabLabel({ label, count }) {
-  if (!count) return label;
-  return (
-    <Stack direction="row" spacing={1} alignItems="center" component="span">
-      <span>{label}</span>
-      <Chip label={count} size="small" color="error" sx={{ height: 20 }} />
-    </Stack>
+    </div>
   );
 }
 
@@ -309,118 +368,79 @@ function MarketActivityCard({ activity }) {
   const progressValue = resolveDeterminatePercent(activity.percent, activity.current, activity.total);
 
   return (
-    <Card variant="outlined" sx={{ minWidth: 260, flex: '1 1 280px' }}>
-      <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-          <Typography variant="overline" color="text.secondary">
-            {activity.market}
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <Chip label={activity.lifecycle || 'idle'} size="small" variant="outlined" />
-            <Chip
-              label={activity.status || 'idle'}
-              size="small"
-              color={ACTIVITY_STATUS_COLOR[activity.status] || 'default'}
-            />
-          </Stack>
-        </Stack>
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          {activity.stage_label || 'Idle'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ minHeight: 40 }}>
-          {activity.message || 'No active work for this market.'}
-        </Typography>
-        {showProgress && (
-          <Box sx={{ mt: 1.5 }}>
-            <LinearProgress
-              variant={progressValue != null ? 'determinate' : 'indeterminate'}
-              value={progressValue != null ? progressValue : undefined}
-              aria-label={`${activity.market} progress`}
-            />
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-              {progressValue != null
-                ? `${Math.round(progressValue)}%`
-                : 'Progress pending'}{activity.current != null && activity.total != null
-                ? ` · ${activity.current}/${activity.total}`
-                : ''}
-            </Typography>
-          </Box>
-        )}
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-          Task: {activity.task_name || '—'}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-          Updated: {formatTimestamp(activity.updated_at)}
-        </Typography>
-      </CardContent>
+    <Card className="min-w-[260px] flex-[1_1_280px] p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{activity.market}</span>
+        <span className="flex gap-1.5">
+          <Badge>{activity.lifecycle || 'idle'}</Badge>
+          <Badge tone={ACTIVITY_STATUS_TONE[activity.status] || 'neutral'}>{activity.status || 'idle'}</Badge>
+        </span>
+      </div>
+      <p className="mb-1 text-sm font-semibold">{activity.stage_label || 'Idle'}</p>
+      <p className="min-h-10 text-sm text-muted-foreground">{activity.message || 'No active work for this market.'}</p>
+      {showProgress && (
+        <div className="mt-3">
+          <ProgressBar value={progressValue} label={`${activity.market} progress`} />
+          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+            {progressValue != null
+              ? `${Math.round(progressValue)}%`
+              : 'Progress pending'}{activity.current != null && activity.total != null
+              ? ` · ${activity.current}/${activity.total}`
+              : ''}
+          </p>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-muted-foreground">Task: {activity.task_name || '—'}</p>
+      <p className="text-xs text-muted-foreground tabular-nums">Updated: {formatTimestamp(activity.updated_at)}</p>
     </Card>
   );
 }
 
 function AlertsTable({ alerts, onAcknowledge }) {
   if (alerts.length === 0) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-        No active alerts.
-      </Box>
-    );
+    return <EmptyNote>No active alerts.</EmptyNote>;
   }
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Severity</TableCell>
-          <TableCell>State</TableCell>
-          <TableCell>Market</TableCell>
-          <TableCell>Metric</TableCell>
-          <TableCell>Owner</TableCell>
-          <TableCell>Opened</TableCell>
-          <TableCell>Description</TableCell>
-          <TableCell>Action</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {alerts.map((alert) => (
-          <TableRow key={alert.id}>
-            <TableCell>
-              <Chip label={alert.severity} size="small" color={SEVERITY_COLOR[alert.severity] || 'default'} />
-            </TableCell>
-            <TableCell>
-              <Chip label={alert.state} size="small" color={STATE_COLOR[alert.state] || 'default'} />
-            </TableCell>
-            <TableCell>{alert.market}</TableCell>
-            <TableCell>{alert.metric_key}</TableCell>
-            <TableCell>{alert.owner || '—'}</TableCell>
-            <TableCell>{alert.opened_at?.slice(0, 19).replace('T', ' ') || '—'}</TableCell>
-            <TableCell>{alert.description}</TableCell>
-            <TableCell>
-              {alert.state === 'open' ? (
-                <Button size="small" onClick={() => onAcknowledge(alert.id)}>
-                  Ack
-                </Button>
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  {alert.acknowledged_by || ''}
-                </Typography>
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
+    <Table head={['Severity', 'State', 'Market', 'Metric', 'Owner', 'Opened', 'Description', 'Action']} minWidth={900}>
+      {alerts.map((alert) => (
+        <tr key={alert.id}>
+          <td className={TD}><Badge tone={SEVERITY_TONE[alert.severity] || 'neutral'}>{alert.severity}</Badge></td>
+          <td className={TD}><Badge tone={STATE_TONE[alert.state] || 'neutral'}>{alert.state}</Badge></td>
+          <td className={TD}>{alert.market}</td>
+          <td className={TD}>{alert.metric_key}</td>
+          <td className={TD}>{alert.owner || '—'}</td>
+          <td className={cn(TD, 'whitespace-nowrap tabular-nums')}>{alert.opened_at?.slice(0, 19).replace('T', ' ') || '—'}</td>
+          <td className={TD}>{alert.description}</td>
+          <td className={TD}>
+            {alert.state === 'open' ? (
+              <Button variant="secondary" size="sm" onClick={() => onAcknowledge(alert.id)}>Ack</Button>
+            ) : (
+              <span className="text-xs text-muted-foreground">{alert.acknowledged_by || ''}</span>
+            )}
+          </td>
+        </tr>
+      ))}
     </Table>
   );
 }
 
 function MarketLease({ market, holder }) {
   return (
-    <Box>
-      <Typography variant="body2">
-        <strong>{market}:</strong> {holder?.task_name || 'idle'}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
+    <div>
+      <p className="text-sm"><strong>{market}:</strong> {holder?.task_name || 'idle'}</p>
+      <p className="text-xs text-muted-foreground">
         {holder?.task_id ? `Task ID: ${holder.task_id}` : 'No active workload lease'}
-      </Typography>
-    </Box>
+      </p>
+    </div>
+  );
+}
+
+function LeaseCard({ title, className, children }) {
+  return (
+    <Card className={cn('min-w-[260px] p-4', className)}>
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      {children}
+    </Card>
   );
 }
 
@@ -430,167 +450,110 @@ function LeaseSummary({ leases, onReleaseChain, releasingToken, activeMarkets })
   const chainClaims = Object.entries(leases?.pipeline_chain || {});
 
   return (
-    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-      <Card variant="outlined" sx={{ minWidth: 260, flex: '1 1 280px' }}>
-        <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            External Fetch Lease
-          </Typography>
-          {externalHolder ? (
-            <>
-              <Typography variant="body2">{externalHolder.task_name || 'unknown task'}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Task ID: {externalHolder.task_id || '—'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                Started: {formatTimestamp(externalHolder.started_at)}
-              </Typography>
-            </>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No task currently holds the external fetch lease.
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-      <Card variant="outlined" sx={{ minWidth: 260, flex: '1 1 320px' }}>
-        <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Market Workload Leases
-          </Typography>
-          <Stack spacing={1}>
-            {marketLeases.shown.map(([market, holder]) => (
+    <div className="flex flex-wrap gap-4">
+      <LeaseCard title="External Fetch Lease" className="flex-[1_1_280px]">
+        {externalHolder ? (
+          <>
+            <p className="text-sm">{externalHolder.task_name || 'unknown task'}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Task ID: {externalHolder.task_id || '—'}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">Started: {formatTimestamp(externalHolder.started_at)}</p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">No task currently holds the external fetch lease.</p>
+        )}
+      </LeaseCard>
+      <LeaseCard title="Market Workload Leases" className="flex-[1_1_320px]">
+        <div className="flex flex-col gap-2">
+          {marketLeases.shown.map(([market, holder]) => (
+            <MarketLease key={market} market={market} holder={holder} />
+          ))}
+        </div>
+        <InactiveMarkets markets={marketLeases.hiddenMarkets}>
+          <div className="flex flex-col gap-2">
+            {marketLeases.hidden.map(([market, holder]) => (
               <MarketLease key={market} market={market} holder={holder} />
             ))}
-          </Stack>
-          <InactiveMarkets markets={marketLeases.hiddenMarkets}>
-            <Stack spacing={1}>
-              {marketLeases.hidden.map(([market, holder]) => (
-                <MarketLease key={market} market={market} holder={holder} />
-              ))}
-            </Stack>
-          </InactiveMarkets>
-        </CardContent>
-      </Card>
-      <Card variant="outlined" sx={{ minWidth: 260, flex: '1 1 320px' }}>
-        <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Pipeline Chain Claims
-          </Typography>
-          {chainClaims.length ? (
-            <Stack spacing={1}>
-              {chainClaims.map(([market, claim]) => (
-                <Stack key={market} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="body2">
-                      <strong>{market}:</strong> daily pipeline
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      Since {formatTimestamp(claim.started_at)} · expires in {formatLagSeconds(claim.ttl_seconds)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      Claim: {claim.task_id}
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    onClick={() => onReleaseChain({ market, token: claim.task_id })}
-                    disabled={!claim.task_id || releasingToken === claim.task_id}
-                    aria-label={`Release ${market} pipeline chain claim`}
-                  >
-                    {releasingToken === claim.task_id ? 'Working…' : 'Release'}
-                  </Button>
-                </Stack>
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No pipeline chain claims are held.
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-    </Stack>
+          </div>
+        </InactiveMarkets>
+      </LeaseCard>
+      <LeaseCard title="Pipeline Chain Claims" className="flex-[1_1_320px]">
+        {chainClaims.length ? (
+          <div className="flex flex-col gap-2">
+            {chainClaims.map(([market, claim]) => (
+              <div key={market} className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm"><strong>{market}:</strong> daily pipeline</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    Since {formatTimestamp(claim.started_at)} · expires in {formatLagSeconds(claim.ttl_seconds)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Claim: {claim.task_id}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-loss"
+                  onClick={() => onReleaseChain({ market, token: claim.task_id })}
+                  disabled={!claim.task_id || releasingToken === claim.task_id}
+                  aria-label={`Release ${market} pipeline chain claim`}
+                >
+                  {releasingToken === claim.task_id ? 'Working…' : 'Release'}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No pipeline chain claims are held.</p>
+        )}
+      </LeaseCard>
+    </div>
   );
 }
 
 function QueueSummaryTable({ queues }) {
   if (!queues?.length) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        No queue data available.
-      </Typography>
-    );
+    return <p className="text-sm text-muted-foreground">No queue data available.</p>;
   }
 
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Queue</TableCell>
-          <TableCell>Depth</TableCell>
-          <TableCell>Oldest</TableCell>
-          <TableCell>Workers</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {queues.map((queue) => (
-          <TableRow key={queue.queue}>
-            <TableCell>{queue.queue}</TableCell>
-            <TableCell>{queue.depth}</TableCell>
-            <TableCell>{formatLagSeconds(queue.oldest_age_seconds)}</TableCell>
-            <TableCell>
-              {/* null: no worker answered, so unknown rather than unserved. */}
-              {queue.consumers === 0 && queue.depth > 0 ? (
-                <Chip label="No worker" size="small" color="error" />
-              ) : (
-                queue.consumers ?? '—'
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
+    <Table head={['Queue', 'Depth', 'Oldest', 'Workers']}>
+      {queues.map((queue) => (
+        <tr key={queue.queue}>
+          <td className={TD}>{queue.queue}</td>
+          <td className={cn(TD, 'tabular-nums')}>{queue.depth}</td>
+          <td className={cn(TD, 'tabular-nums')}>{formatLagSeconds(queue.oldest_age_seconds)}</td>
+          <td className={cn(TD, 'tabular-nums')}>
+            {/* null: no worker answered, so unknown rather than unserved. */}
+            {queue.consumers === 0 && queue.depth > 0 ? (
+              <Badge tone="loss">No worker</Badge>
+            ) : (
+              queue.consumers ?? '—'
+            )}
+          </td>
+        </tr>
+      ))}
     </Table>
   );
 }
 
 function WorkerStatusTable({ workers }) {
   if (!workers?.length) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        No worker inspect data available.
-      </Typography>
-    );
+    return <p className="text-sm text-muted-foreground">No worker inspect data available.</p>;
   }
 
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Worker</TableCell>
-          <TableCell>Status</TableCell>
-          <TableCell>Queues</TableCell>
-          <TableCell>Active</TableCell>
-          <TableCell>Reserved</TableCell>
-          <TableCell>Scheduled</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {workers.map((worker) => (
-          <TableRow key={worker.worker}>
-            <TableCell>{worker.worker}</TableCell>
-            <TableCell>
-              <Chip label={worker.status} size="small" color={worker.status === 'online' ? 'success' : 'warning'} />
-            </TableCell>
-            <TableCell>{worker.queues?.join(', ') || '—'}</TableCell>
-            <TableCell>{worker.active}</TableCell>
-            <TableCell>{worker.reserved}</TableCell>
-            <TableCell>{worker.scheduled}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
+    <Table head={['Worker', 'Status', 'Queues', 'Active', 'Reserved', 'Scheduled']} minWidth={620}>
+      {workers.map((worker) => (
+        <tr key={worker.worker}>
+          <td className={cn(TD, 'whitespace-nowrap')}>{worker.worker}</td>
+          <td className={TD}>
+            <Badge tone={worker.status === 'online' ? 'gain' : 'warning'}>{worker.status}</Badge>
+          </td>
+          <td className={TD}>{worker.queues?.join(', ') || '—'}</td>
+          <td className={cn(TD, 'tabular-nums')}>{worker.active}</td>
+          <td className={cn(TD, 'tabular-nums')}>{worker.reserved}</td>
+          <td className={cn(TD, 'tabular-nums')}>{worker.scheduled}</td>
+        </tr>
+      ))}
     </Table>
   );
 }
@@ -602,21 +565,19 @@ function WorkerStatusTable({ workers }) {
 function JobsData({ query, children }) {
   if (!query.data) {
     return query.isError ? (
-      <Typography variant="body2" color="error">
-        Failed to load Operations job inventory.
-      </Typography>
+      <p className="text-sm text-loss">Failed to load Operations job inventory.</p>
     ) : (
-      <CircularProgress size={20} />
+      <Spinner label="Loading jobs" />
     );
   }
   return (
     <>
       {query.isError && (
-        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mb: 1 }}>
+        <p className="mb-2 text-xs text-warning">
           Couldn&apos;t refresh. Showing the last known status from{' '}
           {/* Date and time: the last data can be from yesterday (an open tab). */}
           {formatTimestamp(new Date(query.dataUpdatedAt).toISOString())}.
-        </Typography>
+        </p>
       )}
       {children}
     </>
@@ -625,115 +586,91 @@ function JobsData({ query, children }) {
 
 function JobsTable({ jobs, onCancel, cancellingTaskId, cancelInFlight }) {
   if (!jobs.length) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-        No queued or running jobs match the current filters.
-      </Box>
-    );
+    return <EmptyNote>No queued or running jobs match the current filters.</EmptyNote>;
   }
 
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Task</TableCell>
-          <TableCell>State</TableCell>
-          <TableCell>Queue</TableCell>
-          <TableCell>Market</TableCell>
-          <TableCell>Worker</TableCell>
-          <TableCell>Progress</TableCell>
-          <TableCell>Age</TableCell>
-          <TableCell>Blocker</TableCell>
-          <TableCell>Heartbeat</TableCell>
-          <TableCell>Action</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {jobs.map((job) => {
-          const canCancel = Boolean(CANCEL_ACTIONS[job.cancel_strategy]);
-          // Stays until the job leaves the inventory, unless a different action now applies.
-          const cancelRequested = job.cancel_requested_at
-            && job.cancel_requested_strategy === job.cancel_strategy;
-          const isCancelling = cancelInFlight && cancellingTaskId === job.task_id;
-          const progressValue = resolveDeterminatePercent(job.percent, job.current, job.total);
-          const hasDeterminateProgress = job.progress_mode === 'determinate' && progressValue != null;
-          return (
-            <TableRow key={job.task_id}>
-              <TableCell>
-                <Typography variant="body2">{job.display_name || job.task_name}</Typography>
-                {job.display_name && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    {job.task_name}
-                  </Typography>
-                )}
-                <Typography variant="caption" color="text.secondary">
-                  {job.task_id}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Chip
-                  label={job.state}
-                  size="small"
-                  color={JOB_STATE_COLOR[job.state] || 'default'}
-                />
-              </TableCell>
-              <TableCell>{job.queue || '—'}</TableCell>
-              <TableCell>{job.market || '—'}</TableCell>
-              <TableCell>{job.worker || '—'}</TableCell>
-              <TableCell sx={{ minWidth: 220 }}>
-                {hasDeterminateProgress ? (
-                  <Box sx={{ minWidth: 180 }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={progressValue}
-                      aria-label={`${job.task_name} progress`}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                      {`${Math.round(progressValue)}%`}{job.current != null && job.total != null
-                        ? ` · ${job.current}/${job.total}`
-                        : ''}
-                    </Typography>
-                    {job.message && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {job.message}
-                      </Typography>
-                    )}
-                  </Box>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    {job.message || 'Progress pending'}
-                  </Typography>
-                )}
-              </TableCell>
-              <TableCell>{formatLagSeconds(job.age_seconds)}</TableCell>
-              <TableCell><Blocker job={job} /></TableCell>
-              <TableCell>{formatLagSeconds(job.heartbeat_lag_seconds)}</TableCell>
-              <TableCell>
-                {cancelRequested ? (
-                  <Typography variant="caption" color="warning.main" title={formatTimestamp(job.cancel_requested_at)}>
-                    Cancel requested
-                  </Typography>
-                ) : canCancel ? (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color={CANCEL_ACTIONS[job.cancel_strategy].danger ? 'error' : 'primary'}
-                    onClick={() => onCancel(job)}
-                    disabled={isCancelling}
-                  >
-                    {isCancelling ? 'Working…' : formatCancelLabel(job.cancel_strategy)}
-                  </Button>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCancelLabel(job.cancel_strategy)}
-                  </Typography>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
+    <Table head={['Task', 'State', 'Queue', 'Market', 'Worker', 'Progress', 'Age', 'Blocker', 'Heartbeat', 'Action']} minWidth={1100}>
+      {jobs.map((job) => {
+        const canCancel = Boolean(CANCEL_ACTIONS[job.cancel_strategy]);
+        // Stays until the job leaves the inventory, unless a different action now applies.
+        const cancelRequested = job.cancel_requested_at
+          && job.cancel_requested_strategy === job.cancel_strategy;
+        const isCancelling = cancelInFlight && cancellingTaskId === job.task_id;
+        const progressValue = resolveDeterminatePercent(job.percent, job.current, job.total);
+        const hasDeterminateProgress = job.progress_mode === 'determinate' && progressValue != null;
+        return (
+          <tr key={job.task_id}>
+            <td className={TD}>
+              <p>{job.display_name || job.task_name}</p>
+              {job.display_name && <p className="text-xs text-muted-foreground">{job.task_name}</p>}
+              <p className="text-xs break-all text-muted-foreground">{job.task_id}</p>
+            </td>
+            <td className={TD}><Badge tone={JOB_STATE_TONE[job.state] || 'neutral'}>{job.state}</Badge></td>
+            <td className={TD}>{job.queue || '—'}</td>
+            <td className={TD}>{job.market || '—'}</td>
+            <td className={cn(TD, 'whitespace-nowrap')}>{job.worker || '—'}</td>
+            <td className={cn(TD, 'min-w-[220px]')}>
+              {hasDeterminateProgress ? (
+                <div className="min-w-[180px]">
+                  <ProgressBar value={progressValue} label={`${job.task_name} progress`} />
+                  <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                    {`${Math.round(progressValue)}%`}{job.current != null && job.total != null
+                      ? ` · ${job.current}/${job.total}`
+                      : ''}
+                  </p>
+                  {job.message && <p className="text-xs text-muted-foreground">{job.message}</p>}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">{job.message || 'Progress pending'}</span>
+              )}
+            </td>
+            <td className={cn(TD, 'tabular-nums')}>{formatLagSeconds(job.age_seconds)}</td>
+            <td className={TD}><Blocker job={job} /></td>
+            <td className={cn(TD, 'tabular-nums')}>{formatLagSeconds(job.heartbeat_lag_seconds)}</td>
+            <td className={TD}>
+              {cancelRequested ? (
+                <span className="text-xs text-warning" title={formatTimestamp(job.cancel_requested_at)}>
+                  Cancel requested
+                </span>
+              ) : canCancel ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className={CANCEL_ACTIONS[job.cancel_strategy].danger ? 'text-loss' : undefined}
+                  onClick={() => onCancel(job)}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? 'Working…' : formatCancelLabel(job.cancel_strategy)}
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">{formatCancelLabel(job.cancel_strategy)}</span>
+              )}
+            </td>
+          </tr>
+        );
+      })}
     </Table>
+  );
+}
+
+// Confirm dialog for a job action or a claim release: Back, then the action.
+function ConfirmDialog({ open, onClose, title, danger, confirmLabel, onConfirm, children }) {
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title={title}
+        size="sm"
+        footer={(
+          <>
+            <DialogClose asChild><Button variant="ghost" size="sm">Back</Button></DialogClose>
+            <Button variant={danger ? 'destructive' : 'primary'} size="sm" onClick={onConfirm}>{confirmLabel}</Button>
+          </>
+        )}
+      >
+        {children}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -883,32 +820,13 @@ export default function OperationsPage() {
   const [activeId, selectTab] = useHashTab(visibleIds);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        Operations
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
+    <div className="tw py-2">
+      <h1 className="text-xl font-semibold">Operations</h1>
+      <p className="mb-3 text-sm text-muted-foreground">
         Per-market telemetry, live queue inventory, and safe background-job controls.
-      </Typography>
+      </p>
 
-      <Tabs
-        value={activeId}
-        onChange={(_, id) => selectTab(id)}
-        variant="scrollable"
-        scrollButtons="auto"
-        aria-label="Operations sections"
-        sx={{ borderBottom: 1, borderColor: 'divider' }}
-      >
-        {visibleTabs.map((tab) => (
-          <Tab
-            key={tab.id}
-            value={tab.id}
-            id={`ops-tab-${tab.id}`}
-            aria-controls={`ops-panel-${tab.id}`}
-            label={<TabLabel label={tab.label} count={tab.badge?.(tabContext)} />}
-          />
-        ))}
-      </Tabs>
+      <SectionTabs tabs={visibleTabs} activeId={activeId} onSelect={selectTab} context={tabContext} />
 
       <TabPanel id="overview" activeId={activeId} visibleIds={visibleIds}>
         <MarketCoverage
@@ -919,58 +837,48 @@ export default function OperationsPage() {
           tasks={features.tasks ? tasksQuery.data?.tasks : null}
         />
 
-        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-          Market activity
-        </Typography>
+        <h2 className={H2}>Market activity</h2>
         {bootstrap?.background_warning && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            {bootstrap.background_warning}
-          </Typography>
+          <p className="mb-3 text-sm text-muted-foreground">{bootstrap.background_warning}</p>
         )}
         {bootstrapStatusQuery.isError && (
-          <Typography variant="body2" color="error" sx={{ mb: 1.5 }}>
+          <p className="mb-3 text-sm text-loss">
             {bootstrapStatusQuery.data
               ? 'Failed to refresh publication status. Showing last known status.'
               : 'Failed to load publication status.'}
-          </Typography>
+          </p>
         )}
         <UnpublishedDataAlert status={bootstrapStatusQuery.data} />
         {activityQuery.isLoading && !hasMarketActivity ? (
-          <CircularProgress size={20} />
+          <Spinner label="Loading runtime activity" />
         ) : (
           <>
             {activityQuery.isError && (
-              <Typography variant="body2" color="error" sx={{ mb: 1.5 }}>
-                Failed to refresh runtime activity. Showing last known status.
-              </Typography>
+              <p className="mb-3 text-sm text-loss">Failed to refresh runtime activity. Showing last known status.</p>
             )}
             {hasMarketActivity ? (
-              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+              <div className="mb-6 flex flex-wrap gap-4">
                 {marketActivity.map((activity) => (
                   <MarketActivityCard key={activity.activity_id ?? activity.market} activity={activity} />
                 ))}
-              </Stack>
+              </div>
             ) : (
               !activityQuery.isLoading && (
-                <Typography variant="body2" color={activityQuery.isError ? 'error' : 'text.secondary'}>
+                <p className={cn('text-sm', activityQuery.isError ? 'text-loss' : 'text-muted-foreground')}>
                   {activityQuery.isError
                     ? 'Failed to load runtime activity.'
                     : 'No runtime activity available.'}
-                </Typography>
+                </p>
               )
             )}
           </>
         )}
 
-        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-          Data freshness
-        </Typography>
+        <h2 className={H2}>Data freshness</h2>
         {alertsQuery.isLoading ? (
-          <CircularProgress size={20} />
+          <Spinner label="Loading telemetry" />
         ) : alertsQuery.isError ? (
-          <Typography variant="body2" color="error">
-            Failed to load telemetry summaries. Check backend connectivity.
-          </Typography>
+          <p className="text-sm text-loss">Failed to load telemetry summaries. Check backend connectivity.</p>
         ) : (
           <>
             <FreshnessTable summaries={summarySplit.shown} />
@@ -982,68 +890,36 @@ export default function OperationsPage() {
       </TabPanel>
 
       <TabPanel id="jobs" activeId={activeId} visibleIds={visibleIds}>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Job console
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        <h2 className="mb-1 text-base font-semibold">Job console</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
           Shows queued, waiting, reserved, running, stale, and stuck jobs across all Celery queues.
-        </Typography>
-        {jobActionError && (
-          <Alert severity="warning" sx={{ mb: 1.5 }}>
-            {jobActionError}
-          </Alert>
-        )}
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="ops-state-filter-label">State</InputLabel>
-            <Select
-              labelId="ops-state-filter-label"
-              value={stateFilter}
-              label="State"
-              onChange={(event) => setStateFilter(event.target.value)}
-            >
-              <MenuItem value="all">All states</MenuItem>
-              {['queued', 'waiting', 'reserved', 'running', 'stale', 'stuck', 'failed', 'cancelled'].map((state) => (
-                <MenuItem key={state} value={state}>{state}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="ops-queue-filter-label">Queue</InputLabel>
-            <Select
-              labelId="ops-queue-filter-label"
-              value={queueFilter}
-              label="Queue"
-              onChange={(event) => setQueueFilter(event.target.value)}
-            >
-              <MenuItem value="all">All queues</MenuItem>
-              {queueOptions.map((queue) => (
-                <MenuItem key={queue} value={queue}>{queue}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="ops-market-filter-label">Market</InputLabel>
-            <Select
-              labelId="ops-market-filter-label"
-              value={marketFilter}
-              label="Market"
-              onChange={(event) => setMarketFilter(event.target.value)}
-            >
-              <MenuItem value="all">All markets</MenuItem>
-              {marketOptions.map((market) => (
-                <MenuItem key={market} value={market}>{market}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            size="small"
-            label="Task search"
-            value={taskSearch}
-            onChange={(event) => setTaskSearch(event.target.value)}
-            sx={{ minWidth: 240 }}
-          />
-        </Stack>
+        </p>
+        {jobActionError && <Notice tone="warning" className="mb-3">{jobActionError}</Notice>}
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <NativeSelect label="State" value={stateFilter} onChange={setStateFilter} className="w-40">
+            <option value="all">All states</option>
+            {['queued', 'waiting', 'reserved', 'running', 'stale', 'stuck', 'failed', 'cancelled'].map((state) => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </NativeSelect>
+          <NativeSelect label="Queue" value={queueFilter} onChange={setQueueFilter} className="w-48">
+            <option value="all">All queues</option>
+            {queueOptions.map((queue) => <option key={queue} value={queue}>{queue}</option>)}
+          </NativeSelect>
+          <NativeSelect label="Market" value={marketFilter} onChange={setMarketFilter} className="w-40">
+            <option value="all">All markets</option>
+            {marketOptions.map((market) => <option key={market} value={market}>{market}</option>)}
+          </NativeSelect>
+          <label className="flex min-w-60 flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-muted-foreground">Task search</span>
+            <input
+              type="search"
+              value={taskSearch}
+              onChange={(event) => setTaskSearch(event.target.value)}
+              className="h-11 rounded-md border border-border bg-surface px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8"
+            />
+          </label>
+        </div>
         <JobsData query={jobsQuery}>
           <JobsTable
             jobs={filteredJobs}
@@ -1052,37 +928,29 @@ export default function OperationsPage() {
             cancelInFlight={cancelMutation.isPending}
           />
         </JobsData>
-        <Dialog open={Boolean(confirmAction)} onClose={() => setConfirmJob(null)}>
-          <DialogTitle>{confirmAction?.label}</DialogTitle>
-          <DialogContent>
-            <DialogContentText>{confirmAction?.detail}</DialogContentText>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              {confirmJob?.task_name} · {confirmJob?.task_id} · {confirmJob?.state}
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmJob(null)}>Back</Button>
-            <Button
-              variant="contained"
-              color={confirmAction?.danger ? 'error' : 'primary'}
-              onClick={() => {
-                cancelMutation.mutate({
-                  taskId: confirmJob.task_id,
-                  expectedStrategy: confirmJob.cancel_strategy,
-                });
-                setConfirmJob(null);
-              }}
-            >
-              {confirmAction?.label}
-            </Button>
-          </DialogActions>
-        </Dialog>
+        <ConfirmDialog
+          open={Boolean(confirmAction)}
+          onClose={() => setConfirmJob(null)}
+          title={confirmAction?.label}
+          danger={confirmAction?.danger}
+          confirmLabel={confirmAction?.label}
+          onConfirm={() => {
+            cancelMutation.mutate({
+              taskId: confirmJob.task_id,
+              expectedStrategy: confirmJob.cancel_strategy,
+            });
+            setConfirmJob(null);
+          }}
+        >
+          <p className="text-sm">{confirmAction?.detail}</p>
+          <p className="mt-2 text-xs break-all text-muted-foreground">
+            {confirmJob?.task_name} · {confirmJob?.task_id} · {confirmJob?.state}
+          </p>
+        </ConfirmDialog>
 
         {/* Anchor for "See its claim in Lease status" (Scheduled jobs); the
             heading renders even while the jobs data loads or fails. */}
-        <Typography id="lease-status" variant="h6" sx={{ mt: 3, mb: 1 }}>
-          Lease status
-        </Typography>
+        <h2 id="lease-status" className={H2}>Lease status</h2>
         <JobsData query={jobsQuery}>
           <LeaseSummary
             leases={leases}
@@ -1091,52 +959,41 @@ export default function OperationsPage() {
             activeMarkets={activeMarkets}
           />
         </JobsData>
-        <Dialog open={Boolean(confirmChain)} onClose={() => setConfirmChain(null)}>
-          <DialogTitle>Release {confirmChain?.market} pipeline chain claim</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              The claim stops a second daily pipeline from starting while one is in progress. Release it only
-              if that market&apos;s pipeline stages are gone from the job console (for example, a stage was
-              revoked); otherwise the next Run starts a second pipeline alongside the first.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmChain(null)}>Back</Button>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => {
-                releaseChainMutation.mutate(confirmChain);
-                setConfirmChain(null);
-              }}
-            >
-              Release
-            </Button>
-          </DialogActions>
-        </Dialog>
+        <ConfirmDialog
+          open={Boolean(confirmChain)}
+          onClose={() => setConfirmChain(null)}
+          title={`Release ${confirmChain?.market ?? ''} pipeline chain claim`}
+          danger
+          confirmLabel="Release"
+          onConfirm={() => {
+            releaseChainMutation.mutate(confirmChain);
+            setConfirmChain(null);
+          }}
+        >
+          <p className="text-sm">
+            The claim stops a second daily pipeline from starting while one is in progress. Release it only
+            if that market&apos;s pipeline stages are gone from the job console (for example, a stage was
+            revoked); otherwise the next Run starts a second pipeline alongside the first.
+          </p>
+        </ConfirmDialog>
 
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} sx={{ mt: 3 }}>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Queues
-            </Typography>
+        <div className="mt-6 flex flex-col gap-4 lg:flex-row">
+          <section className="min-w-0 flex-1">
+            <h2 className="mb-2 text-base font-semibold">Queues</h2>
             <JobsData query={jobsQuery}>
               <QueueSummaryTable queues={queueSplit.shown} />
               <InactiveMarkets markets={queueSplit.hiddenMarkets}>
                 <QueueSummaryTable queues={queueSplit.hidden} />
               </InactiveMarkets>
             </JobsData>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Workers
-            </Typography>
+          </section>
+          <section className="min-w-0 flex-1">
+            <h2 className="mb-2 text-base font-semibold">Workers</h2>
             <JobsData query={jobsQuery}>
               <WorkerStatusTable workers={workers} />
             </JobsData>
-          </Box>
-        </Stack>
-
+          </section>
+        </div>
       </TabPanel>
 
       <TabPanel id="schedules" activeId={activeId} visibleIds={visibleIds}>
@@ -1144,17 +1001,11 @@ export default function OperationsPage() {
       </TabPanel>
 
       <TabPanel id="alerts" activeId={activeId} visibleIds={visibleIds}>
-        {ackError && (
-          <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
-            Acknowledge failed: {ackError}
-          </Typography>
-        )}
+        {ackError && <p className="mb-2 text-xs text-loss">Acknowledge failed: {ackError}</p>}
         {alertsQuery.isLoading ? (
-          <CircularProgress size={20} />
+          <Spinner label="Loading alerts" />
         ) : alertsQuery.isError ? (
-          <Typography variant="body2" color="error">
-            Failed to load alerts.
-          </Typography>
+          <p className="text-sm text-loss">Failed to load alerts.</p>
         ) : (
           <AlertsTable alerts={alerts} onAcknowledge={(id) => ackMutation.mutate(id)} />
         )}
@@ -1168,6 +1019,6 @@ export default function OperationsPage() {
       <TabPanel id="exposure" activeId={activeId} visibleIds={visibleIds}>
         <ExposureResearchWorkspace />
       </TabPanel>
-    </Container>
+    </div>
   );
 }

@@ -1,24 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Chip,
-  CircularProgress,
-  Fade,
-  IconButton,
-  Modal,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/ui/badge';
+import { Dialog, FullscreenDialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+
 import CandlestickChart from '../components/Charts/CandlestickChart';
+import { ChartViewerHeader, ChartViewerKeyHints } from '../components/Scan/ChartViewerChrome';
 import StockMetricsSidebar from '../components/Scan/StockMetricsSidebar';
-import { getGroupRankColor, onPalette } from '../utils/colorUtils';
 import { useChartNavigation } from '../hooks/useChartNavigation';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { isCurrentChartIndex, staticChartPayloadQuery } from './chartClient';
 import { useStaticGeneration } from './dataClient';
 
@@ -30,8 +21,7 @@ function StaticChartViewerModal({
   navigationSymbols = null,
 }) {
   const queryClient = useQueryClient();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery('(max-width: 767.98px)');
   const [visibleRange, setVisibleRange] = useState(null);
 
   const entries = useMemo(() => chartIndex?.symbols || [], [chartIndex]);
@@ -141,253 +131,72 @@ function StaticChartViewerModal({
   const epsRating = stockData?.eps_rating ?? fundamentals?.eps_rating ?? null;
   const groupRank = stockData?.ibd_group_rank ?? null;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
+  // Header (~60px) and the key-hint strip (~44px) sit above and below the chart.
   const chartHeight = isMobile
     ? Math.round(viewportHeight * 0.6)
-    : Math.max(viewportHeight - 60, 500);
+    : Math.max(viewportHeight - 104, 500);
   const dataUpdatedAtOverride = chartPayload?.generated_at ? Date.parse(chartPayload.generated_at) : null;
+  const chartPlaceholder = (
+    <div aria-busy="true" aria-label="Loading chart" className="p-4" style={{ height: chartHeight }}>
+      <div className="h-full rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+    </div>
+  );
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      aria-labelledby="static-chart-viewer-modal"
-      closeAfterTransition
-    >
-      <Fade in={open}>
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            bgcolor: 'background.paper',
-            display: 'flex',
-            flexDirection: 'column',
-            outline: 'none',
-          }}
-        >
-          <Box
-            sx={{
-              minHeight: 60,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              rowGap: 1,
-              px: { xs: 1.5, md: 3 },
-              py: 0.5,
-              borderBottom: 1,
-              borderColor: 'divider',
-              bgcolor: 'background.default',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 1, gap: 2 }}>
-              <Typography variant="h5" fontWeight="bold">
-                {currentSymbol || 'Loading...'}
-              </Typography>
-              {isLoading ? <CircularProgress size={18} /> : null}
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <FullscreenDialogContent title={`Chart viewer: ${currentSymbol || ''}`} keyboardOwned>
+        <ChartViewerHeader
+          symbol={currentSymbol}
+          symbolsLoading={isLoading}
+          groupRank={stockData?.ibd_industry_group ? { show: true, value: groupRank, loading: false } : null}
+          adr={adrValue}
+          epsRating={epsRating}
+          stockData={stockData}
+          index={currentIndex}
+          total={totalCount}
+          onClose={onClose}
+          actions={<Badge>Static</Badge>}
+        />
 
-              {stockData?.ibd_industry_group ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      minWidth: 36,
-                      ...onPalette(getGroupRankColor(groupRank)),
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      noWrap
-                      sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}
-                    >
-                      {groupRank ?? '-'}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                    Grp Rnk
-                  </Typography>
-                </Box>
-              ) : null}
+        {/* On mobile the chart sits above the metrics: it is the second
+            child, so column-reverse puts it on top without reordering the DOM,
+            and its wrapper does not flex so the canvas keeps its width. */}
+        <div className="flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto md:flex-row md:overflow-y-hidden">
+          <StockMetricsSidebar
+            stockData={stockData}
+            fundamentals={fundamentals}
+            width={{ xs: '100%', md: 450 }}
+            height={{ xs: 'auto', md: '100%' }}
+          />
 
-              {adrValue != null ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      ...onPalette(Number(adrValue) >= 4
-                        ? 'success.main'
-                        : Number(adrValue) >= 2
-                          ? 'warning.main'
-                          : 'error.main'),
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      noWrap
-                      sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}
-                    >
-                      {Number(adrValue).toFixed(1)}%
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                    ADR
-                  </Typography>
-                </Box>
-              ) : null}
+          <div className="flex-none overflow-hidden bg-surface md:min-w-0 md:flex-1">
+            {isError ? (
+              <div className="flex items-center justify-center p-6" style={{ height: chartHeight }}>
+                <Notice tone="error">Failed to load the static chart payload.</Notice>
+              </div>
+            ) : isLoading ? (
+              chartPlaceholder
+            ) : currentSymbol ? (
+              <CandlestickChart
+                symbol={currentSymbol}
+                period="6mo"
+                height={chartHeight}
+                visibleRange={visibleRange}
+                onVisibleRangeChange={setVisibleRange}
+                priceData={chartPayload?.bars || []}
+                rsLineData={chartPayload?.rs_line || null}
+                blueDots={chartPayload?.blue_dots || null}
+                dataUpdatedAtOverride={dataUpdatedAtOverride}
+              />
+            ) : (
+              chartPlaceholder
+            )}
+          </div>
+        </div>
 
-              {epsRating != null ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      borderRadius: 1,
-                      px: 1.5,
-                      py: 0.5,
-                      textAlign: 'center',
-                      minWidth: 36,
-                      ...onPalette(epsRating >= 80
-                        ? 'success.main'
-                        : epsRating >= 50
-                          ? 'warning.main'
-                          : 'error.main'),
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      noWrap
-                      sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}
-                    >
-                      {epsRating}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                    EPS Rtg
-                  </Typography>
-                </Box>
-              ) : null}
-
-              {stockData ? (
-                <Box sx={{ display: 'flex', gap: 1.5, ml: 1 }}>
-                  {[
-                    ['IBD', stockData.ibd_industry_group],
-                    ['Sector', stockData.gics_sector],
-                    ['Industry', stockData.gics_industry],
-                  ].map(([label, value]) => (
-                    <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Box
-                        sx={{
-                          border: 1,
-                          borderColor: 'divider',
-                          borderRadius: 1,
-                          px: 1.5,
-                          py: 0.5,
-                          minWidth: 80,
-                          maxWidth: 180,
-                          textAlign: 'center',
-                          bgcolor: 'background.paper',
-                        }}
-                      >
-                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                          {value || '-'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-                        {label}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              ) : null}
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {totalCount > 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  Stock {currentIndex + 1} of {totalCount}
-                </Typography>
-              ) : null}
-              <Chip label="Static" size="small" color="info" />
-              <IconButton onClick={onClose} size="large">
-                <CloseIcon />
-              </IconButton>
-            </Box>
-          </Box>
-
-          {/* On mobile, stack the chart above the metrics. The chart is the
-              second child, so column-reverse puts it on top without reordering
-              the DOM; the chart wrapper below uses flex:none so the column does
-              not shrink the canvas back toward zero width. */}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column-reverse', md: 'row' },
-              flex: 1,
-              overflowY: { xs: 'auto', md: 'hidden' },
-              overflowX: 'hidden',
-            }}
-          >
-            <StockMetricsSidebar
-              stockData={stockData}
-              fundamentals={fundamentals}
-              width={{ xs: '100%', md: 450 }}
-              height={{ xs: 'auto', md: '100%' }}
-            />
-
-            <Box sx={{ flex: { xs: 'none', md: 1 }, overflow: 'hidden', bgcolor: 'background.paper' }}>
-              {isError ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: chartHeight, p: 3 }}>
-                  <Alert severity="error">Failed to load the static chart payload.</Alert>
-                </Box>
-              ) : isLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: chartHeight }}>
-                  <CircularProgress size={56} />
-                </Box>
-              ) : currentSymbol ? (
-                <CandlestickChart
-                  symbol={currentSymbol}
-                  period="6mo"
-                  height={chartHeight}
-                  visibleRange={visibleRange}
-                  onVisibleRangeChange={setVisibleRange}
-                  priceData={chartPayload?.bars || []}
-                  rsLineData={chartPayload?.rs_line || null}
-                  blueDots={chartPayload?.blue_dots || null}
-                  dataUpdatedAtOverride={dataUpdatedAtOverride}
-                />
-              ) : (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: chartHeight }}>
-                  <CircularProgress size={56} />
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              position: 'fixed',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              p: 1.5,
-              bgcolor: 'background.paper',
-              borderTop: 1,
-              borderColor: 'divider',
-              display: { xs: 'none', sm: 'flex' },
-              justifyContent: 'center',
-              gap: 3,
-            }}
-          >
-            <Chip icon={<KeyboardIcon />} label="Space: Next Stock" size="small" variant="outlined" />
-            <Chip icon={<KeyboardIcon />} label="Shift+Space: Previous" size="small" variant="outlined" />
-            <Chip icon={<KeyboardIcon />} label="Esc: Close" size="small" variant="outlined" />
-          </Box>
-        </Box>
-      </Fade>
-    </Modal>
+        <ChartViewerKeyHints hints={['Space: Next Stock', 'Shift+Space: Previous', 'Esc: Close']} />
+      </FullscreenDialogContent>
+    </Dialog>
   );
 }
 

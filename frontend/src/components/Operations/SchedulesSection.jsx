@@ -7,31 +7,14 @@
  */
 import { useEffect, useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Divider,
-  IconButton,
-  Link,
-  Popover,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { Play } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+
 import { getScheduledTasks, triggerTask } from '../../api/tasks';
 import { useIsMobileShell } from '../Layout/shellNav';
 import InactiveMarkets from './InactiveMarkets';
@@ -46,20 +29,33 @@ const ATTENTION_STATUSES = new Set(['queued', 'running', 'failed', 'lost']);
 const STALE_QUEUED_MS = 10 * 60 * 1000;
 
 const STATUS_DISPLAY = {
-  completed: { color: 'success', label: 'Completed' },
+  completed: { tone: 'gain', label: 'Completed' },
   // The task ran but did nothing (not a trading day, already running, …).
-  skipped: { color: 'default', variant: 'outlined', label: 'Skipped' },
+  skipped: { tone: 'neutral', outlined: true, label: 'Skipped' },
   // The task only queued other tasks (the daily pipeline's stage chain).
-  dispatched: { color: 'info', variant: 'outlined', label: 'Handed off' },
-  running: { color: 'info', label: 'Running' },
-  queued: { color: 'warning', label: 'Queued' },
-  failed: { color: 'error', label: 'Failed' },
-  cancelled: { color: 'default', label: 'Cancelled' },
+  dispatched: { tone: 'accent', outlined: true, label: 'Handed off' },
+  running: { tone: 'accent', label: 'Running' },
+  queued: { tone: 'warning', label: 'Queued' },
+  failed: { tone: 'loss', label: 'Failed' },
+  cancelled: { tone: 'neutral', label: 'Cancelled' },
   // No outcome recorded within Celery's hard time limit: never picked up, or
   // the worker died without a stored result. Not known to have failed, so it
   // is neutral and outlined rather than sharing Queued's amber.
-  lost: { color: 'default', variant: 'outlined', label: 'Unknown' },
+  lost: { tone: 'neutral', outlined: true, label: 'Unknown' },
 };
+
+const TONE_CLASS = {
+  gain: { filled: 'bg-gain/15 text-gain', outlined: 'border-gain/50 text-gain' },
+  accent: { filled: 'bg-accent/15 text-accent', outlined: 'border-accent/50 text-accent' },
+  warning: { filled: 'bg-warning/15 text-warning', outlined: 'border-warning/50 text-warning' },
+  loss: { filled: 'bg-loss/15 text-loss', outlined: 'border-loss/50 text-loss' },
+  neutral: { filled: 'bg-surface-subtle text-muted-foreground', outlined: 'border-border text-muted-foreground' },
+};
+
+const NOTE_CLASS = { error: 'text-loss', warning: 'text-warning', muted: 'text-muted-foreground' };
+
+const TH = 'border-b border-border px-2 py-1.5 text-left font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-2 align-top';
 
 function ageMs(dateString) {
   return Date.now() - new Date(dateString).getTime();
@@ -143,45 +139,57 @@ function runBlockedReason(task) {
   return preflightReason(task);
 }
 
+function MiniSpinner() {
+  return <span aria-hidden="true" className="size-3 shrink-0 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />;
+}
+
 // Shown whatever the last run was (or with none): the pre-flight reason,
 // and for a running pipeline where to see or release its claim.
 function PreflightNote({ task }) {
   const reason = preflightReason(task);
   if (!reason) return null;
   return (
-    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, maxWidth: 320 }}>
+    <p className="mt-1 max-w-80 text-xs text-muted-foreground">
       {reason}.
       {task.run_blocker.reason === PIPELINE_ACTIVE && (
         <>
           {' '}
-          <Link href="#lease-status">See its claim in Lease status</Link>.
+          <a href="#lease-status" className="text-accent hover:underline">See its claim in Lease status</a>.
         </>
       )}
-    </Typography>
+    </p>
   );
 }
 
 function LastRun({ run }) {
-  if (!run) return <Typography variant="body2" color="text.secondary">Never</Typography>;
+  if (!run) return <span className="text-sm text-muted-foreground">Never</span>;
   const when = run.started_at ? formatRelativeTime(run.started_at) : '—';
   const label = run.duration_seconds != null ? `${when} · ${formatDuration(run.duration_seconds)}` : when;
   return (
-    <Tooltip title={run.triggered_by ? `Triggered: ${run.triggered_by}` : ''}>
-      <Typography variant="body2">{label}</Typography>
-    </Tooltip>
+    <span className="text-sm tabular-nums" title={run.triggered_by ? `Triggered: ${run.triggered_by}` : undefined}>
+      {label}
+    </span>
   );
 }
 
+function statusChipClass(display) {
+  const tone = TONE_CLASS[display?.tone ?? 'neutral'];
+  return display && !display.outlined
+    ? cn('border-transparent', tone.filled)
+    : cn('bg-transparent', tone.outlined);
+}
+
 function StatusChip({ run }) {
-  const display = STATUS_DISPLAY[run.status] || { color: 'default', label: run.status };
+  const display = STATUS_DISPLAY[run.status] || { tone: 'neutral', label: run.status };
   return (
-    <Chip
-      size="small"
-      color={display.color}
-      variant={display.variant || 'filled'}
-      label={display.label}
-      icon={ACTIVE_STATUSES.has(run.status) ? <CircularProgress size={12} color="inherit" /> : undefined}
-    />
+    <span
+      data-tone={display.tone}
+      data-variant={display.outlined ? 'outlined' : 'filled'}
+      className={cn('inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap', statusChipClass(display))}
+    >
+      {ACTIVE_STATUSES.has(run.status) && <MiniSpinner />}
+      {display.label}
+    </span>
   );
 }
 
@@ -196,21 +204,21 @@ function statusNote(task) {
   const run = task.last_run;
   if (run?.status === 'failed') return [run.error_message, 'error'];
   if (isStaleQueued(run)) {
-    return [`Not picked up for ${ageLabel(ageMs(run.started_at))}. ${stuckRecovery(task.name)}`, 'warning.main'];
+    return [`Not picked up for ${ageLabel(ageMs(run.started_at))}. ${stuckRecovery(task.name)}`, 'warning'];
   }
-  if (lostButMaybeQueued(run)) return [lostQueuedReason(task), 'warning.main'];
+  if (lostButMaybeQueued(run)) return [lostQueuedReason(task), 'warning'];
   if (run?.status === 'lost' && run.lost_from === 'queued') {
     // Usually never started; a worker whose start write failed also lands here.
-    return ['No outcome recorded, and no message is waiting. Run it again.', 'text.secondary'];
+    return ['No outcome recorded, and no message is waiting. Run it again.', 'muted'];
   }
   if (run?.status === 'lost' && run.lost_from === 'running') {
-    return ['Started, but no result was recorded (the worker may have stopped). Run it again.', 'text.secondary'];
+    return ['Started, but no result was recorded (the worker may have stopped). Run it again.', 'muted'];
   }
-  if (run?.status === 'skipped' && run.detail) return [humanizeReason(run.detail), 'text.secondary'];
+  if (run?.status === 'skipped' && run.detail) return [humanizeReason(run.detail), 'muted'];
   if (run?.status === 'dispatched') {
     // While the chain holds its claim, the pre-flight disables Run and says so
     // (PreflightNote), so no duplicate warning is needed here.
-    return ['Stages queued. Follow them in Market activity and the job console.', 'text.secondary'];
+    return ['Stages queued. Follow them in Market activity and the job console.', 'muted'];
   }
   return [null, null];
 }
@@ -218,51 +226,47 @@ function statusNote(task) {
 // The failure message, why a run skipped, where handed-off work went, or
 // what to do about a run stuck in the queue.
 function StatusNote({ task }) {
-  const [note, color] = statusNote(task);
+  const [note, tone] = statusNote(task);
   if (!note) return null;
-  return (
-    <Typography
-      variant="caption"
-      color={color}
-      sx={{ display: 'block', mt: 0.5, maxWidth: 320, overflowWrap: 'anywhere' }}
-    >
-      {note}
-    </Typography>
-  );
+  return <p className={cn('mt-1 max-w-80 text-xs [overflow-wrap:anywhere]', NOTE_CLASS[tone])}>{note}</p>;
 }
 
 function Status({ task }) {
   return (
-    <Box>
+    <div>
       {task.last_run ? (
         <>
           <StatusChip run={task.last_run} />
           <StatusNote task={task} />
         </>
       ) : (
-        <Typography variant="body2" color="text.secondary">—</Typography>
+        <span className="text-sm text-muted-foreground">—</span>
       )}
       <PreflightNote task={task} />
-    </Box>
+    </div>
   );
 }
 
 function RunButton({ task, pending, onRun }) {
   const blockedReason = runBlockedReason(task);
   return (
-    <Tooltip title={blockedReason || 'Run this job now'}>
-      <span>
-        <IconButton
-          size="small"
-          color={task.advanced ? 'error' : 'primary'}
-          aria-label={`Run ${task.display_name} now`}
-          onClick={() => onRun(task.name)}
-          disabled={Boolean(blockedReason) || pending}
-        >
-          {pending ? <CircularProgress size={18} /> : <PlayArrowIcon />}
-        </IconButton>
-      </span>
-    </Tooltip>
+    <span title={blockedReason || 'Run this job now'} className="inline-flex">
+      <button
+        type="button"
+        aria-label={`Run ${task.display_name} now`}
+        data-tone={task.advanced ? 'danger' : 'default'}
+        onClick={() => onRun(task.name)}
+        disabled={Boolean(blockedReason) || pending}
+        className={cn(
+          'grid size-11 cursor-pointer place-items-center rounded-md outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 md:size-8',
+          task.advanced ? 'text-loss' : 'text-accent',
+        )}
+      >
+        {pending
+          ? <span aria-hidden="true" className="size-4 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />
+          : <Play aria-hidden="true" className="size-4" />}
+      </button>
+    </span>
   );
 }
 
@@ -300,9 +304,32 @@ const STATUS_GLYPH = {
   lost: '?',
 };
 
-function MarketChip({ task, pending, onOpen }) {
+function MarketDetail({ task, groupDescription, pending, onRun }) {
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-sm font-semibold">{task.display_name}</p>
+        <RunButton task={task} pending={pending} onRun={onRun} />
+      </div>
+      {task.description !== groupDescription && (
+        <p className="text-xs text-muted-foreground">{task.description}</p>
+      )}
+      <p className="text-xs text-muted-foreground">{task.schedule_description}</p>
+      {typicalDuration(task) && <p className="text-xs text-muted-foreground">{typicalDuration(task)}</p>}
+      <div className="mt-2 flex items-center gap-3">
+        {task.last_run && <StatusChip run={task.last_run} />}
+        <LastRun run={task.last_run} />
+      </div>
+      <StatusNote task={task} />
+      <PreflightNote task={task} />
+    </>
+  );
+}
+
+// One chip per market; it opens that market's detail and Run in a popover.
+function MarketChip({ task, group, open, onOpenChange, pending, onRun }) {
   const run = task.last_run;
-  const display = run ? STATUS_DISPLAY[run.status] || { color: 'default', label: run.status } : null;
+  const display = run ? STATUS_DISPLAY[run.status] || { tone: 'neutral', label: run.status } : null;
   // new Date(null) is the epoch, not NaN, so a missing start needs its own check.
   const age = run?.started_at ? ageMs(run.started_at) : NaN;
   const label = run
@@ -310,86 +337,55 @@ function MarketChip({ task, pending, onOpen }) {
     : `${task.market} — never`;
   const busy = pending || ACTIVE_STATUSES.has(run?.status);
   return (
-    <Chip
-      size="small"
-      color={display?.color ?? 'default'}
-      variant={display ? display.variant || 'filled' : 'outlined'}
-      label={label}
-      icon={busy ? <CircularProgress size={12} color="inherit" /> : undefined}
-      aria-label={`${task.display_name}: ${!display ? 'never run'
-        : run.started_at ? `${display.label}, ${formatRelativeTime(run.started_at)}` : display.label}`}
-      aria-haspopup="dialog"
-      onClick={(event) => onOpen(task.name, event.currentTarget)}
-    />
-  );
-}
-
-function MarketDetail({ task, groupDescription, pending, onRun }) {
-  return (
-    <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="subtitle2" sx={{ flex: 1 }}>{task.display_name}</Typography>
-        <RunButton task={task} pending={pending} onRun={onRun} />
-      </Box>
-      {task.description !== groupDescription && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{task.description}</Typography>
-      )}
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{task.schedule_description}</Typography>
-      {typicalDuration(task) && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{typicalDuration(task)}</Typography>
-      )}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-        {task.last_run && <StatusChip run={task.last_run} />}
-        <LastRun run={task.last_run} />
-      </Box>
-      <StatusNote task={task} />
-      <PreflightNote task={task} />
-    </>
+    <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <PopoverPrimitive.Trigger
+        aria-label={`${task.display_name}: ${!display ? 'never run'
+          : run.started_at ? `${display.label}, ${formatRelativeTime(run.started_at)}` : display.label}`}
+        className={cn(
+          'inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border px-2.5 text-xs font-medium whitespace-nowrap tabular-nums outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-ring',
+          statusChipClass(display),
+        )}
+      >
+        {busy && <MiniSpinner />}
+        {label}
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          aria-label={task.display_name}
+          align="start"
+          sideOffset={6}
+          collisionPadding={8}
+          className="tw z-toast w-[min(360px,calc(100vw-16px))] rounded-md border border-border bg-surface p-3 text-foreground shadow-lg outline-none"
+        >
+          <MarketDetail task={task} groupDescription={jobDescription(group[0])} pending={pending} onRun={onRun} />
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
 
 function MarketChips({ group, pendingNames, onRun }) {
-  const [open, setOpen] = useState(null);
-  // Looked up each render so a refetch updates an open popover.
-  const task = open && group.find((item) => item.name === open.name);
+  const [openName, setOpenName] = useState(null);
   // A refetch can move the market to another list (a run puts an inactive
-  // market up front); forget it, or its return would reopen the popover on
-  // the old, detached chip.
+  // market up front); forget it, or its return would reopen the popover.
+  const openTask = openName && group.find((item) => item.name === openName);
   useEffect(() => {
-    if (open && !task) setOpen(null);
-  }, [open, task]);
+    if (openName && !openTask) setOpenName(null);
+  }, [openName, openTask]);
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+    <div className="flex flex-wrap gap-1">
       {group.map((item) => (
         <MarketChip
           key={item.name}
           task={item}
+          group={group}
+          open={openName === item.name}
+          onOpenChange={(next) => setOpenName(next ? item.name : null)}
           pending={pendingNames.has(item.name)}
-          onOpen={(name, anchorEl) => setOpen({ name, anchorEl })}
+          onRun={onRun}
         />
       ))}
-      <Popover
-        open={Boolean(task)}
-        anchorEl={open?.anchorEl}
-        onClose={() => setOpen(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        PaperProps={{
-          role: 'dialog',
-          'aria-modal': true,
-          'aria-label': task?.display_name,
-          sx: { p: 1.5, maxWidth: 360 },
-        }}
-      >
-        {task && (
-          <MarketDetail
-            task={task}
-            groupDescription={jobDescription(group[0])}
-            pending={pendingNames.has(task.name)}
-            onRun={onRun}
-          />
-        )}
-      </Popover>
-    </Box>
+    </div>
   );
 }
 
@@ -409,14 +405,12 @@ function JobFacts({ task, withDuration = true }) {
   const duration = withDuration && typicalDuration(task);
   if (!facts.length && !duration) return null;
   return (
-    <Box sx={{ mt: 0.5 }}>
+    <div className="mt-1 text-xs">
       {facts.map(([label, text]) => (
-        <Typography key={label} variant="caption" sx={{ display: 'block' }}>
-          <strong>{label}:</strong> {text}
-        </Typography>
+        <p key={label}><strong>{label}:</strong> {text}</p>
       ))}
-      {duration && <Typography variant="caption" sx={{ display: 'block' }}>{duration}</Typography>}
-    </Box>
+      {duration && <p>{duration}</p>}
+    </div>
   );
 }
 
@@ -428,21 +422,19 @@ function JobHelp({ task, name, withDuration }) {
   if (!task.when_to_run && !task.impact) return null;
   const label = open ? 'Hide details' : 'About this job';
   return (
-    <Box>
-      <Button
-        size="small"
+    <div>
+      <button
+        type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={detailsId}
         aria-label={`${label}: ${name}`}
-        sx={{ p: 0, minWidth: 0, textTransform: 'none' }}
+        className="cursor-pointer rounded-sm text-xs font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
       >
         {label}
-      </Button>
-      <Collapse in={open} unmountOnExit id={detailsId}>
-        <JobFacts task={task} withDuration={withDuration} />
-      </Collapse>
-    </Box>
+      </button>
+      {open && <div id={detailsId}><JobFacts task={task} withDuration={withDuration} /></div>}
+    </div>
   );
 }
 
@@ -455,82 +447,86 @@ function unsettledWarning(markets) {
 
 // Run asks first: what the job does and costs, and whether it would fetch
 // prices for a market whose day has not settled.
-function RunDialog({ task, open, pending, onCancel, onConfirm, onExited }) {
+function RunDialog({ task, open, pending, onCancel, onConfirm }) {
   const blockedReason = task ? runBlockedReason(task) : null;
   return (
-    <Dialog open={open} onClose={onCancel} aria-labelledby="run-job-title" TransitionProps={{ onExited }}>
-      <DialogTitle id="run-job-title">Run {task?.display_name}?</DialogTitle>
-      {task && (
-        <DialogContent>
-          <DialogContentText>{task.description}</DialogContentText>
-          <JobFacts task={task} />
-          {task.unsettled_markets?.length > 0 && (
-            <Alert severity="warning" sx={{ mt: 1.5 }}>{unsettledWarning(task.unsettled_markets)}</Alert>
-          )}
-          {blockedReason && (
-            <Alert severity="info" sx={{ mt: 1.5 }}>{blockedReason}</Alert>
-          )}
-        </DialogContent>
-      )}
-      <DialogActions>
-        <Button onClick={onCancel}>Back</Button>
-        <Button
-          variant="contained"
-          color={task?.advanced ? 'error' : 'primary'}
-          disabled={!task || pending || Boolean(blockedReason)}
-          onClick={onConfirm}
-        >
-          Run
-        </Button>
-      </DialogActions>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+      <DialogContent
+        title={`Run ${task?.display_name ?? ''}?`}
+        size="sm"
+        footer={(
+          <>
+            <DialogClose asChild><Button variant="ghost" size="sm">Back</Button></DialogClose>
+            <Button
+              variant={task?.advanced ? 'destructive' : 'primary'}
+              data-tone={task?.advanced ? 'danger' : 'default'}
+              size="sm"
+              disabled={!task || pending || Boolean(blockedReason)}
+              onClick={onConfirm}
+            >
+              Run
+            </Button>
+          </>
+        )}
+      >
+        {task && (
+          <>
+            <p className="text-sm">{task.description}</p>
+            <JobFacts task={task} />
+            {task.unsettled_markets?.length > 0 && (
+              <Notice tone="warning" role="alert" className="mt-3">{unsettledWarning(task.unsettled_markets)}</Notice>
+            )}
+            {blockedReason && <Notice tone="info" className="mt-3">{blockedReason}</Notice>}
+          </>
+        )}
+      </DialogContent>
     </Dialog>
   );
 }
 
 function JobsTable({ tasks, pendingNames, onRun }) {
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell>Job</TableCell>
-          <TableCell>Schedule</TableCell>
-          <TableCell>Last run</TableCell>
-          <TableCell>Status</TableCell>
-          <TableCell align="center">Run</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {groupJobs(tasks).map((group) => {
-          const [task] = group;
-          const perMarket = isPerMarket(group);
-          return (
-            <TableRow key={task.job_type ?? task.name} hover>
-              <TableCell>
-                <Typography variant="body2" fontWeight="medium">{perMarket ? task.job_name : task.display_name}</Typography>
-                <Typography variant="caption" color="text.secondary">{perMarket ? jobDescription(task) : task.description}</Typography>
-                <JobHelp task={task} name={perMarket ? task.job_name : task.display_name} withDuration={!perMarket} />
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2">{perMarket ? groupSchedule(group) : task.schedule_description}</Typography>
-              </TableCell>
-              {perMarket ? (
-                <TableCell colSpan={3}>
-                  <MarketChips group={group} pendingNames={pendingNames} onRun={onRun} />
-                </TableCell>
-              ) : (
-                <>
-                  <TableCell><LastRun run={task.last_run} /></TableCell>
-                  <TableCell><Status task={task} /></TableCell>
-                  <TableCell align="center">
-                    <RunButton task={task} pending={pendingNames.has(task.name)} onRun={onRun} />
-                  </TableCell>
-                </>
-              )}
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[900px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr>
+            {['Job', 'Schedule', 'Last run', 'Status'].map((label) => (
+              <th key={label} scope="col" className={TH}>{label}</th>
+            ))}
+            <th scope="col" className={cn(TH, 'text-center')}>Run</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groupJobs(tasks).map((group) => {
+            const [task] = group;
+            const perMarket = isPerMarket(group);
+            return (
+              <tr key={task.job_type ?? task.name} className="hover:bg-surface-subtle/60">
+                <td className={cn(TD, 'max-w-[360px]')}>
+                  <p className="font-medium">{perMarket ? task.job_name : task.display_name}</p>
+                  <p className="text-xs text-muted-foreground">{perMarket ? jobDescription(task) : task.description}</p>
+                  <JobHelp task={task} name={perMarket ? task.job_name : task.display_name} withDuration={!perMarket} />
+                </td>
+                <td className={TD}>{perMarket ? groupSchedule(group) : task.schedule_description}</td>
+                {perMarket ? (
+                  <td colSpan={3} className={TD}>
+                    <MarketChips group={group} pendingNames={pendingNames} onRun={onRun} />
+                  </td>
+                ) : (
+                  <>
+                    <td className={TD}><LastRun run={task.last_run} /></td>
+                    <td className={TD}><Status task={task} /></td>
+                    <td className={cn(TD, 'text-center')}>
+                      <RunButton task={task} pending={pendingNames.has(task.name)} onRun={onRun} />
+                    </td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -538,46 +534,38 @@ function JobsTable({ tasks, pendingNames, onRun }) {
 function JobCards({ tasks, pendingNames, onRun }) {
   return (
     // role="list": WebKit drops list semantics from a ul styled list-style: none.
-    <Box component="ul" role="list" aria-label="Scheduled jobs" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+    <ul role="list" aria-label="Scheduled jobs" className="m-0 list-none p-0">
       {groupJobs(tasks).map((group) => {
         const [task] = group;
         return (
-          <Box
-            component="li"
-            key={task.job_type ?? task.name}
-            sx={{ py: 1.25, borderBottom: 1, borderColor: 'divider' }}
-          >
+          <li key={task.job_type ?? task.name} className="border-b border-border py-2.5">
             {isPerMarket(group) ? (
               <>
-                <Typography variant="body2" fontWeight="medium" sx={{ mb: 0.5 }}>{task.job_name}</Typography>
+                <p className="mb-1 text-sm font-medium">{task.job_name}</p>
                 <MarketChips group={group} pendingNames={pendingNames} onRun={onRun} />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  {groupSchedule(group)}
-                </Typography>
+                <p className="mt-1 text-xs text-muted-foreground">{groupSchedule(group)}</p>
                 <JobHelp task={task} name={task.job_name} withDuration={false} />
               </>
             ) : (
               <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>{task.display_name}</Typography>
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 text-sm font-medium">{task.display_name}</p>
                   <RunButton task={task} pending={pendingNames.has(task.name)} onRun={onRun} />
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                </div>
+                <div className="mt-1 flex items-center gap-3">
                   {task.last_run && <StatusChip run={task.last_run} />}
                   <LastRun run={task.last_run} />
-                </Box>
+                </div>
                 <StatusNote task={task} />
                 <PreflightNote task={task} />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  {task.schedule_description}
-                </Typography>
+                <p className="mt-1 text-xs text-muted-foreground">{task.schedule_description}</p>
                 <JobHelp task={task} name={task.display_name} />
               </>
             )}
-          </Box>
+          </li>
         );
       })}
-    </Box>
+    </ul>
   );
 }
 
@@ -607,7 +595,7 @@ export default function SchedulesSection({ activeMarkets }) {
   const isMobile = useIsMobileShell();
   const [error, setError] = useState(null);
   const [pendingNames, setPendingNames] = useState(() => new Set());
-  const [confirm, setConfirm] = useState({ name: null, open: false });
+  const [confirmName, setConfirmName] = useState(null);
 
   const tasksQuery = useQuery({
     queryKey: ['scheduledTasks'],
@@ -652,38 +640,33 @@ export default function SchedulesSection({ activeMarkets }) {
     // blockers (not a trading day) would keep every idle market up front.
     (task) => ATTENTION_STATUSES.has(task.last_run?.status) || task.run_blocker?.reason === PIPELINE_ACTIVE,
   );
-  // Run asks first (RunDialog); the name outlives open so the dialog keeps
-  // its content while it fades out.
-  const onRun = (taskName) => setConfirm({ name: taskName, open: true });
-  const closeConfirm = () => setConfirm((current) => ({ ...current, open: false }));
-  const confirmTask = tasks.find((task) => task.name === confirm.name);
+  // Run asks first (RunDialog).
+  const onRun = (taskName) => setConfirmName(taskName);
+  const closeConfirm = () => setConfirmName(null);
+  const confirmTask = tasks.find((task) => task.name === confirmName);
   const routine = shown.filter((task) => !task.advanced);
   const advanced = shown.filter((task) => task.advanced);
 
   return (
-    <Box sx={{ mt: 3 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Scheduled jobs
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+    <section className="tw mt-6">
+      <h2 className="mb-2 text-base font-semibold">Scheduled jobs</h2>
+      <p className="mb-3 text-sm text-muted-foreground">
         Beat schedules and their last run. Run shows what the job affects, then queues it; once a worker starts it, it shows in the job console above.
-      </Typography>
+      </p>
       {error && (
-        <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
+        <Notice tone="error" className="mb-3" onDismiss={() => setError(null)}>{error}</Notice>
       )}
       {tasksQuery.isError && tasks.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 1.5 }}>
+        <Notice tone="warning" className="mb-3">
           Couldn&apos;t refresh scheduled jobs. Showing the last known state.
-        </Alert>
+        </Notice>
       )}
       {tasksQuery.isLoading ? (
-        <CircularProgress size={20} />
+        <span role="progressbar" aria-label="Loading scheduled jobs" className="inline-block size-5 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
       ) : tasksQuery.isError && tasks.length === 0 ? (
-        <Typography variant="body2" color="error">Failed to load scheduled tasks.</Typography>
+        <p className="text-sm text-loss">Failed to load scheduled tasks.</p>
       ) : tasks.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">No scheduled tasks configured.</Typography>
+        <p className="text-sm text-muted-foreground">No scheduled tasks configured.</p>
       ) : (
         <>
           <Jobs tasks={routine} pendingNames={pendingNames} onRun={onRun} />
@@ -691,29 +674,29 @@ export default function SchedulesSection({ activeMarkets }) {
             <Jobs tasks={hidden} pendingNames={pendingNames} onRun={onRun} />
           </InactiveMarkets>
           {advanced.length > 0 && (
-            <Box component="section" aria-labelledby="advanced-jobs-heading" sx={{ mt: 2 }}>
-              <Divider textAlign="left">
-                <Typography id="advanced-jobs-heading" variant="overline" color="text.secondary">Advanced</Typography>
-              </Divider>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Run on demand only, or delete data.
-              </Typography>
+            <section aria-labelledby="advanced-jobs-heading" className="mt-4">
+              <div className="mb-1 flex items-center gap-2">
+                <h3 id="advanced-jobs-heading" className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Advanced
+                </h3>
+                <span aria-hidden="true" className="h-px flex-1 bg-border" />
+              </div>
+              <p className="mb-2 text-xs text-muted-foreground">Run on demand only, or delete data.</p>
               <Jobs tasks={advanced} pendingNames={pendingNames} onRun={onRun} />
-            </Box>
+            </section>
           )}
           <RunDialog
             task={confirmTask}
-            open={confirm.open && Boolean(confirmTask)}
-            pending={pendingNames.has(confirm.name)}
+            open={Boolean(confirmTask)}
+            pending={pendingNames.has(confirmName)}
             onCancel={closeConfirm}
             onConfirm={() => {
-              runMutation.mutate(confirm.name);
+              runMutation.mutate(confirmName);
               closeConfirm();
             }}
-            onExited={() => setConfirm({ name: null, open: false })}
           />
         </>
       )}
-    </Box>
+    </section>
   );
 }

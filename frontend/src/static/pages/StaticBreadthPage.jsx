@@ -1,14 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Paper,
-  Tab,
-  Tabs,
-  Typography,
-} from '@mui/material';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
 import BreadthContextStrip from '../../components/Breadth/BreadthContextStrip';
 import BreadthContributorDialog from '../../components/Breadth/BreadthContributorDialog';
@@ -29,6 +22,7 @@ import {
 import { useStaticMarket } from '../StaticMarketContext';
 
 const RANGE_DAYS = { '1M': 31, '3M': 90 };
+const TABS = ['Overview', 'By Group'];
 
 function StaticBreadthPage() {
   const manifestQuery = useStaticManifest();
@@ -79,52 +73,59 @@ function StaticBreadthPage() {
     || (marketEntry.market === 'US' ? 'SPY' : 'Benchmark');
   if (manifestQuery.isLoading || breadthQuery.isLoading) {
     return (
-      <Box display="flex" justifyContent="center" py={8}>
-        <CircularProgress />
-      </Box>
+      <div role="status" aria-label="Loading breadth" className="tw flex justify-center py-16">
+        <span aria-hidden="true" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+      </div>
     );
   }
   if (manifestQuery.isError || breadthQuery.isError) {
-    return <Alert severity="error">Failed to load breadth data.</Alert>;
+    return <Notice tone="error" className="tw">Failed to load breadth data.</Notice>;
   }
   if (breadthQuery.data?.available === false) {
     return (
-      <Alert severity="info">
+      <Notice className="tw">
         {breadthQuery.data?.message || 'No breadth snapshot is available.'}
-      </Alert>
+      </Notice>
     );
   }
 
   const current = payload.current || {};
   const history = payload.history_90d || [];
+  const byGroupDisabled = !attributionAvailable && groupAttribution == null;
   return (
-    <Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}>
-        {displayName} Breadth
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: 12 }}>
+    <div className="tw text-foreground">
+      <h1 className="mb-1 text-2xl font-bold tracking-tight">{displayName} Breadth</h1>
+      <p className="mb-4 text-xs text-muted-foreground">
         Breadth snapshot published {breadthQuery.data.published_at || breadthQuery.data.generated_at}.
-      </Typography>
+      </p>
 
-      <Tabs
-        value={selectedTab}
-        onChange={(_event, value) => setSelectedTab(value)}
-        sx={{ mb: 2, borderBottom: 1, borderColor: 'divider', minHeight: 36 }}
-      >
-        <Tab label="Overview" sx={{ minHeight: 36, fontSize: 12 }} />
-        <Tab
-          label="By Group"
-          sx={{ minHeight: 36, fontSize: 12 }}
-          disabled={!attributionAvailable && groupAttribution == null}
-        />
-      </Tabs>
+      <div role="tablist" aria-label="Breadth views" className="mb-4 flex border-b border-border">
+        {TABS.map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            id={`breadth-tab-${index}`}
+            aria-selected={selectedTab === index}
+            aria-controls={`breadth-panel-${index}`}
+            disabled={index === 1 && byGroupDisabled}
+            onClick={() => setSelectedTab(index)}
+            className={cn(
+              '-mb-px min-h-11 cursor-pointer border-b-2 px-4 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 md:min-h-9',
+              selectedTab === index ? 'border-accent text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {selectedTab === 0 && (
-        <>
-          <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+        <div role="tabpanel" id="breadth-panel-0" aria-labelledby="breadth-tab-0">
+          <div className="mb-4 rounded-lg border border-border bg-surface p-3">
             <BreadthContextStrip row={current} />
-          </Paper>
-          <Box sx={{ height: { xs: 390, md: 460 }, mb: 2 }}>
+          </div>
+          <div className="mb-4 h-[390px] md:h-[460px]">
             <BreadthChart
               breadthData={filteredChartData}
               spyData={filteredBenchmarkData}
@@ -136,26 +137,26 @@ function StaticBreadthPage() {
               availableRanges={['1M', '3M']}
               fillContainer
             />
-          </Box>
+          </div>
           {history.length > 0 && (
-            <Paper variant="outlined">
-              <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
-                  Recent Sessions
-                </Typography>
-              </Box>
+            <section className="rounded-lg border border-border bg-surface">
+              <h2 className="border-b border-border p-3 text-[13px] font-bold">Recent Sessions</h2>
               <BreadthHistoryTable
                 rows={history}
                 maxRows={20}
                 contributorDates={contributorDrilldown.availableDates}
                 onContributorCellClick={contributorDrilldown.open}
               />
-            </Paper>
+            </section>
           )}
-        </>
+        </div>
       )}
 
-      {selectedTab === 1 && <BreadthGroupAttribution attribution={groupAttribution} />}
+      {selectedTab === 1 && (
+        <div role="tabpanel" id="breadth-panel-1" aria-labelledby="breadth-tab-1">
+          <BreadthGroupAttribution attribution={groupAttribution} />
+        </div>
+      )}
       <BreadthContributorDialog
         open={Boolean(contributorDrilldown.selected)}
         metric={contributorDrilldown.selected?.metric}
@@ -167,7 +168,7 @@ function StaticBreadthPage() {
         onRetry={() => contributorDrilldown.dialogQuery.refetch()}
         onClose={contributorDrilldown.close}
       />
-    </Box>
+    </div>
   );
 }
 

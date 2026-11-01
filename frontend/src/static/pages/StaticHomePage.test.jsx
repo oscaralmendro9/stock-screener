@@ -340,8 +340,8 @@ describe('StaticHomePage', () => {
     expect(screen.queryByText('SUMMARYONLY')).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox', { name: 'Mkt Cap' }));
-    await user.click(await screen.findByRole('option', { name: '>$1B' }));
+    const mktCap = screen.getByRole('combobox', { name: 'Mkt Cap' });
+    await user.selectOptions(mktCap, within(mktCap).getByRole('option', { name: '>$1B' }));
 
     await waitFor(() => {
       expect(screen.queryByText('0700.HK')).not.toBeInTheDocument();

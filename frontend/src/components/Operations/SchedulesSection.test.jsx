@@ -135,9 +135,9 @@ describe('SchedulesSection', () => {
     expect(within(rowFor('Weekly Full Refresh')).getByText('Failed')).toBeInTheDocument();
     expect(within(rowFor('Weekly Full Refresh')).getByText('db locked')).toBeInTheDocument();
     // No recorded outcome is not a failure, and must not look like Queued.
-    const unknown = within(rowFor('Monthly Price Data Cleanup')).getByText('Unknown').closest('.MuiChip-root');
-    expect(unknown).toHaveClass('MuiChip-outlined');
-    expect(unknown).not.toHaveClass('MuiChip-colorWarning');
+    const unknown = within(rowFor('Monthly Price Data Cleanup')).getByText('Unknown').closest('[data-tone]');
+    expect(unknown).toHaveAttribute('data-variant', 'outlined');
+    expect(unknown).not.toHaveAttribute('data-tone', 'warning');
     expect(within(rowFor('Weekly Universe Refresh (US)')).getByText('Never')).toBeInTheDocument();
   });
 
@@ -702,11 +702,11 @@ describe('SchedulesSection', () => {
       renderSection();
 
       const destructive = await screen.findByRole('button', { name: 'Run Monthly Price Data Cleanup now' });
-      expect(destructive).toHaveClass('MuiIconButton-colorError');
-      expect(screen.getByRole('button', { name: 'Run Weekly Scan Cleanup now' })).toHaveClass('MuiIconButton-colorPrimary');
+      expect(destructive).toHaveAttribute('data-tone', 'danger');
+      expect(screen.getByRole('button', { name: 'Run Weekly Scan Cleanup now' })).toHaveAttribute('data-tone', 'default');
       fireEvent.click(destructive);
       const dialog = await screen.findByRole('dialog', { name: 'Run Monthly Price Data Cleanup?' });
-      expect(within(dialog).getByRole('button', { name: 'Run' })).toHaveClass('MuiButton-containedError');
+      expect(within(dialog).getByRole('button', { name: 'Run' })).toHaveAttribute('data-tone', 'danger');
     });
   });
 

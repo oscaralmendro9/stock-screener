@@ -1,9 +1,4 @@
 import {
-  Box, Chip, Paper, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, Typography,
-} from '@mui/material';
-
-import {
   explanationMap, formatSocialScore, socialCoverage, socialStateLabel,
 } from './socialSignalPresentation';
 
@@ -11,50 +6,63 @@ const HEADINGS = [
   'Symbol', 'Market', 'Queue', 'Social', 'Confirmation', 'Mentions', 'Authors', 'Setup',
   'RS', 'Group', 'Theme', 'State', 'Freshness',
 ];
+const TONE = { success: 'text-gain', warning: 'text-warning', error: 'text-loss' };
+const TD = 'border-b border-border px-2 py-1.5';
 
 export default function SocialSignalsTable({ title, items = [], window, onSelect }) {
   if (!items.length) return null;
   return (
-    <Box sx={{ mb: 2 }}>
-      {title ? <Typography variant="subtitle2" sx={{ mb: 0.75 }}>{title}</Typography> : null}
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={title || 'Ranked Social Signals'}>
-          <TableHead><TableRow>{HEADINGS.map((heading) => (
-            <TableCell key={heading}>{heading}</TableCell>
-          ))}</TableRow></TableHead>
-          <TableBody>
+    <div className="tw mb-4 text-foreground">
+      {title ? <h3 className="mb-1.5 text-sm font-semibold">{title}</h3> : null}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table aria-label={title || 'Ranked Social Signals'} className="w-full border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr>
+              {HEADINGS.map((heading) => (
+                <th key={heading} scope="col" className="border-b border-border px-2 py-2 text-left text-xs font-semibold whitespace-nowrap text-muted-foreground">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
             {items.map((item) => {
               const explanation = explanationMap(item);
               const coverage = socialCoverage(item, window);
               return (
-                <TableRow
-                  hover key={item.candidate_key} tabIndex={0}
+                <tr
+                  key={item.candidate_key}
+                  tabIndex={0}
                   onClick={() => onSelect?.(item)}
                   onKeyDown={(event) => event.key === 'Enter' && onSelect?.(item)}
-                  sx={{ cursor: 'pointer' }}
+                  className="cursor-pointer outline-none hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 >
-                  <TableCell><Typography fontWeight={700}>{item.canonical_symbol}</Typography></TableCell>
-                  <TableCell>{item.market || 'Global'}</TableCell>
-                  <TableCell>{formatSocialScore(item.queue_score)}</TableCell>
-                  <TableCell>{formatSocialScore(item.social_score)}</TableCell>
-                  <TableCell>{formatSocialScore(item.confirmation_score)}</TableCell>
-                  <TableCell>{item.mention_count}</TableCell>
-                  <TableCell>{explanation.author_count ?? '—'}</TableCell>
-                  <TableCell>{explanation.readiness || formatSocialScore(explanation.setup_score)}</TableCell>
-                  <TableCell>{formatSocialScore(explanation.rs_rating_3m ?? explanation.rs_rating_1m)}</TableCell>
-                  <TableCell>{explanation.group_rank ?? '—'}</TableCell>
-                  <TableCell>{explanation.theme || explanation.linked_theme || '—'}</TableCell>
-                  <TableCell><Chip size="small" label={socialStateLabel(item.state)} /></TableCell>
-                  <TableCell>
-                    <Typography variant="caption" display="block">{coverage.label}</Typography>
-                    <Typography variant="caption" color={`${coverage.tone}.main`}>{coverage.detail}</Typography>
-                  </TableCell>
-                </TableRow>
+                  <td className={`${TD} font-bold`}>{item.canonical_symbol}</td>
+                  <td className={TD}>{item.market || 'Global'}</td>
+                  <td className={`${TD} tabular-nums`}>{formatSocialScore(item.queue_score)}</td>
+                  <td className={`${TD} tabular-nums`}>{formatSocialScore(item.social_score)}</td>
+                  <td className={`${TD} tabular-nums`}>{formatSocialScore(item.confirmation_score)}</td>
+                  <td className={`${TD} tabular-nums`}>{item.mention_count}</td>
+                  <td className={`${TD} tabular-nums`}>{explanation.author_count ?? '—'}</td>
+                  <td className={TD}>{explanation.readiness || formatSocialScore(explanation.setup_score)}</td>
+                  <td className={`${TD} tabular-nums`}>{formatSocialScore(explanation.rs_rating_3m ?? explanation.rs_rating_1m)}</td>
+                  <td className={`${TD} tabular-nums`}>{explanation.group_rank ?? '—'}</td>
+                  <td className={TD}>{explanation.theme || explanation.linked_theme || '—'}</td>
+                  <td className={TD}>
+                    <span className="inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] whitespace-nowrap">
+                      {socialStateLabel(item.state)}
+                    </span>
+                  </td>
+                  <td className={TD}>
+                    <span className="block text-[11px]">{coverage.label}</span>
+                    <span className={`text-[11px] ${TONE[coverage.tone] || 'text-muted-foreground'}`}>{coverage.detail}</span>
+                  </td>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

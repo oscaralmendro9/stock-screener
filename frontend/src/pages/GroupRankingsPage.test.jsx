@@ -22,8 +22,10 @@ function renderGroupRankingsPage() {
 }
 
 async function selectGlobalMarket(user, optionName) {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: /market selector/i }));
-  await user.click(await screen.findByRole('option', { name: optionName }));
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: /market selector/i }),
+    await screen.findByRole('option', { name: optionName }),
+  );
 }
 
 const getGroupMatrix = vi.fn();
@@ -326,17 +328,17 @@ describe('GroupRankingsPage', () => {
       'down-soft',
       'down-strong',
     ]);
-    // Translucent success/error tints from the dark test theme; text keeps its normal colour.
-    const tint = (cell) => getComputedStyle(cell).backgroundColor;
-    expect(tint(highCells[2])).toMatch(/^rgba\(46, 189, 133, /);
-    expect(tint(highCells[3])).toMatch(/^rgba\(46, 189, 133, /);
-    expect(tint(boundaryCells[2])).toMatch(/^rgba\(246, 70, 93, /);
-    expect(tint(boundaryCells[3])).toMatch(/^rgba\(246, 70, 93, /);
-    const opacity = (cell) => Number(tint(cell).match(/, ([\d.]+)\)$/)[1]);
+    // Translucent gain/loss token tints, stronger at the extremes; text keeps its normal colour.
+    const tint = (cell) => cell.className.match(/\bbg-(gain|loss)\/(\d+)\b/);
+    expect(tint(highCells[2])[1]).toBe('gain');
+    expect(tint(highCells[3])[1]).toBe('gain');
+    expect(tint(boundaryCells[2])[1]).toBe('loss');
+    expect(tint(boundaryCells[3])[1]).toBe('loss');
+    const opacity = (cell) => Number(tint(cell)[2]);
     expect(opacity(highCells[2])).toBeGreaterThan(opacity(highCells[3]));
     expect(opacity(boundaryCells[2])).toBeGreaterThan(opacity(boundaryCells[3]));
-    expect(tint(highCells[5])).toBe('rgba(0, 0, 0, 0)');
-    expect(highCells[2]).not.toHaveStyle({ color: '#fff' });
+    expect(tint(highCells[5])).toBeNull();
+    expect(highCells[2].className).not.toMatch(/\btext-(gain|loss|white|foreground)\b/);
     expect(boundaryCells[10]).not.toHaveAttribute('data-rs-tone');
   });
 
@@ -783,7 +785,7 @@ describe('GroupRankingsPage', () => {
     expect(await screen.findByText(/Error loading rankings: ranking failure/)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Matrix' })).toBeInTheDocument();
     expect(getGroupMatrix).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('tab', { name: 'Matrix' }));
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Matrix' }));
     expect(await screen.findByText(/IBD classifications are not available/)).toBeInTheDocument();
   });
 });

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 
 import {
   getOptionsCommandCenter,
@@ -13,6 +15,18 @@ import OptionsCommandCenterView from '../features/options/OptionsCommandCenterVi
 import { optionsCommandCenterQueryKey } from '../features/options/optionsContract';
 
 const commandKey = optionsCommandCenterQueryKey({ mode: 'live', runId: 'published' });
+
+function CommandCenterSkeleton() {
+  const block = 'rounded-md bg-surface-subtle motion-safe:animate-pulse';
+  return (
+    <div className="tw flex flex-col gap-3" aria-busy="true" aria-label="Loading options analytics">
+      <div className={`${block} h-8 w-72 max-w-full`} />
+      <div className={`${block} h-4 w-96 max-w-full`} />
+      <div className={`${block} mt-2 h-10`} />
+      {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className={`${block} h-9`} />)}
+    </div>
+  );
+}
 
 export default function OptionsPage() {
   const navigate = useNavigate();
@@ -89,47 +103,48 @@ export default function OptionsPage() {
   }, [accepted, queryClient, taskQuery.data, taskQuery.isError]);
 
   if (commandQuery.isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
+    return <CommandCenterSkeleton />;
   }
+  const notFound = commandQuery.error?.response?.status === 404;
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+    <div className="tw flex flex-col gap-2">
+      <div className="flex justify-end">
         <Button
-          size="small"
-          variant="outlined"
-          startIcon={<RefreshIcon />}
+          variant="secondary"
+          size="sm"
           aria-label="Refresh options analytics"
           disabled={refreshMutation.isPending || Boolean(accepted)}
           onClick={() => refreshMutation.mutate()}
         >
+          <RefreshCw aria-hidden="true" className={accepted ? 'motion-safe:animate-spin' : undefined} />
           Refresh
         </Button>
-      </Box>
+      </div>
       {accepted && (
-        <Alert severity="info" sx={{ mb: 1 }}>
+        <Notice tone="info">
           Accepted as task {accepted.taskId}. The published view will update only after the new run passes quality checks.
-        </Alert>
+        </Notice>
       )}
       {refreshMutation.isError && (
-        <Alert severity="error" sx={{ mb: 1 }}>Refresh could not be queued.</Alert>
+        <Notice tone="error">Refresh could not be queued.</Notice>
       )}
       {refreshOutcome && (
-        <Alert severity="error" sx={{ mb: 1 }}>{refreshOutcome}</Alert>
+        <Notice tone="error">{refreshOutcome}</Notice>
       )}
       {commandQuery.isError ? (
-        <Alert severity={commandQuery.error?.response?.status === 404 ? 'info' : 'error'}>
-          {commandQuery.error?.response?.status === 404
+        <Notice tone={notFound ? 'info' : 'error'}>
+          {notFound
             ? 'No published options snapshot yet. Refresh to create one.'
             : 'Could not load the published options snapshot.'}
-        </Alert>
+        </Notice>
       ) : commandQuery.data.items.length === 0 ? (
-        <Typography>No current Candidates or Leaders have published options analytics.</Typography>
+        <p className="text-sm">No current Candidates or Leaders have published options analytics.</p>
       ) : (
         <OptionsCommandCenterView
           data={commandQuery.data}
           onOpenSymbol={(symbol) => navigate(`/options/${encodeURIComponent(symbol)}`)}
         />
       )}
-    </Box>
+    </div>
   );
 }

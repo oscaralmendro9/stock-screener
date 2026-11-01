@@ -1,38 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Box,
-  CircularProgress,
-  IconButton,
-  Tooltip,
-  TextField,
-  Select,
-  MenuItem,
-  Switch,
-  Chip,
-  Alert,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Pencil, Plus, Save, Trash2, X } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
+import { Pill, Spinner } from '../../features/themes/themeUi';
+import { tdClass, thClass } from '../../features/themes/themeClasses';
 import {
   getContentSources,
   addContentSource,
@@ -187,370 +161,182 @@ export function ManageSourcesContent() {
     return new Date(dateString).toLocaleString();
   };
 
-  return (
+  const cellInput = 'h-8 w-full rounded-md border border-border bg-surface px-2 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const numberInput = 'h-8 w-16 rounded-md border border-border bg-surface px-1 text-center font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const iconButton = 'grid size-8 cursor-pointer place-items-center rounded-md outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
+
+  // The editable cells shared by the new-source row and an edited row.
+  const editorCells = (form, setForm, togglePipeline) => (
     <>
+      <td className={tdClass}>
+        <input aria-label="Source name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Source name" className={cellInput} />
+      </td>
+      <td className={tdClass}>
+        <select aria-label="Source type" value={form.source_type} onChange={(e) => setForm({ ...form, source_type: e.target.value })} className={cellInput}>
+          {SOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+      </td>
+      <td className={tdClass}>
+        <input aria-label="Source URL" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="URL" className={cellInput} />
+      </td>
+      <td className={tdClass}>
+        <span className="flex gap-3">
+          {PIPELINES.map((p) => (
+            <label key={p.value} className="flex cursor-pointer items-center gap-1 text-[11px]">
+              <input type="checkbox" checked={form.pipelines?.includes(p.value)} onChange={() => togglePipeline(p.value)} className="size-4 cursor-pointer accent-accent" />
+              {p.label}
+            </label>
+          ))}
+        </span>
+      </td>
+      <td className={cn(tdClass, 'text-center')}>
+        <input aria-label="Priority" type="number" min={1} max={100} value={form.priority} onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) || 50 })} className={numberInput} />
+      </td>
+      <td className={cn(tdClass, 'text-center')}>
+        <input aria-label="Fetch interval in minutes" type="number" min={1} value={form.fetch_interval_minutes} onChange={(e) => setForm({ ...form, fetch_interval_minutes: parseInt(e.target.value) || 60 })} className={numberInput} />
+      </td>
+      <td className={cn(tdClass, 'text-center')}>
+        <input aria-label="Active" type="checkbox" role="switch" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="size-4 cursor-pointer accent-accent" />
+      </td>
+    </>
+  );
+
+  return (
+    <div className="tw text-foreground">
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Notice tone="error" className="mb-4" onDismiss={() => setError(null)}>
           {error}
-        </Alert>
+        </Notice>
       )}
 
       {isLoading ? (
-        <Box display="flex" justifyContent="center" p={4}>
-          <CircularProgress />
-        </Box>
+        <div className="flex justify-center p-8"><Spinner label="Loading sources" /></div>
       ) : (
         <>
           {!isAddingNew && (
-            <Box mb={2}>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setIsAddingNew(true)}
-              >
-                Add New Source
-              </Button>
-            </Box>
+            <Button size="sm" className="mb-4" onClick={() => setIsAddingNew(true)}>
+              <Plus aria-hidden="true" />
+              Add New Source
+            </Button>
           )}
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
-                  <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
-                  <TableCell sx={{ minWidth: 100 }}>Type</TableCell>
-                  <TableCell sx={{ minWidth: 200 }}>URL</TableCell>
-                  <TableCell sx={{ minWidth: 150 }}>Pipelines</TableCell>
-                  <TableCell align="center" sx={{ minWidth: 80 }}>Priority</TableCell>
-                  <TableCell align="center" sx={{ minWidth: 100 }}>Interval (min)</TableCell>
-                  <TableCell align="center" sx={{ minWidth: 80 }}>Active</TableCell>
-                  <TableCell sx={{ minWidth: 160 }}>Last Success</TableCell>
-                  <TableCell align="right" sx={{ minWidth: 80 }}>Items</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th scope="col" className={cn(thClass(), 'min-w-[100px]')}>Actions</th>
+                  <th scope="col" className={cn(thClass(), 'min-w-[150px]')}>Name</th>
+                  <th scope="col" className={cn(thClass(), 'min-w-[100px]')}>Type</th>
+                  <th scope="col" className={cn(thClass(), 'min-w-[200px]')}>URL</th>
+                  <th scope="col" className={cn(thClass(), 'min-w-[150px]')}>Pipelines</th>
+                  <th scope="col" className={cn(thClass('center'), 'min-w-20')}>Priority</th>
+                  <th scope="col" className={cn(thClass('center'), 'min-w-[100px]')}>Interval (min)</th>
+                  <th scope="col" className={cn(thClass('center'), 'min-w-20')}>Active</th>
+                  <th scope="col" className={cn(thClass(), 'min-w-40')}>Last Success</th>
+                  <th scope="col" className={cn(thClass('right'), 'min-w-20')}>Items</th>
+                </tr>
+              </thead>
+              <tbody>
                 {isAddingNew && (
-                  <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                    <TableCell>
-                      <Box display="flex" gap={0.5}>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={handleAddNew}
-                          disabled={addMutation.isPending}
-                        >
-                          <SaveIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" onClick={handleCancelAdd}>
-                          <CancelIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        value={newSourceData.name}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, name: e.target.value })}
-                        placeholder="Source name"
-                        fullWidth
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        size="small"
-                        value={newSourceData.source_type}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, source_type: e.target.value })}
-                        fullWidth
-                      >
-                        {SOURCE_TYPES.map((t) => (
-                          <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
-                        ))}
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        value={newSourceData.url}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, url: e.target.value })}
-                        placeholder="URL"
-                        fullWidth
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <FormGroup row>
-                        {PIPELINES.map((p) => (
-                          <FormControlLabel
-                            key={p.value}
-                            control={
-                              <Checkbox
-                                size="small"
-                                checked={newSourceData.pipelines?.includes(p.value)}
-                                onChange={() => handleNewPipelineToggle(p.value)}
-                              />
-                            }
-                            label={<Typography variant="caption">{p.label}</Typography>}
-                          />
-                        ))}
-                      </FormGroup>
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        type="number"
-                        value={newSourceData.priority}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, priority: parseInt(e.target.value) || 50 })}
-                        inputProps={{ min: 1, max: 100, style: { width: 60, textAlign: 'center' } }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        type="number"
-                        value={newSourceData.fetch_interval_minutes}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, fetch_interval_minutes: parseInt(e.target.value) || 60 })}
-                        inputProps={{ min: 1, style: { width: 60, textAlign: 'center' } }}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Switch
-                        checked={newSourceData.is_active}
-                        onChange={(e) => setNewSourceData({ ...newSourceData, is_active: e.target.checked })}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell align="right">-</TableCell>
-                  </TableRow>
+                  <tr className="bg-surface-subtle">
+                    <td className={tdClass}>
+                      <span className="flex gap-1">
+                        <button type="button" aria-label="Save new source" onClick={handleAddNew} disabled={addMutation.isPending} className={cn(iconButton, 'text-accent')}>
+                          <Save aria-hidden="true" className="size-4" />
+                        </button>
+                        <button type="button" aria-label="Cancel new source" onClick={handleCancelAdd} className={iconButton}>
+                          <X aria-hidden="true" className="size-4" />
+                        </button>
+                      </span>
+                    </td>
+                    {editorCells(newSourceData, setNewSourceData, handleNewPipelineToggle)}
+                    <td className={tdClass}>-</td>
+                    <td className={cn(tdClass, 'text-right')}>-</td>
+                  </tr>
                 )}
 
-                {sources?.map((source) => (
-                  <TableRow
-                    key={source.id}
-                    sx={{
-                      opacity: source.is_active ? 1 : 0.6,
-                      backgroundColor: editingId === source.id ? 'action.selected' : 'inherit',
-                    }}
-                  >
-                    <TableCell>
-                      {source.social_managed ? (
-                        <Chip size="small" color="info" label="Managed in Operations → Social Sources" />
-                      ) : editingId === source.id ? (
-                        <Box display="flex" gap={0.5}>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={handleSaveEdit}
-                            disabled={updateMutation.isPending}
-                          >
-                            <SaveIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton size="small" onClick={handleCancelEdit}>
-                            <CancelIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      ) : (
-                        <Box display="flex" gap={0.5}>
-                          <Tooltip title="Edit">
-                            <IconButton size="small" onClick={() => handleStartEdit(source)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          {source.is_active && (
-                            <Tooltip title="Deactivate">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDelete(source.id)}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {editingId === source.id ? (
-                        <TextField
-                          size="small"
-                          value={editFormData.name}
-                          onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                          fullWidth
-                        />
-                      ) : (
-                        <Typography variant="body2" fontWeight="medium">
-                          {source.name}
-                        </Typography>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {editingId === source.id ? (
-                        <Select
-                          size="small"
-                          value={editFormData.source_type}
-                          onChange={(e) => setEditFormData({ ...editFormData, source_type: e.target.value })}
-                          fullWidth
-                        >
-                          {SOURCE_TYPES.map((t) => (
-                            <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
-                          ))}
-                        </Select>
-                      ) : (
-                        <Chip
-                          label={source.source_type}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {editingId === source.id ? (
-                        <TextField
-                          size="small"
-                          value={editFormData.url}
-                          onChange={(e) => setEditFormData({ ...editFormData, url: e.target.value })}
-                          fullWidth
-                        />
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            maxWidth: 200,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={source.url}
-                        >
-                          {source.url}
-                        </Typography>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {editingId === source.id ? (
-                        <FormGroup row>
-                          {PIPELINES.map((p) => (
-                            <FormControlLabel
-                              key={p.value}
-                              control={
-                                <Checkbox
-                                  size="small"
-                                  checked={editFormData.pipelines?.includes(p.value)}
-                                  onChange={() => handleEditPipelineToggle(p.value)}
-                                />
-                              }
-                              label={<Typography variant="caption">{p.label}</Typography>}
-                            />
-                          ))}
-                        </FormGroup>
-                      ) : (
-                        <Box display="flex" gap={0.5}>
-                          {(source.pipelines || ['technical', 'fundamental']).map((p) => (
-                            <Chip
-                              key={p}
-                              label={p === 'technical' ? 'Tech' : 'Fund'}
-                              size="small"
-                              color={p === 'technical' ? 'primary' : 'secondary'}
-                              variant="outlined"
-                              sx={{ fontSize: '10px', height: 20 }}
-                            />
-                          ))}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    <TableCell align="center">
-                      {editingId === source.id ? (
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={editFormData.priority}
-                          onChange={(e) => setEditFormData({ ...editFormData, priority: parseInt(e.target.value) || 50 })}
-                          inputProps={{ min: 1, max: 100, style: { width: 60, textAlign: 'center' } }}
-                        />
-                      ) : (
-                        source.priority
-                      )}
-                    </TableCell>
-
-                    <TableCell align="center">
-                      {editingId === source.id ? (
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={editFormData.fetch_interval_minutes}
-                          onChange={(e) => setEditFormData({ ...editFormData, fetch_interval_minutes: parseInt(e.target.value) || 60 })}
-                          inputProps={{ min: 1, style: { width: 60, textAlign: 'center' } }}
-                        />
-                      ) : (
-                        `${source.fetch_interval_minutes}`
-                      )}
-                    </TableCell>
-
-                    <TableCell align="center">
-                      {editingId === source.id ? (
-                        <Switch
-                          checked={editFormData.is_active}
-                          onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.checked })}
-                          size="small"
-                        />
-                      ) : (
-                        <Chip
-                          label={source.is_active ? 'Active' : 'Inactive'}
-                          size="small"
-                          color={source.is_active ? 'success' : 'default'}
-                        />
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <Box display="flex" flexDirection="column" alignItems="flex-start" gap={0.5}>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDate(source.last_success_at)}
-                        </Typography>
-                        {source.consecutive_failures > 0 && (
-                          <Tooltip title={`${source.last_error} (${formatDate(source.last_error_at)})`}>
-                            <Chip
-                              size="small"
-                              color="error"
-                              label={`Failed ${source.consecutive_failures}× in a row`}
-                            />
-                          </Tooltip>
+                {sources?.map((source) => {
+                  const editing = editingId === source.id;
+                  return (
+                    <tr key={source.id} className={cn(!source.is_active && 'opacity-60', editing && 'bg-surface-subtle')}>
+                      <td className={tdClass}>
+                        {source.social_managed ? (
+                          <Pill>Managed in Operations → Social Sources</Pill>
+                        ) : editing ? (
+                          <span className="flex gap-1">
+                            <button type="button" aria-label="Save source" onClick={handleSaveEdit} disabled={updateMutation.isPending} className={cn(iconButton, 'text-accent')}>
+                              <Save aria-hidden="true" className="size-4" />
+                            </button>
+                            <button type="button" aria-label="Cancel edit" onClick={handleCancelEdit} className={iconButton}>
+                              <X aria-hidden="true" className="size-4" />
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="flex gap-1">
+                            <button type="button" aria-label="Edit" title="Edit" onClick={() => handleStartEdit(source)} className={iconButton}>
+                              <Pencil aria-hidden="true" className="size-4" />
+                            </button>
+                            {source.is_active && (
+                              <button type="button" aria-label="Deactivate" title="Deactivate" onClick={() => handleDelete(source.id)} className={cn(iconButton, 'text-loss')}>
+                                <Trash2 aria-hidden="true" className="size-4" />
+                              </button>
+                            )}
+                          </span>
                         )}
-                      </Box>
-                    </TableCell>
+                      </td>
 
-                    <TableCell align="right">
-                      {source.total_items_fetched}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                      {editing ? editorCells(editFormData, setEditFormData, handleEditPipelineToggle) : (
+                        <>
+                          <td className={cn(tdClass, 'font-medium')}>{source.name}</td>
+                          <td className={tdClass}><Pill tone="muted">{source.source_type}</Pill></td>
+                          <td className={tdClass}><span className="block max-w-[200px] truncate" title={source.url}>{source.url}</span></td>
+                          <td className={tdClass}>
+                            <span className="flex gap-1">
+                              {(source.pipelines || ['technical', 'fundamental']).map((p) => (
+                                <Pill key={p} tone="muted" className="h-5">{p === 'technical' ? 'Tech' : 'Fund'}</Pill>
+                              ))}
+                            </span>
+                          </td>
+                          <td className={cn(tdClass, 'text-center tabular-nums')}>{source.priority}</td>
+                          <td className={cn(tdClass, 'text-center tabular-nums')}>{`${source.fetch_interval_minutes}`}</td>
+                          <td className={cn(tdClass, 'text-center')}>
+                            <Pill tone={source.is_active ? 'gain' : 'muted'}>{source.is_active ? 'Active' : 'Inactive'}</Pill>
+                          </td>
+                        </>
+                      )}
+
+                      <td className={tdClass}>
+                        <span className="flex flex-col items-start gap-1">
+                          <span className="text-[11px] text-muted-foreground">{formatDate(source.last_success_at)}</span>
+                          {source.consecutive_failures > 0 && (
+                            <Pill
+                              tone="loss"
+                              title={`${source.last_error} (${formatDate(source.last_error_at)})`}
+                              aria-label={`${source.last_error} (${formatDate(source.last_error_at)})`}
+                            >
+                              {`Failed ${source.consecutive_failures}× in a row`}
+                            </Pill>
+                          )}
+                        </span>
+                      </td>
+
+                      <td className={cn(tdClass, 'text-right tabular-nums')}>{source.total_items_fetched}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
-    </>
+    </div>
   );
 }
 
 function ManageSourcesModal({ open, onClose }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Manage Content Sources</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent dividers>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Manage Content Sources" size="xl">
         <ManageSourcesContent />
       </DialogContent>
     </Dialog>

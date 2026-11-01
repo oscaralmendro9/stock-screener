@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createTheme, ThemeProvider } from '@mui/material';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,9 +11,9 @@ function renderPulse(enabled = true, market = 'HK') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <SocialThemePulse enabled={enabled} market={market} />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>,
   );
 }

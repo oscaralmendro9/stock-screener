@@ -1,10 +1,20 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Box, Paper, Popper, Typography } from '@mui/material';
+import { createPortal } from 'react-dom';
 import { stockMetadataRows } from './groupMatrixStockDetails';
-
+const GAP = 8;
+// Above the tile when it fits, else below; clamped inside the viewport.
+function placeAbove(anchor, popup) {
+  const rect = anchor.getBoundingClientRect();
+  const { offsetWidth: width, offsetHeight: height } = popup;
+  const preferred = rect.top - height - GAP >= GAP ? rect.top - height - GAP : rect.bottom + GAP;
+  const top = Math.max(GAP, Math.min(preferred, window.innerHeight - height - GAP));
+  const left = Math.max(GAP, Math.min(rect.left, window.innerWidth - width - GAP));
+  return { top, left };
+}
 // One delegated inspector for the map avoids a tooltip instance on every tile.
 export default function GroupMatrixTileInspector({ stocks, data, children }) {
   const [anchor, setAnchor] = useState(null);
+  const [position, setPosition] = useState(null);
   const popupRef = useRef(null);
   const id = useId();
   const bySymbol = useMemo(() => new Map(stocks.map(stock => [stock.symbol, stock])), [stocks]);
@@ -13,6 +23,7 @@ export default function GroupMatrixTileInspector({ stocks, data, children }) {
   useLayoutEffect(() => {
     if (!anchor || !stock) return undefined;
     anchor.setAttribute('aria-describedby', id);
+    if (popupRef.current) setPosition(placeAbove(anchor, popupRef.current));
     return () => anchor.removeAttribute('aria-describedby');
   }, [anchor, stock, id]);
   const inspect = event => {
@@ -24,23 +35,24 @@ export default function GroupMatrixTileInspector({ stocks, data, children }) {
     if (related instanceof Node && (anchor?.contains(related) || popupRef.current?.contains(related))) return;
     if (document.activeElement !== anchor) setAnchor(null);
   };
-  return <Box onMouseOver={inspect} onFocusCapture={inspect} onMouseOut={leave}
+  return <div onMouseOver={inspect} onFocusCapture={inspect} onMouseOut={leave}
     onBlurCapture={() => setAnchor(null)} onScrollCapture={event => { if (!popupRef.current?.contains(event.target)) setAnchor(null); }}
     onClickCapture={() => setAnchor(null)}
     onKeyDown={event => { if (event.key === 'Escape') setAnchor(null); }}>
     {children}
-    <Popper id={id} open={Boolean(stock)} anchorEl={anchor} placement="top-start" sx={{ zIndex: 1500 }}
-      modifiers={[{name:'offset', options:{offset:[0,8]}}]}>
-      {stock && <Paper ref={popupRef} onMouseLeave={leave}
-        sx={{ p:1.5, width:360, maxWidth:'90vw', maxHeight:'70vh', overflowY:'auto', border:'1px solid', borderColor:'divider' }}>
-        <Typography variant="subtitle2">{stock.symbol} · {stock.company_name || stock.symbol}</Typography>
-        <Box component="dl" sx={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0.5, my:1 }}>
-          {stockMetadataRows(stock, data).map(([label,value]) => <Box key={label} sx={{display:'contents'}}>
-            <Typography component="dt" variant="caption" color="text.secondary">{label}</Typography>
-            <Typography component="dd" variant="caption" sx={{m:0, overflowWrap:'anywhere'}}>{value}</Typography>
-          </Box>)}
-        </Box>
-      </Paper>}
-    </Popper>
-  </Box>;
+    {stock && createPortal(
+      <div id={id} role="tooltip" ref={popupRef} onMouseLeave={leave}
+        className="tw fixed z-toast max-h-[70vh] w-[360px] max-w-[90vw] overflow-y-auto rounded-md border border-border bg-surface p-3 text-foreground shadow-md"
+        style={position ? { top: position.top, left: position.left } : { top: 0, left: 0, visibility: 'hidden' }}>
+        <p className="text-sm font-semibold">{stock.symbol} · {stock.company_name || stock.symbol}</p>
+        <dl className="my-2 grid grid-cols-2 gap-1 text-[11px]">
+          {stockMetadataRows(stock, data).map(([label,value]) => <div key={label} className="contents">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="m-0 [overflow-wrap:anywhere] tabular-nums">{value}</dd>
+          </div>)}
+        </dl>
+      </div>,
+      document.body,
+    )}
+  </div>;
 }

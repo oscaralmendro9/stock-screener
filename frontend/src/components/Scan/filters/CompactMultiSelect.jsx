@@ -1,10 +1,13 @@
-import { Box, Autocomplete, TextField, Typography, Chip, IconButton, Tooltip } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
+import { useId, useMemo, useState } from 'react';
+import { Check, ChevronDown, Minus, Plus, X } from 'lucide-react';
+
+import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover';
+import { cn } from '@/lib/cn';
 
 /**
- * Compact multi-select autocomplete for Industry/Sector filters
- * Supports include/exclude mode toggle
+ * Compact multi-select for Industry/Sector filters: picked values show as
+ * removable chips, and a popover lists the options with a search box
+ * (arrow keys move, Enter toggles). Supports an include/exclude mode toggle.
  */
 function CompactMultiSelect({
   label,
@@ -16,7 +19,20 @@ function CompactMultiSelect({
   onModeChange,
   showModeToggle = false,
   maxValues = null,
+  // Inline: the caller labels it (e.g. the screener grid's <label htmlFor=id>),
+  // so the caption row goes and the mode toggle sits beside the input.
+  inline = false,
+  id,
+  // Free text: Enter on a search with no matching option adds what was typed.
+  freeSolo = false,
+  // Shown under the field (e.g. a value count); `error` tones it and the border.
+  helperText = null,
+  error = false,
 }) {
+  const listId = useId();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
   const isExcludeMode = mode === 'exclude';
   const selectedValues = values || [];
   const hasSelectionLimit = Number.isInteger(maxValues) && maxValues > 0;
@@ -25,127 +41,171 @@ function CompactMultiSelect({
     (options?.length ?? 0) > maxValues || selectionLimitReached
   );
 
-  const handleModeToggle = (e) => {
-    e.stopPropagation();
-    if (onModeChange) {
-      onModeChange(isExcludeMode ? 'include' : 'exclude');
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const all = options || [];
+    return needle ? all.filter((option) => String(option).toLowerCase().includes(needle)) : all;
+  }, [options, query]);
+
+  const isDisabled = (option) => selectionLimitReached && !selectedValues.includes(option);
+
+  const toggle = (option) => {
+    if (selectedValues.includes(option)) {
+      onChange(selectedValues.filter((value) => value !== option));
+    } else if (!isDisabled(option)) {
+      const next = [...selectedValues, option];
+      onChange(hasSelectionLimit ? next.slice(0, maxValues) : next);
     }
   };
 
-  return (
-    <Box sx={{ minWidth: 140 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontSize: '0.7rem', flexGrow: 1 }}
-        >
-          {label}
-        </Typography>
-        {showModeToggle && (
-          <Tooltip title={isExcludeMode ? 'Excluding selected (click to include)' : 'Including selected (click to exclude)'}>
-            <IconButton
-              size="small"
-              onClick={handleModeToggle}
-              sx={{
-                p: 0,
-                ml: 0.5,
-                width: 18,
-                height: 18,
-                bgcolor: isExcludeMode ? 'error.main' : 'primary.main',
-                color: isExcludeMode ? 'error.contrastText' : 'primary.contrastText',
-                '&:hover': {
-                  bgcolor: isExcludeMode ? 'error.dark' : 'primary.dark',
-                },
-              }}
-            >
-              {isExcludeMode ? (
-                <RemoveIcon sx={{ fontSize: 14 }} />
-              ) : (
-                <AddIcon sx={{ fontSize: 14 }} />
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-      <Autocomplete
-        multiple
-        size="small"
-        value={selectedValues}
-        onChange={(event, newValue) => onChange(
-          hasSelectionLimit ? newValue.slice(0, maxValues) : newValue,
-        )}
-        options={options || []}
-        disableCloseOnSelect
-        getOptionDisabled={(option) => (
-          selectionLimitReached && !selectedValues.includes(option)
-        )}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder={values?.length ? '' : placeholder}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                minHeight: 28,
-                padding: '2px 6px',
-                fontSize: '0.75rem',
-                ...(isExcludeMode && values?.length > 0 && {
-                  borderColor: 'error.main',
-                  '& fieldset': {
-                    borderColor: 'error.light',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'error.main',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'error.main',
-                  },
-                }),
-              },
-              '& .MuiAutocomplete-input': {
-                padding: '2px 4px !important',
-                fontSize: '0.75rem',
-              },
-            }}
-          />
-        )}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip
-              {...getTagProps({ index })}
-              key={option}
-              label={option}
-              size="small"
-              color={isExcludeMode ? 'error' : 'default'}
-              sx={{
-                height: 20,
-                fontSize: '0.65rem',
-                '& .MuiChip-label': {
-                  px: 0.75,
-                },
-                '& .MuiChip-deleteIcon': {
-                  fontSize: '0.8rem',
-                },
-              }}
-            />
-          ))
-        }
-        sx={{
-          '& .MuiAutocomplete-tag': {
-            margin: '1px',
-          },
-        }}
-      />
-      {showSelectionLimit && (
-        <Typography
-          variant="caption"
-          color={selectionLimitReached ? 'primary.main' : 'text.secondary'}
-          sx={{ display: 'block', mt: 0.25, fontSize: '0.65rem' }}
-        >
-          Up to {maxValues} values
-        </Typography>
+  const handleOpenChange = (next) => {
+    setOpen(next);
+    if (next) {
+      setQuery('');
+      setActive(0);
+    }
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!filtered.length) return;
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive((index) => (index + step + filtered.length) % filtered.length);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const typed = query.trim();
+      if (filtered[active] !== undefined) toggle(filtered[active]);
+      else if (freeSolo && typed && !selectedValues.includes(typed) && !selectionLimitReached) {
+        onChange([...selectedValues, typed]);
+        setQuery('');
+      }
+    }
+  };
+
+  const modeToggle = showModeToggle ? (
+    <button
+      type="button"
+      aria-label={isExcludeMode ? `${label}: excluding selected` : `${label}: including selected`}
+      title={isExcludeMode ? 'Excluding selected (click to include)' : 'Including selected (click to exclude)'}
+      onClick={(event) => {
+        event.stopPropagation();
+        onModeChange?.(isExcludeMode ? 'include' : 'exclude');
+      }}
+      className={cn(
+        'grid size-5 shrink-0 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        inline ? 'mr-1' : 'ml-1',
+        isExcludeMode ? 'bg-loss text-loss-foreground' : 'bg-accent text-accent-foreground',
       )}
-    </Box>
+    >
+      {isExcludeMode ? <Minus aria-hidden="true" className="size-3.5" /> : <Plus aria-hidden="true" className="size-3.5" />}
+    </button>
+  ) : null;
+
+  const activeId = filtered[active] !== undefined ? `${listId}-${active}` : undefined;
+
+  return (
+    <div className={cn('tw text-foreground', inline ? 'flex min-w-0 flex-wrap items-center' : 'min-w-36')}>
+      {inline ? modeToggle : (
+        <div className="mb-1 flex items-center">
+          <span className="grow text-[11px] text-muted-foreground">{label}</span>
+          {modeToggle}
+        </div>
+      )}
+      <div
+        className={cn(
+          'flex min-h-11 min-w-0 flex-wrap items-center gap-0.5 rounded-md border bg-surface p-0.5 md:min-h-7',
+          inline && 'flex-1',
+          (error || (isExcludeMode && selectedValues.length > 0)) ? 'border-loss/60' : 'border-border',
+        )}
+      >
+        {selectedValues.map((value) => (
+          <span
+            key={value}
+            className={cn(
+              'inline-flex h-6 max-w-full items-center gap-0.5 rounded-full pr-0.5 pl-2 text-[11px] md:h-5',
+              isExcludeMode ? 'bg-loss/15 text-loss' : 'bg-surface-subtle',
+            )}
+          >
+            <span className="truncate">{value}</span>
+            <button
+              type="button"
+              aria-label={`Remove ${value}`}
+              onClick={() => onChange(selectedValues.filter((item) => item !== value))}
+              className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:size-4"
+            >
+              <X aria-hidden="true" className="size-3" />
+            </button>
+          </span>
+        ))}
+        <Popover open={open} onOpenChange={handleOpenChange}>
+          <PopoverTrigger
+            id={id}
+            role="combobox"
+            aria-label={inline ? undefined : label}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            className="flex h-10 min-w-6 flex-1 cursor-pointer items-center justify-between gap-1 rounded-sm px-1.5 text-left text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-6"
+          >
+            <span className="truncate">{selectedValues.length ? '' : placeholder}</span>
+            <ChevronDown aria-hidden="true" className="size-3.5 shrink-0" />
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 max-w-[calc(100vw-1rem)] p-1">
+            <input
+              autoFocus
+              type="text"
+              role="combobox"
+              aria-label={`Search ${label}`}
+              aria-autocomplete="list"
+              aria-expanded="true"
+              aria-controls={listId}
+              aria-activedescendant={activeId}
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setActive(0); }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search…"
+              className="mb-1 h-9 w-full rounded-sm font-[inherit] border border-border bg-surface px-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <ul id={listId} role="listbox" aria-multiselectable="true" aria-label={label} className="max-h-64 overflow-y-auto">
+              {filtered.map((option, index) => {
+                const selected = selectedValues.includes(option);
+                const disabled = isDisabled(option);
+                return (
+                  <li
+                    key={option}
+                    id={`${listId}-${index}`}
+                    role="option"
+                    aria-selected={selected}
+                    aria-disabled={disabled ? 'true' : undefined}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => toggle(option)}
+                    className={cn(
+                      'flex min-h-9 cursor-pointer items-center gap-2 rounded-sm px-2 text-xs',
+                      index === active && 'bg-surface-subtle',
+                      disabled && 'cursor-not-allowed opacity-50',
+                    )}
+                  >
+                    <Check aria-hidden="true" className={cn('size-3.5 shrink-0 text-accent', !selected && 'invisible')} />
+                    <span className="min-w-0 break-words">{option}</span>
+                  </li>
+                );
+              })}
+              {!filtered.length && <li className="px-2 py-2 text-xs text-muted-foreground">{freeSolo && query.trim() ? `Press Enter to add “${query.trim()}”` : 'No matches'}</li>}
+            </ul>
+          </PopoverContent>
+        </Popover>
+      </div>
+      {helperText && (
+        <span className={cn('mt-0.5 block basis-full text-[11px] tabular-nums', error ? 'text-loss' : 'text-muted-foreground')}>{helperText}</span>
+      )}
+      {showSelectionLimit && (!inline || selectionLimitReached) && (
+        <span className={cn('mt-0.5 block basis-full text-[11px]', selectionLimitReached ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+          Up to {maxValues} values
+        </span>
+      )}
+    </div>
   );
 }
 

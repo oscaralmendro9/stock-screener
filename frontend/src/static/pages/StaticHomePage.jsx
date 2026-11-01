@@ -1,21 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Grid,
-  MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
 import {
   StaticGenerationExpiredError,
   fetchStaticJson,
@@ -27,7 +13,7 @@ import {
 import { useStaticChartIndex } from '../chartClient';
 import KeyMarketCard from '../../components/MarketScan/KeyMarketCard';
 import StaticChartViewerModal from '../StaticChartViewerModal';
-import RankChangeCell from '../../components/shared/RankChangeCell';
+import RankChange from '../../features/groups/RankChange';
 import TickerCell from '../../components/common/TickerCell';
 import { useStaticMarket } from '../StaticMarketContext';
 import { marketFlag } from '../../utils/marketFlags';
@@ -42,8 +28,8 @@ import { formatSnapshotFreshnessLabel } from '../../utils/snapshotFreshness';
 import { buildCorrectionSurvivorSummary } from '../../features/opportunityState/correctionSurvivorSummary';
 import StaticCotSection from '../components/StaticCotSection';
 
-// Two key-market cards per row stop fitting below ~300px (e.g. a phone at 200% zoom).
-const ONE_COLUMN_WHEN_NARROW = { '@media (max-width: 299.95px)': { flexBasis: '100%', maxWidth: '100%' } };
+const TH = 'sticky top-0 border-b border-border bg-surface px-2 py-2 text-xs font-semibold text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
 
 const EMPTY_RESULTS = [];
 const DEFAULT_TOP_RESULTS = 20;
@@ -202,17 +188,17 @@ function StaticHomePage() {
 
   if (manifestQuery.isLoading || homeQuery.isLoading || scanBundleQuery.isLoading) {
     return (
-      <Box display="flex" justifyContent="center" py={8}>
-        <CircularProgress />
-      </Box>
+      <div role="status" aria-label="Loading snapshot" className="tw flex justify-center py-16">
+        <span aria-hidden="true" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+      </div>
     );
   }
 
   if (manifestQuery.isError || homeQuery.isError || scanBundleQuery.isError) {
     return (
-      <Alert severity="error">
+      <Notice tone="error" className="tw">
         Failed to load the daily snapshot.
-      </Alert>
+      </Notice>
     );
   }
 
@@ -230,31 +216,18 @@ function StaticHomePage() {
   };
 
   return (
-    <Box>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          columnGap: 2,
-          rowGap: 0.5,
-          mb: 2,
-        }}
-      >
-        <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}>
+    <div className="tw text-foreground">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">
           {flag ? `${flag}  ` : ''}{marketDisplay} Snapshot
-        </Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontFamily: 'monospace', fontSize: '11px' }}
-        >
+        </h1>
+        <p className="text-[11px] text-muted-foreground tabular-nums">
           {formatSnapshotFreshnessLabel(freshness)}
-        </Typography>
-      </Box>
+        </p>
+      </div>
 
-      <Grid container spacing={1.5} sx={{ mb: 2 }}>
+      {/* Two key-market cards per row stop fitting below ~300px (e.g. a phone at 200% zoom). */}
+      <div className="mb-4 grid grid-cols-1 gap-3 min-[300px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {(home.key_markets || [])
           .map((item) => ({
             ...item,
@@ -262,11 +235,9 @@ function StaticHomePage() {
           }))
           .filter((item) => item.latest_close != null && item._closes.length > 1)
           .map((item) => (
-            <Grid item xs={6} sm={4} lg={2.4} key={item.symbol} sx={ONE_COLUMN_WHEN_NARROW}>
-              <KeyMarketCard item={item} currency={item.currency} />
-            </Grid>
+            <KeyMarketCard key={item.symbol} item={item} currency={item.currency} />
           ))}
-      </Grid>
+      </div>
 
       <MarketHealthExposure exposure={home?.market_health_exposure} />
 
@@ -283,9 +254,9 @@ function StaticHomePage() {
       ) : null}
 
       {!scanBundleComplete ? (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Notice tone="warning" className="mb-4">
           Scan rankings unavailable
-        </Alert>
+        </Notice>
       ) : null}
 
       {scanBundleComplete ? (
@@ -304,24 +275,19 @@ function StaticHomePage() {
           emptyMessage="No scan candidates match the current filters."
           showRating
           action={(
-            <TextField
-              select
-              size="small"
+            <NativeSelect
               label="Mkt Cap"
               value={marketCapMin}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setMarketCapMin(nextValue === '' ? '' : Number(nextValue));
-              }}
-              sx={{ minWidth: 140 }}
+              onChange={(nextValue) => setMarketCapMin(nextValue === '' ? '' : Number(nextValue))}
+              className="w-36"
             >
-              <MenuItem value="">All</MenuItem>
+              <option value="">All</option>
               {MARKET_CAP_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <option key={option.value} value={option.value}>
                   {option.label}
-                </MenuItem>
+                </option>
               ))}
-            </TextField>
+            </NativeSelect>
           )}
         />
       ) : null}
@@ -342,37 +308,35 @@ function StaticHomePage() {
         />
       ) : null}
 
-      <Paper elevation={0} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
-          Top 10 Groups
-        </Typography>
-        <TableContainer>
-          <Table size="small" sx={{ minWidth: 520 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell align="center">Rank</TableCell>
-                <TableCell>Group</TableCell>
-                <TableCell align="right">1W</TableCell>
-                <TableCell align="right">1M</TableCell>
-                <TableCell>Top Stock</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+      <section className="rounded-lg border border-border p-3">
+        <h2 className="mb-1 text-[13px] font-semibold tracking-wide uppercase">Top 10 Groups</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                <th scope="col" className={`${TH} text-center`}>Rank</th>
+                <th scope="col" className={`${TH} text-left`}>Group</th>
+                <th scope="col" className={`${TH} text-right`}>1W</th>
+                <th scope="col" className={`${TH} text-right`}>1M</th>
+                <th scope="col" className={`${TH} text-left`}>Top Stock</th>
+              </tr>
+            </thead>
+            <tbody>
               {topGroups.map((group) => (
-                <TableRow key={group.industry_group}>
-                  <TableCell align="center" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{group.rank}</TableCell>
-                  <TableCell>{group.industry_group}</TableCell>
-                  <TableCell align="right"><RankChangeCell value={group.rank_change_1w} /></TableCell>
-                  <TableCell align="right"><RankChangeCell value={group.rank_change_1m} /></TableCell>
-                  <TableCell>
+                <tr key={group.industry_group}>
+                  <td className={`${TD} text-center font-semibold tabular-nums`}>{group.rank}</td>
+                  <td className={TD}>{group.industry_group}</td>
+                  <td className={`${TD} text-right`}><RankChange value={group.rank_change_1w} /></td>
+                  <td className={`${TD} text-right`}><RankChange value={group.rank_change_1m} /></td>
+                  <td className={TD}>
                     <TickerCell symbol={group.top_symbol} companyName={group.top_symbol_name} />
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <StaticChartViewerModal
         open={chartModalOpen}
@@ -381,7 +345,7 @@ function StaticHomePage() {
         chartIndex={chartIndexQuery.data}
         navigationSymbols={modalNavigationSymbols}
       />
-    </Box>
+    </div>
   );
 }
 

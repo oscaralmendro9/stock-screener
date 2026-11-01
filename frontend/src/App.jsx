@@ -3,22 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider, removeOldestQuery } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import {
-  AppBar,
-  Box,
-  Container,
-  CssBaseline,
-  ThemeProvider,
-  Toolbar,
-  createTheme,
-} from '@mui/material';
 
 import { STATIC_SITE_MODE } from './config/runtimeMode';
 
 import Layout from './components/Layout/Layout';
 import { BrandMark } from './components/Layout/AppNav';
 import { PageSkeleton } from './components/common/LoadingSkeletons';
-import { getDesignTokens, useColorMode } from './theme';
+import { THEME_COLOR, useColorMode } from './theme';
 import { PipelineProvider } from './contexts/PipelineContext';
 import { MarketProvider } from './contexts/MarketContext';
 import { useMarket } from './contexts/MarketContext';
@@ -38,12 +29,19 @@ import {
   loadOperationsPage,
   loadOptionsPage,
   loadOptionsSymbolPage,
+  loadFuturesPage,
+  loadFuturesDetailPage,
+  loadOptionsChainPage,
   loadScanPage,
   loadStockDetails,
   loadThemesPage,
   loadValidationPage,
+  loadWatchlistsPage,
+  loadCotPage,
+  loadMapsPage,
   loaderForPath,
 } from './pageLoaders';
+import { SectionPage } from './components/Layout/SectionTabs';
 
 // All pages are lazy-loaded so the initial bundle stays free of heavy
 // page-specific chunks (MarketScanPage alone pulls in recharts, ~400KB).
@@ -60,6 +58,12 @@ const ChatbotPage = lazy(loadChatbotPage);
 const OperationsPage = lazy(loadOperationsPage);
 const OptionsPage = lazy(loadOptionsPage);
 const OptionsSymbolPage = lazy(loadOptionsSymbolPage);
+const FuturesPage = lazy(loadFuturesPage);
+const FuturesDetailPage = lazy(loadFuturesDetailPage);
+const OptionsChainPage = lazy(loadOptionsChainPage);
+const WatchlistsPage = lazy(loadWatchlistsPage);
+const CotPage = lazy(loadCotPage);
+const MapsPage = lazy(loadMapsPage);
 const StaticAppShell = lazy(() => import('./static/StaticAppShell'));
 
 // Fetch the landing page's code alongside /app-capabilities rather than after
@@ -100,16 +104,14 @@ function RedirectHomeOnceConfirmed() {
 // while still giving the user immediate visual structure instead of a bare
 // spinner.
 const AppLoadingScreen = ({ label = 'Stock Scanner' }) => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <AppBar position="static">
-      <Toolbar variant="dense" sx={{ minHeight: 52 }}>
-        <BrandMark label={label} />
-      </Toolbar>
-    </AppBar>
-    <Container maxWidth="xl" sx={{ mt: 1 }}>
+  <div className="tw flex min-h-screen flex-col bg-background text-foreground">
+    <header className="flex h-[52px] items-center border-b border-border bg-surface px-4">
+      <BrandMark label={label} />
+    </header>
+    <main className="mt-2">
       <PageSkeleton label="Loading Stock Scanner" />
-    </Container>
-  </Box>
+    </main>
+  </div>
 );
 
 // Create React Query client with optimized settings
@@ -169,14 +171,12 @@ function App() {
   const { mode, toggleColorMode } = useColorMode();
   const colorMode = useMemo(() => ({ mode, toggleColorMode }), [mode, toggleColorMode]);
 
-  const theme = useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
-
   // Keep the pre-React background (index.css) and the mobile browser bar in step.
   useEffect(() => {
     document.documentElement.dataset.colorMode = mode;
     document.querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme.palette.background.paper);
-  }, [mode, theme]);
+      ?.setAttribute('content', THEME_COLOR[mode]);
+  }, [mode]);
 
   const appShell = STATIC_SITE_MODE ? (
     // The static shell mounts its own chrome, so its cold start shows the same
@@ -192,10 +192,7 @@ function App() {
 
   const themedApp = (
     <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {appShell}
-      </ThemeProvider>
+      {appShell}
     </ColorModeContext.Provider>
   );
 
@@ -273,14 +270,20 @@ function AppShell() {
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<MarketScanPage />} />
-              <Route path="/scan" element={<ScanPage />} />
+              <Route path="/scan" element={<SectionPage section="screener"><ScanPage /></SectionPage>} />
+              <Route path="/validation" element={<SectionPage section="screener"><ValidationPage /></SectionPage>} />
               <Route path="/breadth" element={<BreadthPage />} />
-              <Route path="/groups" element={<GroupRankingsPage />} />
-              <Route path="/validation" element={<ValidationPage />} />
-              {features.themes && <Route path="/themes" element={<ThemesPage />} />}
+              <Route path="/groups" element={<SectionPage section="groups"><GroupRankingsPage /></SectionPage>} />
+              {features.themes && <Route path="/themes" element={<SectionPage section="groups"><ThemesPage /></SectionPage>} />}
+              <Route path="/watchlists" element={<WatchlistsPage />} />
+              <Route path="/maps" element={<MapsPage />} />
               {features.chatbot && <Route path="/chatbot" element={<ChatbotPage />} />}
               <Route path="/options" element={<LiveOptionsRoute />} />
               <Route path="/options/:symbol" element={<LiveOptionsRoute detail />} />
+              <Route path="/futures" element={<SectionPage section="futures"><FuturesPage /></SectionPage>} />
+              <Route path="/futures/:symbol" element={<FuturesDetailPage />} />
+              <Route path="/cot" element={<CotPage />} />
+              <Route path="/chain/:symbol" element={<OptionsChainPage />} />
               <Route path="/stocks/:ticker" element={<StockDetails />} />
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="*" element={<RedirectHomeOnceConfirmed />} />

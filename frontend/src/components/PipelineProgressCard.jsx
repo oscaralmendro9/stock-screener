@@ -1,21 +1,25 @@
-import {
-  Box,
-  Paper,
-  Typography,
-  IconButton,
-  LinearProgress,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import RemoveIcon from '@mui/icons-material/Remove';
-import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import { Maximize2, Minus, X } from 'lucide-react';
 import { usePipeline } from '../contexts/usePipeline';
-import { mobileNavOffset } from './Layout/shellNav';
+import { MOBILE_NAV_HEIGHT } from './Layout/shellNav';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
-// Sit above the assistant button (same corner; 48px on phones, 56px on desktop).
-const STACK_ABOVE_FAB_MOBILE = 16 + 48 + 12;
+// Sit above the assistant button (same corner; 48px on phones, 56px on
+// desktop), and above the bottom bar on phones.
+const STACK_ABOVE_FAB_MOBILE = MOBILE_NAV_HEIGHT + 16 + 48 + 12;
 const STACK_ABOVE_FAB_DESKTOP = 24 + 56 + 16;
+const POSITION = 'tw fixed right-4 z-[1199] bottom-[var(--pipeline-bottom-sm)] md:right-6 md:bottom-[var(--pipeline-bottom-md)]';
+const POSITION_VARS = {
+  '--pipeline-bottom-sm': `calc(${STACK_ABOVE_FAB_MOBILE}px + env(safe-area-inset-bottom))`,
+  '--pipeline-bottom-md': `${STACK_ABOVE_FAB_DESKTOP}px`,
+};
+
+const TONE_TEXT = { success: 'text-gain', error: 'text-loss', warning: 'text-warning', primary: 'text-foreground' };
+const TONE_BAR = { success: 'bg-gain', error: 'bg-loss', warning: 'bg-warning', primary: 'bg-accent' };
+const ICON_BUTTON = 'grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring';
+const Spinner = ({ className }) => (
+  <span aria-hidden="true" className={cn('inline-block shrink-0 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin', className)} />
+);
 
 const PipelineProgressCard = () => {
   const { pipelineStatus, isCardVisible, isMinimized, closePipelineCard, toggleMinimize } = usePipeline();
@@ -34,188 +38,130 @@ const PipelineProgressCard = () => {
   const isSkipped = pipelineStatus?.status === 'skipped';
   const isDone = isComplete || isFailed || isSkipped;
   const tone = isComplete ? 'success' : isFailed ? 'error' : isSkipped ? 'warning' : 'primary';
+  const percent = pipelineStatus?.percent || 0;
 
   if (!isCardVisible) return null;
 
   // Minimized view - small pill
   if (isMinimized) {
     return (
-      <Paper
-        elevation={8}
-        sx={{
-          position: 'fixed',
-          bottom: { xs: mobileNavOffset(STACK_ABOVE_FAB_MOBILE), md: STACK_ABOVE_FAB_DESKTOP },
-          right: { xs: 16, md: 24 },
-          width: 180,
-          zIndex: (theme) => theme.zIndex.drawer - 1,
-          borderRadius: 3,
-          overflow: 'hidden',
-          bgcolor: `${tone}.main`,
-          color: `${tone}.contrastText`,
-          cursor: 'pointer',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-          '&:hover': {
-            transform: 'scale(1.02)',
-            boxShadow: 12,
-          },
-        }}
+      <button
+        type="button"
         onClick={toggleMinimize}
+        aria-label="Expand pipeline progress"
+        style={POSITION_VARS}
+        className={cn(POSITION, 'flex w-[180px] cursor-pointer items-center justify-between gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-ring', TONE_TEXT[tone])}
       >
-        <Box
-          sx={{
-            px: 1.5,
-            py: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <Box display="flex" alignItems="center" gap={1}>
-            {!isDone && <CircularProgress size={14} sx={{ color: 'inherit' }} />}
-            <Typography variant="caption" fontWeight="bold">
-              {isComplete ? 'Complete' : isFailed ? 'Failed' : isSkipped ? 'Skipped' : `Running ${pipelineStatus?.percent?.toFixed(0) || 0}%`}
-            </Typography>
-          </Box>
-          <IconButton size="small" sx={{ color: 'inherit', p: 0.25 }}>
-            <OpenInFullIcon sx={{ fontSize: 14 }} />
-          </IconButton>
-        </Box>
-      </Paper>
+        <span className="flex items-center gap-2">
+          {!isDone && <Spinner className="size-3.5" />}
+          {isComplete ? 'Complete' : isFailed ? 'Failed' : isSkipped ? 'Skipped' : `Running ${pipelineStatus?.percent?.toFixed(0) || 0}%`}
+        </span>
+        <Maximize2 aria-hidden="true" className="size-3.5 text-muted-foreground" />
+      </button>
     );
   }
 
+  const active = getActiveStep();
+
   // Full view
   return (
-    <Paper
-      elevation={8}
-      sx={{
-        position: 'fixed',
-        bottom: { xs: mobileNavOffset(STACK_ABOVE_FAB_MOBILE), md: STACK_ABOVE_FAB_DESKTOP },
-        right: { xs: 16, md: 24 },
-        width: { xs: 'calc(100% - 32px)', sm: 380 },
-        zIndex: (theme) => theme.zIndex.drawer - 1,
-        borderRadius: 2,
-        overflow: 'hidden',
-      }}
+    <section
+      aria-label="Pipeline progress"
+      style={POSITION_VARS}
+      className={cn(POSITION, 'w-[calc(100%-32px)] overflow-hidden rounded-lg border border-border bg-surface text-foreground shadow-lg sm:w-[380px]')}
     >
       {/* Header */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1.5,
-          bgcolor: `${tone}.main`,
-          color: `${tone}.contrastText`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Box display="flex" alignItems="center">
-          {!isDone && <CircularProgress size={16} sx={{ color: 'inherit', mr: 1 }} />}
-          <Typography variant="subtitle2" fontWeight="bold">
-            {isComplete ? 'Pipeline Complete' : isFailed ? 'Pipeline Failed' : isSkipped ? 'Pipeline Skipped' : 'Running Pipeline...'}
-          </Typography>
-        </Box>
-        <Box display="flex" alignItems="center" gap={0.5}>
-          <IconButton size="small" onClick={toggleMinimize} sx={{ color: 'inherit', p: 0.5 }}>
-            <RemoveIcon fontSize="small" />
-          </IconButton>
+      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <h2 className={cn('flex items-center gap-2 text-sm font-semibold', TONE_TEXT[tone])}>
+          {!isDone && <Spinner className="size-4" />}
+          {isComplete ? 'Pipeline Complete' : isFailed ? 'Pipeline Failed' : isSkipped ? 'Pipeline Skipped' : 'Running Pipeline...'}
+        </h2>
+        <div className="flex items-center gap-0.5">
+          <button type="button" aria-label="Minimize" onClick={toggleMinimize} className={ICON_BUTTON}>
+            <Minus aria-hidden="true" className="size-4" />
+          </button>
           {isDone && (
-            <IconButton size="small" onClick={closePipelineCard} sx={{ color: 'inherit', p: 0.5 }}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <button type="button" aria-label="Close" onClick={closePipelineCard} className={ICON_BUTTON}>
+              <X aria-hidden="true" className="size-4" />
+            </button>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Content */}
-      <Box sx={{ p: 2 }}>
+      <div className="p-4">
         {/* Mini stepper */}
-        <Box display="flex" justifyContent="space-between" mb={1.5}>
-          {steps.map((label, index) => (
-            <Box
-              key={label}
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  bgcolor: index < getActiveStep() ? 'success.main' : index === getActiveStep() && !isDone ? 'primary.main' : 'action.selected',
-                  color: index < getActiveStep() ? 'success.contrastText' : index === getActiveStep() && !isDone ? 'primary.contrastText' : 'text.secondary',
-                }}
-              >
-                {index < getActiveStep() ? '✓' : index + 1}
-              </Box>
-              <Typography variant="caption" sx={{ fontSize: '9px', mt: 0.5, color: 'text.secondary' }}>
-                {label}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
+        <ol className="mb-3 flex justify-between">
+          {steps.map((label, index) => {
+            const done = index < active;
+            const current = index === active && !isDone;
+            return (
+              <li key={label} aria-current={current ? 'step' : undefined} className="flex flex-1 flex-col items-center">
+                <span
+                  className={cn(
+                    'grid size-5 place-items-center rounded-full text-[11px] font-bold',
+                    done ? 'bg-gain/15 text-gain' : current ? 'bg-accent text-accent-foreground' : 'bg-surface-subtle text-muted-foreground',
+                  )}
+                >
+                  {done ? '✓' : index + 1}
+                </span>
+                <span className="mt-1 text-[11px] text-muted-foreground">{label}</span>
+              </li>
+            );
+          })}
+        </ol>
 
         {/* Progress bar */}
-        <LinearProgress
-          variant="determinate"
-          value={pipelineStatus?.percent || 0}
-          color={isComplete ? 'success' : isFailed ? 'error' : isSkipped ? 'warning' : 'primary'}
-          sx={{ height: 6, borderRadius: 3, mb: 1 }}
-        />
-        <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+        <div
+          role="progressbar"
+          aria-label="Pipeline progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(percent)}
+          className="mb-2 h-1.5 overflow-hidden rounded-full bg-surface-subtle"
+        >
+          <div className={cn('h-full rounded-full transition-[width] duration-150 ease-out motion-reduce:transition-none', TONE_BAR[tone])} style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+        </div>
+        <p className="text-center text-[11px] text-muted-foreground tabular-nums">
           {pipelineStatus?.percent?.toFixed(0) || 0}% - {pipelineStatus?.message || 'Initializing...'}
-        </Typography>
+        </p>
 
         {/* Error message */}
         {isFailed && (
-          <Alert severity="error" sx={{ mt: 1.5, py: 0.5 }}>
-            <Typography variant="caption">{pipelineStatus?.error_message || 'Pipeline failed'}</Typography>
-          </Alert>
+          <Notice tone="error" className="mt-3 text-xs">{pipelineStatus?.error_message || 'Pipeline failed'}</Notice>
         )}
         {isSkipped && (
-          <Alert severity="warning" sx={{ mt: 1.5, py: 0.5 }}>
-            <Typography variant="caption">{pipelineStatus?.error_message || 'Pipeline skipped'}</Typography>
-          </Alert>
+          <Notice tone="warning" className="mt-3 text-xs">{pipelineStatus?.error_message || 'Pipeline skipped'}</Notice>
         )}
 
         {/* Step results summary */}
         {(pipelineStatus?.ingestion_result || pipelineStatus?.reprocessing_result || pipelineStatus?.extraction_result || pipelineStatus?.metrics_result) && (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+          <div className="mt-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
             {pipelineStatus?.ingestion_result && (
-              <Typography variant="caption" color="text.secondary" display="block">
+              <p>
                 Ingested: {pipelineStatus.ingestion_result.new_items || 0} items from {pipelineStatus.ingestion_result.total_sources || 0} sources
-              </Typography>
+              </p>
             )}
             {pipelineStatus?.reprocessing_result && (
-              <Typography variant="caption" color="text.secondary" display="block">
+              <p>
                 Retried: {pipelineStatus.reprocessing_result.reprocessed_count || 0} failed,
                 {' '}{pipelineStatus.reprocessing_result.processed || 0} recovered
-              </Typography>
+              </p>
             )}
             {pipelineStatus?.extraction_result && (
-              <Typography variant="caption" color="text.secondary" display="block">
+              <p>
                 Extracted: {pipelineStatus.extraction_result.processed || 0} processed, {pipelineStatus.extraction_result.new_themes?.length || 0} new themes
-              </Typography>
+              </p>
             )}
             {pipelineStatus?.metrics_result && (
-              <Typography variant="caption" color="text.secondary" display="block">
+              <p>
                 Metrics: {pipelineStatus.metrics_result.themes_updated || 0} themes updated
-              </Typography>
+              </p>
             )}
-          </Box>
+          </div>
         )}
-      </Box>
-    </Paper>
+      </div>
+    </section>
   );
 };
 

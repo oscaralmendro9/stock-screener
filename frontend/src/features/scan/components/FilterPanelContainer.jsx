@@ -1,18 +1,6 @@
 import { memo } from 'react';
-import {
-  Paper,
-  Typography,
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  IconButton,
-} from '@mui/material';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import ClearIcon from '@mui/icons-material/Clear';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import { ChevronDown, ChevronUp, Layers, ListFilter, X } from 'lucide-react';
+import { Button } from '@/ui/button';
 import {
   FilterPresets,
   SavePresetDialog,
@@ -30,6 +18,24 @@ import {
 import FundamentalFiltersSection from './filterPanel/FundamentalFiltersSection';
 import TechnicalFiltersSection from './filterPanel/TechnicalFiltersSection';
 import RatingFiltersSection from './filterPanel/RatingFiltersSection';
+
+const CHIP = 'inline-flex h-6 items-center gap-0.5 rounded-full bg-surface-subtle pr-0.5 pl-2 text-[11px]';
+
+function FilterChip({ label, onDelete }) {
+  return (
+    <span className={CHIP}>
+      {label}
+      <button
+        type="button"
+        aria-label={`Remove ${label}`}
+        onClick={onDelete}
+        className="grid size-5 cursor-pointer place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <X aria-hidden="true" className="size-3" />
+      </button>
+    </span>
+  );
+}
 
 function FilterPanel({
   filters,
@@ -79,114 +85,76 @@ function FilterPanel({
   const ratingCount = countActiveInCategory(filters, RATING_KEYS);
   const enabledSetupCount = expression?.groups?.filter((group) => group.enabled !== false).length ?? 0;
 
+  const Chevron = expanded ? ChevronUp : ChevronDown;
+
   return (
-    <Paper elevation={1} sx={{ p: 1.5, mb: 2 }}>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
-        onClick={onToggle}
-      >
-        <FilterListIcon sx={{ mr: 1, fontSize: 18, color: 'text.secondary' }} />
-        <Typography variant="subtitle2" sx={{ mr: 2 }}>
+    <section aria-label="Filters" className="tw mb-4 rounded-lg border border-border bg-surface p-3 text-foreground">
+      <div className="flex flex-wrap items-center gap-y-2">
+        {/* The whole bar toggles; its own controls stop the click. */}
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggle}
+          className="mr-4 flex min-h-11 cursor-pointer items-center gap-2 rounded-sm text-sm font-semibold outline-none select-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8"
+        >
+          <ListFilter aria-hidden="true" className="size-4 text-muted-foreground" />
           Filters
           {activeFilters.length > 0 && (
-            <Chip
-              label={activeFilters.length}
-              size="small"
-              color="primary"
-              sx={{ ml: 1, height: 18, fontSize: '10px', '& .MuiChip-label': { px: 0.75 } }}
-            />
+            <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] text-accent-foreground tabular-nums">
+              {activeFilters.length}
+            </span>
           )}
-        </Typography>
+          <Chevron aria-hidden="true" className="size-4 text-muted-foreground" />
+        </button>
 
         {presetsEnabled && (
-          <Box
-            onClick={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <FilterPresets
-              presets={presets}
-              activePresetId={activePresetId}
-              hasUnsavedChanges={hasUnsavedChanges}
-              isLoading={presetsLoading}
-              isSaving={presetsSaving}
-              onLoadPreset={onLoadPreset}
-              onSavePreset={onSavePreset}
-              onUpdatePreset={onUpdatePreset}
-              onRenamePreset={onRenamePreset}
-              onDeletePreset={onDeletePreset}
-            />
-          </Box>
+          <FilterPresets
+            presets={presets}
+            activePresetId={activePresetId}
+            hasUnsavedChanges={hasUnsavedChanges}
+            isLoading={presetsLoading}
+            isSaving={presetsSaving}
+            onLoadPreset={onLoadPreset}
+            onSavePreset={onSavePreset}
+            onUpdatePreset={onUpdatePreset}
+            onRenamePreset={onRenamePreset}
+            onDeletePreset={onDeletePreset}
+          />
         )}
 
         {groupedFilteringEnabled && (
           <Button
-            size="small"
-            variant={enabledSetupCount ? 'contained' : 'outlined'}
-            startIcon={<AccountTreeOutlinedIcon sx={{ fontSize: 16 }} />}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenLogicBuilder?.();
-            }}
-            sx={{ ml: 1, fontSize: '0.72rem', whiteSpace: 'nowrap' }}
+            size="sm"
+            variant={enabledSetupCount ? 'primary' : 'secondary'}
+            onClick={() => onOpenLogicBuilder?.()}
+            className="ml-2"
           >
+            <Layers aria-hidden="true" />
             Logic builder{enabledSetupCount ? ` · ${enabledSetupCount}` : ''}
           </Button>
         )}
 
-        <Box sx={{ flexGrow: 1 }} />
+        <span className="grow" />
 
         {!expanded && activeFilters.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 0.5, mr: 1, flexWrap: 'wrap', maxWidth: '60%' }}>
+          <div className="mr-2 flex max-w-[60%] flex-wrap gap-1">
             {activeFilters.slice(0, 5).map(({ key, label }) => (
-              <Chip
-                key={key}
-                label={label}
-                size="small"
-                onDelete={(event) => {
-                  event.stopPropagation();
-                  handleDeleteFilter(key);
-                }}
-                sx={{
-                  height: 20,
-                  fontSize: '10px',
-                  '& .MuiChip-label': { px: 0.75 },
-                  '& .MuiChip-deleteIcon': { fontSize: '14px' },
-                }}
-              />
+              <FilterChip key={key} label={label} onDelete={() => handleDeleteFilter(key)} />
             ))}
             {activeFilters.length > 5 && (
-              <Chip
-                label={`+${activeFilters.length - 5}`}
-                size="small"
-                sx={{ height: 20, fontSize: '10px', '& .MuiChip-label': { px: 0.75 } }}
-              />
+              <span className={CHIP}>{`+${activeFilters.length - 5}`}</span>
             )}
-          </Box>
+          </div>
         )}
 
-        <Button
-          startIcon={<ClearIcon sx={{ fontSize: 14 }} />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onReset();
-          }}
-          size="small"
-          sx={{ fontSize: '0.7rem', py: 0.25, px: 0.75, minWidth: 0 }}
-        >
+        <Button variant="ghost" size="sm" onClick={onReset}>
+          <X aria-hidden="true" />
           Reset
         </Button>
-        <IconButton size="small" sx={{ ml: 0.5 }}>
-          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-        </IconButton>
-      </Box>
+      </div>
 
-      <Collapse in={expanded}>
-        <Box sx={{ mt: 1.5 }}>
+      {expanded && (
+        <div className="mt-3">
           <FundamentalFiltersSection
             filters={filters}
             filterOptions={filterOptions}
@@ -213,30 +181,15 @@ function FilterPanel({
           />
 
           {activeFilters.length > 0 && (
-            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>
-                  Active:
-                </Typography>
-                {activeFilters.map(({ key, label }) => (
-                  <Chip
-                    key={key}
-                    label={label}
-                    size="small"
-                    onDelete={() => handleDeleteFilter(key)}
-                    sx={{
-                      height: 22,
-                      fontSize: '0.7rem',
-                      '& .MuiChip-label': { px: 1 },
-                      '& .MuiChip-deleteIcon': { fontSize: '0.9rem' },
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
+            <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-border pt-2">
+              <span className="mr-1 text-[11px] text-muted-foreground">Active:</span>
+              {activeFilters.map(({ key, label }) => (
+                <FilterChip key={key} label={label} onDelete={() => handleDeleteFilter(key)} />
+              ))}
+            </div>
           )}
-        </Box>
-      </Collapse>
+        </div>
+      )}
 
       {presetsEnabled && (
         <SavePresetDialog
@@ -250,7 +203,7 @@ function FilterPanel({
           isLoading={presetsSaving}
         />
       )}
-    </Paper>
+    </section>
   );
 }
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.domain.common.errors import EntityNotFoundError
-from app.domain.common.query import PageSpec
+from app.domain.common.query import FilterSpec, PageSpec, SortOrder, SortSpec
 from app.domain.scanning.filter_expression_model import (
     QuerySpec,
     filter_spec_to_expression,
@@ -19,6 +19,8 @@ from app.domain.scanning.models import ExportFormat
 from app.schemas.filter_expression import ScanQueryRequest
 from app.schemas.scanning import (
     FilterOptionsResponse,
+    ScanHeatmapItem,
+    ScanHeatmapResponse,
     ScanResultItem,
     ScanResultsCapabilities,
     ScanResultsResponse,
@@ -41,6 +43,10 @@ from .scan_filter_params import parse_page_spec, parse_scan_filters, parse_scan_
 logger = logging.getLogger(__name__)
 router = APIRouter()
 T = TypeVar("T")
+
+# PageSpec allows 100 rows per page; the heatmap endpoint walks up to 10 pages.
+HEATMAP_PAGE_SIZE = 100
+HEATMAP_MAX_ITEMS = 1000
 
 
 def _execute_query(
@@ -153,6 +159,70 @@ def get_scan_results(
         result,
         include_setup_payload=include_setup_payload,
     )
+
+
+@router.get("/{scan_id}/heatmap", response_model=ScanHeatmapResponse)
+def get_scan_heatmap(
+    scan_id: str,
+    limit: int = Query(500, ge=1, le=HEATMAP_MAX_ITEMS, description="Largest names to return"),
+    min_market_cap_usd: int = Query(
+        1_000_000_000,
+        ge=0,
+        description="Market-cap floor (USD); also drops rows with no market cap",
+    ),
+    uow: Any = Depends(get_uow),
+    use_case: Any = Depends(get_get_scan_results_use_case),
+):
+    """Largest names by USD market cap with only the fields a market map needs.
+
+    The results endpoint carries ~4KB per row; a 500-tile map needs six
+    fields. PageSpec caps pages at 100, so this walks pages server-side.
+    """
+    filters = FilterSpec().add_range("market_cap_usd", min_market_cap_usd, None)
+    sort = SortSpec(field="market_cap_usd", order=SortOrder.DESC)
+
+    def fetch(page_number: int) -> Any:
+        return _execute_query(
+            lambda: use_case.execute(
+                uow,
+                GetScanResultsQuery(
+                    scan_id=scan_id,
+                    query_spec=QuerySpec.from_filter_spec(
+                        filters,
+                        sort=sort,
+                        page=PageSpec(page=page_number, per_page=HEATMAP_PAGE_SIZE),
+                    ),
+                    include_sparklines=False,
+                    include_setup_payload=False,
+                ),
+            ),
+            log_context="Error getting scan heatmap",
+            public_error="Error getting scan heatmap",
+        )
+
+    items: list[ScanHeatmapItem] = []
+    page_number = 1
+    total = 0
+    while len(items) < limit:
+        result = fetch(page_number)
+        total = result.page.total
+        for domain_item in result.page.items:
+            row = ScanResultItem.from_domain(domain_item, include_setup_payload=False)
+            items.append(
+                ScanHeatmapItem(
+                    symbol=row.symbol,
+                    company_name=row.company_name,
+                    gics_sector=row.gics_sector,
+                    gics_industry=row.gics_industry,
+                    market_cap_usd=row.market_cap_usd,
+                    price_change_1d=row.price_change_1d,
+                )
+            )
+        if not result.page.items or page_number >= result.page.total_pages:
+            break
+        page_number += 1
+
+    return ScanHeatmapResponse(scan_id=scan_id, total=total, items=items[:limit])
 
 
 @router.post("/{scan_id}/results/query", response_model=ScanResultsResponse)

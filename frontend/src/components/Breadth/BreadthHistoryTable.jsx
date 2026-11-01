@@ -1,15 +1,7 @@
-import {
-  Box,
-  ButtonBase,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from '@mui/material';
 import { format, parseISO } from 'date-fns';
 import { useMemo } from 'react';
+
+import { cn } from '@/lib/cn';
 
 import BreadthMetricTooltip from './BreadthMetricTooltip';
 import {
@@ -38,20 +30,6 @@ const formatValue = (row, metric) => {
   return value;
 };
 
-const metricCellSx = (metric, tone) => ({
-  fontFamily: 'monospace',
-  fontWeight: isDirectionalMetric(metric) ? 700 : 500,
-  color: '#fff',
-  backgroundColor: BREADTH_VISUAL_COLORS[tone],
-  borderColor: 'rgba(255, 255, 255, 0.06)',
-  borderLeft: groupStartMetrics.has(metric)
-    ? `3px solid ${metricGroupColors[metric]}`
-    : undefined,
-  px: 0.5,
-  whiteSpace: 'nowrap',
-  transition: 'background-color 120ms ease',
-});
-
 const metricHeaderLines = {
   stocks_up_4pct: ['Stocks Up', '4%+ Today'],
   stocks_down_4pct: ['Stocks Down', '4%+ Today'],
@@ -76,60 +54,45 @@ const GROUPS = [
     label: 'Primary Breadth Indicators',
     description: 'Daily movers & ratios',
     metrics: primaryBreadthMetrics,
-    color: '#9a6700',
   },
   {
     key: 'secondary',
     label: 'Secondary Breadth Indicators',
     description: 'Trend windows',
     metrics: secondaryBreadthMetrics,
-    color: '#176b43',
   },
   {
     key: 'context',
     label: 'Context',
     description: 'Market context',
     metrics: tableContextMetrics,
-    color: '#315f9b',
   },
 ];
 
 const groupStartMetrics = new Set(GROUPS.map((group) => group.metrics[0]));
-const metricGroupColors = Object.fromEntries(
-  GROUPS.map((group) => [group.metrics[0], group.color]),
-);
 const EMPTY_CONTRIBUTOR_DATES = new Set();
+// A 1px rule marks where each indicator group starts.
+const groupRule = (metric) => groupStartMetrics.has(metric) && 'border-l border-l-border';
 
 function MetricHeader({ metric }) {
   const lines = metricHeaderLines[metric] ?? [breadthMetricDefinitions[metric].label];
-  const isGroupStart = groupStartMetrics.has(metric);
   return (
-    <TableCell
-      align="center"
+    <th
+      scope="col"
       data-testid={`breadth-header-${metric}`}
       aria-label={breadthMetricDefinitions[metric].label}
-      sx={{
-        position: 'relative',
-        height: 54,
-        px: 0.25,
-        py: 0.5,
-        borderLeft: isGroupStart ? `3px solid ${metricGroupColors[metric]}` : undefined,
-        fontSize: 10,
-        lineHeight: 1.15,
-        whiteSpace: 'normal',
-      }}
+      className={cn('h-14 border-b border-border px-0.5 py-1 text-center text-[11px] leading-tight font-medium', groupRule(metric))}
+      style={{ whiteSpace: 'normal' }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Box component="span">
+      <div className="flex items-center justify-center">
+        <span>
           {lines.map((line) => (
-            <Box component="span" key={line} sx={{ display: 'block' }}>
-              {line}
-            </Box>
+            <span key={line} className="block">{line}</span>
           ))}
-        </Box>
+        </span>
         <BreadthMetricTooltip metric={metric} compact />
-      </Box>
-    </TableCell>
+      </div>
+    </th>
   );
 }
 
@@ -150,89 +113,62 @@ function BreadthHistoryTable({
     [visibleRows],
   );
   return (
-    <TableContainer
+    <div
       data-testid="breadth-history-scroll"
-      sx={{ overflowX: 'auto', maxHeight: 'calc(100vh - 360px)' }}
+      className="tw"
+      style={{ overflowX: 'auto', maxHeight: 'calc(100dvh - 360px)' }}
     >
-      <Table
-        stickyHeader
-        size="small"
+      <table
         data-testid="breadth-history-table"
-        sx={{ width: '100%', minWidth: 980, tableLayout: 'fixed' }}
+        className="min-w-[980px] border-separate border-spacing-0 text-xs"
+        style={{ width: '100%', tableLayout: 'fixed' }}
       >
         <colgroup>
-          <Box component="col" sx={{ width: 76 }} />
+          <col style={{ width: 76 }} />
           {metrics.map((metric) => (
-            <Box
-              component="col"
+            <col
               key={metric}
-              sx={{
-                width: tableContextMetrics.includes(metric) ? 72 : 62,
-              }}
+              style={{ width: tableContextMetrics.includes(metric) ? 72 : 62 }}
             />
           ))}
         </colgroup>
-        <TableHead>
-          <TableRow>
-            <TableCell
+        <thead className="sticky top-0 z-[3] bg-surface">
+          <tr>
+            <th
+              scope="col"
               rowSpan={2}
-              sx={{
-                position: 'sticky',
-                left: 0,
-                zIndex: 5,
-                px: 0.75,
-                fontWeight: 700,
-                borderRight: `3px solid ${GROUPS[0].color}`,
-              }}
+              className="sticky left-0 z-[4] border-r border-b border-border bg-surface px-1.5 text-left font-semibold"
             >
               Date
-            </TableCell>
+            </th>
             {GROUPS.map((group) => (
-              <TableCell
+              <th
                 key={group.key}
-                align="center"
+                scope="colgroup"
                 colSpan={group.metrics.length}
                 data-testid={`breadth-group-${group.key}`}
-                sx={{
-                  bgcolor: group.color,
-                  color: '#fff',
-                  borderLeft: `3px solid ${group.color}`,
-                  borderColor: 'rgba(255, 255, 255, 0.2)',
-                  py: 0.6,
-                }}
+                className="border-b border-l border-border px-1 py-1.5 text-center"
               >
-                <Box sx={{ fontSize: 11, fontWeight: 800, lineHeight: 1.2 }}>
-                  {group.label}
-                </Box>
-                <Box sx={{ fontSize: 9, fontWeight: 600, opacity: 0.78, lineHeight: 1.2 }}>
+                <div className="text-xs leading-tight font-semibold">{group.label}</div>
+                <div className="text-[11px] leading-tight font-normal text-muted-foreground">
                   {group.description}
-                </Box>
-              </TableCell>
+                </div>
+              </th>
             ))}
-          </TableRow>
-          <TableRow>
+          </tr>
+          <tr>
             {metrics.map((metric) => <MetricHeader key={metric} metric={metric} />)}
-          </TableRow>
-        </TableHead>
-        <TableBody>
+          </tr>
+        </thead>
+        <tbody>
           {visibleRows.map((row) => (
-            <TableRow key={row.date} hover>
-              <TableCell
-                sx={{
-                  position: 'sticky',
-                  left: 0,
-                  zIndex: 2,
-                  bgcolor: BREADTH_VISUAL_COLORS.neutral,
-                  color: '#fff',
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  px: 0.75,
-                  borderRight: `3px solid ${GROUPS[0].color}`,
-                  whiteSpace: 'nowrap',
-                }}
+            <tr key={row.date}>
+              <th
+                scope="row"
+                className="sticky left-0 z-[2] border-r border-b border-border bg-surface px-1.5 text-left font-semibold whitespace-nowrap tabular-nums"
               >
                 {format(parseISO(row.date), 'MM/dd/yy')}
-              </TableCell>
+              </th>
               {metrics.map((metric) => {
                 const tone = metricTone(row, metric, toneThresholds);
                 const definition = breadthMetricDefinitions[metric];
@@ -245,45 +181,36 @@ function BreadthHistoryTable({
                   && onContributorCellClick,
                 );
                 return (
-                  <TableCell
+                  <td
                     key={metric}
-                    align="right"
                     data-testid={`breadth-cell-${metric}`}
                     data-tone={tone}
-                    sx={{
-                      ...metricCellSx(metric, tone),
-                      ...(interactive ? { p: 0 } : {}),
-                    }}
+                    className={cn(
+                      'h-8 border-b border-white/5 text-right whitespace-nowrap tabular-nums',
+                      isDirectionalMetric(metric) ? 'font-bold' : 'font-medium',
+                      !interactive && 'px-1',
+                      groupRule(metric),
+                    )}
+                    style={{ color: '#fff', backgroundColor: BREADTH_VISUAL_COLORS[tone] }}
                   >
                     {interactive ? (
-                      <ButtonBase
+                      <button
+                        type="button"
                         aria-label={`View ${value} contributing stocks for ${definition.label}`}
                         onClick={(event) => onContributorCellClick(metric, row, event.currentTarget)}
-                        sx={{
-                          width: '100%',
-                          minHeight: 33,
-                          justifyContent: 'flex-end',
-                          px: 0.5,
-                          color: 'inherit',
-                          font: 'inherit',
-                          fontWeight: 'inherit',
-                          '&:focus-visible': {
-                            outline: '2px solid #fff',
-                            outlineOffset: '-3px',
-                          },
-                        }}
+                        className="flex h-8 w-full cursor-pointer items-center justify-end px-1 underline decoration-white/40 underline-offset-2 outline-none hover:decoration-white focus-visible:outline-2 focus-visible:-outline-offset-[3px] focus-visible:outline-white"
                       >
                         {formatValue(row, metric)}
-                      </ButtonBase>
+                      </button>
                     ) : formatValue(row, metric)}
-                  </TableCell>
+                  </td>
                 );
               })}
-            </TableRow>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </tbody>
+      </table>
+    </div>
   );
 }
 

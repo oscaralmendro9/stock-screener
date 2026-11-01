@@ -1,5 +1,4 @@
 import { useMemo, memo } from 'react';
-import { Box, Tooltip, useTheme } from '@mui/material';
 
 import { barRects, roundedTopRectPath } from './sparklineGeometry';
 
@@ -16,7 +15,6 @@ import { barRects, roundedTopRectPath } from './sparklineGeometry';
  * - Red bar: Single lowest RS ratio value (weakest point)
  */
 function RSSparkline({ data, trend, width = 60, height = 20 }) {
-  const { palette } = useTheme();
   const hasData = Array.isArray(data) && data.length > 0;
   // Raw RS ratios (stock_price / SPY_price), like Google Sheets
   const { bars, maxIndex, minIndex } = useMemo(() => {
@@ -60,51 +58,39 @@ function RSSparkline({ data, trend, width = 60, height = 20 }) {
   // No data - show placeholder
   if (!hasData) {
     return (
-      <Box
-        sx={{
-          width,
-          height,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'text.disabled',
-          fontSize: 10,
-        }}
+      <div
+        className="flex items-center justify-center text-[11px] text-disabled-foreground"
+        style={{ width, height }}
       >
         -
-      </Box>
+      </div>
     );
   }
 
+  // Native title for hover; the same summary is the accessible label.
   return (
-    <Tooltip
-      title={tooltipText}
-      arrow
-      placement="top"
-    >
-      <Box sx={{ width, height, cursor: 'pointer' }}>
-        <svg width={width} height={height} style={{ display: 'block' }}>
-          {bars.map((rect, index) => {
-            // Color coding matching Google Sheets, in theme colours:
-            // - Accent: highest value (highcolor)
-            // - Red: lowest value (lowcolor)
-            // - Lighter green: all other bars (color)
-            const extreme = index === maxIndex || index === minIndex;
-            const fillColor = index === maxIndex
-              ? palette.primary.main
-              : index === minIndex ? palette.error.main : palette.success.main;
-            return (
-              <path
-                key={index}
-                d={roundedTopRectPath(rect, 1)}
-                fill={fillColor}
-                fillOpacity={extreme ? 1 : 0.55}
-              />
-            );
-          })}
-        </svg>
-      </Box>
-    </Tooltip>
+    <div role="img" aria-label={tooltipText} title={tooltipText} style={{ width, height }}>
+      <svg width={width} height={height} style={{ display: 'block' }}>
+        {bars.map((rect, index) => {
+          // Color coding matching Google Sheets, in theme colours:
+          // - Accent: highest value (highcolor)
+          // - Loss: lowest value (lowcolor)
+          // - Lighter gain: all other bars (color)
+          const extreme = index === maxIndex || index === minIndex;
+          const fillColor = index === maxIndex
+            ? 'var(--accent)'
+            : index === minIndex ? 'var(--loss)' : 'var(--gain)';
+          return (
+            <path
+              key={index}
+              d={roundedTopRectPath(rect, 1)}
+              fill={fillColor}
+              fillOpacity={extreme ? 1 : 0.55}
+            />
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 

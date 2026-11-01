@@ -34,18 +34,8 @@ import {
   ResponsiveContainer,
   Customized,
 } from 'recharts';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
-  Alert,
-  FormControlLabel,
-  Switch,
-  useTheme,
-} from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 import {
   QUADRANT_LAYOUT,
   useQuadrantColors,
@@ -248,46 +238,50 @@ const RRGTooltip = ({ active, payload }) => {
   const g = payload[0]?.payload;
   if (!g) return null;
   return (
-    <Box
-      sx={{
-        backgroundColor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 1,
-        p: 1.5,
-        boxShadow: 2,
-        minWidth: 180,
-      }}
-    >
-      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-        {g.industry_group}
-      </Typography>
-      <Typography variant="caption" sx={{ color: colorOf(g.quadrant), fontWeight: 600 }}>
+    <div className="tw min-w-44 rounded-md border border-border bg-surface p-3 text-foreground shadow-md">
+      <p className="mb-0.5 text-sm font-bold">{g.industry_group}</p>
+      <p className="text-xs font-semibold" style={{ color: colorOf(g.quadrant) }}>
         {g.quadrant}
         {g.is_provisional ? ' · provisional' : ''}
-      </Typography>
+      </p>
       {g.isCurrent ? (
-        <Typography variant="body2" sx={{ mt: 0.5 }}>
+        <p className="mt-0.5 text-sm tabular-nums">
           Rank: {g.rank ?? '—'} · RS: {g.avg_rs_rating != null ? g.avg_rs_rating.toFixed(1) : '—'}
-        </Typography>
+        </p>
       ) : (
-        <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
+        <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
           {g.weeksAgo === 0 ? 'Current' : `${g.weeksAgo}w ago`}
           {g.date ? ` · ${g.date}` : ''}
-        </Typography>
+        </p>
       )}
-      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+      <p className="text-sm text-muted-foreground tabular-nums">
         Ratio {g.x?.toFixed(1)} · Momentum {g.y?.toFixed(1)}
-      </Typography>
-    </Box>
+      </p>
+    </div>
   );
 };
+
+const FRAME = 'tw rounded-lg border border-border bg-surface p-4 text-foreground';
+
+/** Labelled on/off switch: a native checkbox, so it keeps checkbox semantics. */
+function Toggle({ label, checked, onChange }) {
+  return (
+    <label className="flex h-11 cursor-pointer items-center gap-1.5 text-xs md:h-8">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-4 cursor-pointer accent-accent"
+      />
+      {label}
+    </label>
+  );
+}
 
 /**
  * @param {Object[]} props.data.groups - RRGGroupResponse[] from the API
  */
 export default function RRGChart({ data, isLoading, error, onSelectGroup, height = 720 }) {
-  const { palette } = useTheme();
   const { colors: quadrantColors, fills: quadrantFills, colorOf } = useQuadrantColors();
   const groups = useMemo(() => (data?.groups ?? []), [data]);
   const asOf = data?.date ?? null;
@@ -339,77 +333,52 @@ export default function RRGChart({ data, isLoading, error, onSelectGroup, height
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
-          <CircularProgress />
-        </CardContent>
-      </Card>
+      <section className={FRAME} style={{ height }}>
+        <span className="grid h-full place-items-center">
+          <span role="progressbar" aria-label="Loading RRG" className="inline-block size-6 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+        </span>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent>
-          <Alert severity="error">
-            Failed to load RRG data{error?.message ? `: ${error.message}` : '.'}
-          </Alert>
-        </CardContent>
-      </Card>
+      <section className={FRAME}>
+        <Notice tone="error">
+          Failed to load RRG data{error?.message ? `: ${error.message}` : '.'}
+        </Notice>
+      </section>
     );
   }
 
   if (!groups.length) {
     return (
-      <Card>
-        <CardContent>
-          <Alert severity="info">
-            No RRG data available yet. Group-ranking history is required to plot rotation.
-          </Alert>
-        </CardContent>
-      </Card>
+      <section className={FRAME}>
+        <Notice>
+          No RRG data available yet. Group-ranking history is required to plot rotation.
+        </Notice>
+      </section>
     );
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-          <Typography variant="subtitle2">
+    <section className={FRAME}>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold">
             Relative Rotation Graph — {scopeLabel}
             {asOf ? ` · ${asOf}` : ''}
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          </h3>
+          <span className="text-[11px] text-muted-foreground">
             drag to zoom
-          </Typography>
-          <Box sx={{ flexGrow: 1 }} />
+          </span>
+          <span className="grow" />
           {zoom.isZoomed && (
-            <Button size="small" variant="outlined" onClick={zoom.reset}>
+            <Button size="sm" variant="secondary" onClick={zoom.reset}>
               Reset zoom
             </Button>
           )}
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={showTails}
-                onChange={(e) => setShowTails(e.target.checked)}
-              />
-            }
-            label="Tails"
-            sx={{ mr: 0 }}
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={showLabels}
-                onChange={(e) => setShowLabels(e.target.checked)}
-              />
-            }
-            label="Labels"
-            sx={{ mr: 0 }}
-          />
+          <Toggle label="Tails" checked={showTails} onChange={setShowTails} />
+          <Toggle label="Labels" checked={showLabels} onChange={setShowLabels} />
           <RRGFilters
             scopeLabel={scopeLabel}
             names={filter.names}
@@ -421,10 +390,10 @@ export default function RRGChart({ data, isLoading, error, onSelectGroup, height
             rankValue={filter.rankValue}
             onRankChange={filter.setRankRange}
           />
-        </Box>
+        </div>
 
         {shown.length === 0 ? (
-          <Alert severity="info">No {scopeLabel.toLowerCase()} match the current filter.</Alert>
+          <Notice>No {scopeLabel.toLowerCase()} match the current filter.</Notice>
         ) : (
           <ResponsiveContainer width="100%" height={height}>
             <ScatterChart
@@ -454,8 +423,8 @@ export default function RRGChart({ data, isLoading, error, onSelectGroup, height
                 );
               })}
 
-              {xLo < 100 && 100 < xHi && <ReferenceLine x={100} stroke={palette.text.disabled} strokeDasharray="4 4" />}
-              {yLo < 100 && 100 < yHi && <ReferenceLine y={100} stroke={palette.text.disabled} strokeDasharray="4 4" />}
+              {xLo < 100 && 100 < xHi && <ReferenceLine x={100} stroke="var(--disabled-foreground)" strokeDasharray="4 4" />}
+              {yLo < 100 && 100 < yHi && <ReferenceLine y={100} stroke="var(--disabled-foreground)" strokeDasharray="4 4" />}
 
               <XAxis
                 type="number"
@@ -517,9 +486,9 @@ export default function RRGChart({ data, isLoading, error, onSelectGroup, height
                   x2={zoom.drag.x2}
                   y1={zoom.drag.y1}
                   y2={zoom.drag.y2}
-                  fill={palette.primary.main}
+                  fill="var(--accent)"
                   fillOpacity={0.2}
-                  stroke={palette.primary.main}
+                  stroke="var(--accent)"
                   strokeOpacity={0.7}
                 />
               )}
@@ -550,7 +519,6 @@ export default function RRGChart({ data, isLoading, error, onSelectGroup, height
             </ScatterChart>
           </ResponsiveContainer>
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

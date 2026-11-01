@@ -1,33 +1,20 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { matchPath, useLocation } from 'react-router-dom';
+import { Bot, CandlestickChart, Check, Gauge, Layers, LayoutGrid, LoaderCircle, LogOut, UserRound } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
 import {
-  AppBar,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Divider,
-  Drawer,
-  Fab,
-  InputBase,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
-  Menu,
-  MenuItem,
-  Toolbar,
-  IconButton,
-  useTheme,
-} from '@mui/material';
-import { matchPath, useLocation, useNavigate } from 'react-router-dom';
-import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import CheckIcon from '@mui/icons-material/Check';
-import HistoryIcon from '@mui/icons-material/History';
-import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetTitle } from '@/ui/sheet';
+import GlobalSearch from './GlobalSearch';
 import MarketSelector from './MarketSelector';
 import RuntimeActivityStatusButton from './RuntimeActivityStatusButton';
 import {
@@ -36,14 +23,16 @@ import {
   ColorModeListItem,
   DesktopNav,
   MobileBottomNav,
+  SheetDivider,
+  SheetItem,
 } from './AppNav';
-import { CORE_NAV_ITEMS, mobileNavOffset, safeGutters, useIsMobileShell } from './shellNav';
+import { CORE_NAV_ITEMS, SAFE_GUTTER_CLASSES, useIsMobileShell } from './shellNav';
 import { useRuntime } from '../../contexts/RuntimeContext';
 import { useMarket, useMarketForCapability } from '../../contexts/MarketContext';
 import { usePipeline } from '../../contexts/usePipeline';
 import { useStrategyProfile, useStrategyProfileData } from '../../contexts/StrategyProfileContext';
 import { isLiveOptionsAvailable } from '../../features/options/optionsAvailability';
-import { loadStockDetails, loaderForPath } from '../../pageLoaders';
+import { loaderForPath } from '../../pageLoaders';
 import {
   BREADTH_MARKET_FALLBACKS,
   GROUP_RANKING_MARKET_FALLBACKS,
@@ -58,9 +47,9 @@ const PipelineProgressCard = lazy(() => import('../PipelineProgressCard'));
 
 function DrawerLoadingFallback() {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <CircularProgress size={24} />
-    </Box>
+    <div role="status" aria-label="Loading assistant" className="grid h-full place-items-center">
+      <LoaderCircle aria-hidden="true" className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none" />
+    </div>
   );
 }
 
@@ -89,30 +78,21 @@ function useProfileOptions() {
   return { activeProfile, profileOptions, setActiveProfile };
 }
 
-function StrategyProfileMenu({ anchorEl, onClose }) {
+// Mounted only while the menu is open, so profiles load on demand.
+function StrategyProfileMenuItems() {
   const { activeProfile, profileOptions, setActiveProfile } = useProfileOptions();
 
   return (
-    <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-    >
-      {profileOptions.map((profile) => (
-        <MenuItem
-          key={profile.profile}
-          selected={profile.profile === activeProfile}
-          onClick={() => {
-            setActiveProfile(profile.profile);
-            onClose();
-          }}
-        >
-          <ListItemText primary={profile.label} />
-        </MenuItem>
-      ))}
-    </Menu>
+    <>
+      <DropdownMenuLabel>Strategy profile</DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={activeProfile} onValueChange={setActiveProfile}>
+        {profileOptions.map((profile) => (
+          <DropdownMenuRadioItem key={profile.profile} value={profile.profile}>
+            {profile.label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
   );
 }
 
@@ -122,49 +102,42 @@ function MobileProfileItems({ onDone }) {
 
   return (
     <>
-      <ListSubheader disableSticky sx={{ lineHeight: '32px', bgcolor: 'transparent' }}>Strategy profile</ListSubheader>
-      {profileOptions.map((profile) => (
-        <ListItemButton
-          key={profile.profile}
-          selected={profile.profile === activeProfile}
-          onClick={() => {
-            setActiveProfile(profile.profile);
-            onDone();
-          }}
-        >
-          <ListItemIcon>{profile.profile === activeProfile ? <CheckIcon /> : <PersonIcon />}</ListItemIcon>
-          <ListItemText primary={profile.label} />
-        </ListItemButton>
-      ))}
+      <li className="px-4 pt-2 pb-1 text-xs font-medium text-muted-foreground">Strategy profile</li>
+      {profileOptions.map((profile) => {
+        const selected = profile.profile === activeProfile;
+        return (
+          <SheetItem
+            key={profile.profile}
+            icon={selected ? <Check aria-hidden="true" /> : <UserRound aria-hidden="true" />}
+            label={profile.label}
+            selected={selected}
+            aria-pressed={selected}
+            onClick={() => {
+              setActiveProfile(profile.profile);
+              onDone();
+            }}
+          />
+        );
+      })}
     </>
   );
 }
 
 function StrategyProfileControl() {
   const { activeProfile } = useStrategyProfile();
-  const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
-  const profileMenuOpen = Boolean(profileMenuAnchor);
+  const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <IconButton
-        onClick={(event) => setProfileMenuAnchor(event.currentTarget)}
-        title={`Profile: ${activeProfile}`}
-        aria-label="Select strategy profile"
-        aria-haspopup="menu"
-        aria-expanded={profileMenuOpen}
-        size="small"
-        sx={{ color: 'text.secondary' }}
-      >
-        <PersonIcon fontSize="small" />
-      </IconButton>
-      {profileMenuOpen && (
-        <StrategyProfileMenu
-          anchorEl={profileMenuAnchor}
-          onClose={() => setProfileMenuAnchor(null)}
-        />
-      )}
-    </>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" title={`Profile: ${activeProfile}`} aria-label="Select strategy profile" className="text-muted-foreground">
+          <UserRound aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {open && <StrategyProfileMenuItems />}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -213,51 +186,8 @@ function useNavPrefetch() {
   }, [breadthMarket, groupsMarket, location.pathname, queryClient, selectedMarket]);
 }
 
-function TickerSearch() {
-  const navigate = useNavigate();
-  const [tickerInput, setTickerInput] = useState('');
-
-  const handleTickerSubmit = (event) => {
-    if (event.key !== 'Enter') return;
-    const ticker = tickerInput.trim().toUpperCase();
-    if (!ticker) return;
-    navigate(`/stocks/${encodeURIComponent(ticker)}`);
-    setTickerInput('');
-    event.target.blur();
-  };
-
-  return (
-    <InputBase
-      value={tickerInput}
-      onChange={(e) => setTickerInput(e.target.value)}
-      onKeyDown={handleTickerSubmit}
-      onFocus={() => loadQuietly(loadStockDetails)}
-      placeholder="Ticker"
-      size="small"
-      inputProps={{ 'aria-label': 'Go to ticker', enterKeyHint: 'go', autoCapitalize: 'characters' }}
-      sx={{
-        px: 1.25,
-        height: 32,
-        width: { xs: 88, md: 160 },
-        // 16px on phones: iOS Safari zooms into inputs below that.
-        fontSize: { xs: '16px', md: '14px' },
-        backgroundColor: 'action.hover',
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 2,
-        '&.Mui-focused': { borderColor: 'primary.main' },
-        '& input::placeholder': {
-          color: 'text.secondary',
-          opacity: 1,
-        },
-      }}
-    />
-  );
-}
-
 function Layout({ children }) {
   const location = useLocation();
-  const theme = useTheme();
   const isMobile = useIsMobileShell();
   const { auth, features, isLoggingOut, logout, marketCatalog, primaryMarket } = useRuntime();
   const { selectedMarket } = useMarket();
@@ -275,62 +205,65 @@ function Layout({ children }) {
 
   const navItems = [
     ...CORE_NAV_ITEMS,
-    { path: '/validation', label: 'Backtest', icon: <HistoryIcon /> },
-    ...(optionsAvailable ? [{ path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChartIcon /> }] : []),
-    ...(features.themes ? [{ path: '/themes', label: 'Themes', icon: <AutoAwesomeIcon /> }] : []),
-    ...(features.chatbot ? [{ path: '/chatbot', label: 'Assistant', icon: <SmartToyIcon /> }] : []),
+    // Live-only (the static site has no map endpoint), so not a CORE item.
+    { path: '/maps', label: 'Maps', icon: <LayoutGrid aria-hidden="true" /> },
+    { path: '/futures', label: 'Futures', match: ['/futures', '/cot'], icon: <Gauge aria-hidden="true" /> },
+    { path: '/watchlists', label: 'Watchlists', icon: <Layers aria-hidden="true" /> },
+    ...(optionsAvailable ? [{ path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChart aria-hidden="true" /> }] : []),
+    // Backtest and Themes live as tabs inside Screener and Groups; the
+    // assistant opens from its floating button.
   ];
 
   const mobileExtras = (close) => (
     <>
       <MobileProfileItems onDone={close} />
-      <Divider sx={{ my: 0.5 }} />
+      <SheetDivider />
       <ColorModeListItem onDone={close} />
       {canSignOut && (
-        <ListItemButton disabled={isLoggingOut} onClick={() => { close(); logout(); }}>
-          <ListItemIcon><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Sign out" />
-        </ListItemButton>
+        <SheetItem
+          icon={<LogOut aria-hidden="true" />}
+          label="Sign out"
+          disabled={isLoggingOut}
+          onClick={() => { close(); logout(); }}
+        />
       )}
     </>
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar
-          variant="dense"
-          sx={{ ...safeGutters, minHeight: 52, gap: { xs: 1, md: 1.5 }, overflowX: 'auto', '& > *': { flexShrink: 0 } }}
-        >
-          <BrandMark label={isMobile ? null : 'Stock Scanner'} />
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="tw border-b border-border bg-surface">
+        <div className={cn('flex min-h-13 items-center gap-2 overflow-x-auto md:gap-3 [&>*]:shrink-0', SAFE_GUTTER_CLASSES)}>
+          <BrandMark to="/" label={isMobile ? null : 'Stock Scanner'} />
           <RuntimeActivityStatusButton compact={isMobile} />
           <MarketSelector />
-          <Box sx={{ flexGrow: 1 }} />
-          <TickerSearch />
+          <div className="flex-1" />
+          <GlobalSearch pages={navItems} compact={isMobile} onPageIntent={prefetchPage} />
           {!isMobile && (
             <>
-              <Box sx={{ flexGrow: 1 }} />
+              <div className="flex-1" />
               <DesktopNav items={navItems} onIntent={prefetchPage} />
               <StrategyProfileControl />
               {canSignOut && (
-                <Button
-                  size="small"
-                  onClick={() => logout()}
-                  disabled={isLoggingOut}
-                  sx={{ color: 'text.secondary', fontSize: '12px' }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => logout()} disabled={isLoggingOut} className="text-xs text-muted-foreground">
                   Sign out
                 </Button>
               )}
               <ColorModeButton />
             </>
           )}
-        </Toolbar>
-      </AppBar>
+        </div>
+      </header>
 
-      <Container maxWidth="xl" sx={{ ...safeGutters, mt: 1, mb: 1, flex: 1, pb: { xs: mobileNavOffset(8), md: 0 } }}>
+      <main
+        className={cn(
+          'mx-auto my-2 w-full flex-1',
+          SAFE_GUTTER_CLASSES,
+          isMobile && 'pb-[calc(64px+env(safe-area-inset-bottom))]',
+        )}
+      >
         {children}
-      </Container>
+      </main>
 
       {isMobile && <MobileBottomNav items={navItems} extras={mobileExtras} onIntent={prefetchPage} />}
 
@@ -338,40 +271,33 @@ function Layout({ children }) {
 
       {assistantAvailable && location.pathname !== '/chatbot' && (
         <>
-          <Fab
-            color="secondary"
+          <button
+            type="button"
             aria-label="Open assistant"
             onClick={() => setAssistantOpen(true)}
-            size={isMobile ? 'medium' : 'large'}
-            sx={{
-              position: 'fixed',
-              right: { xs: 16, md: 24 },
-              bottom: { xs: mobileNavOffset(16), md: 24 },
-              zIndex: theme.zIndex.drawer - 1,
-            }}
-          >
-            <SmartToyIcon />
-          </Fab>
-
-          <Drawer
-            anchor="right"
-            open={assistantOpen}
-            onClose={() => setAssistantOpen(false)}
-            PaperProps={{
-              sx: {
-                width: { xs: '100%', sm: 440 },
-              },
-            }}
-          >
-            {assistantOpen && (
-              <Suspense fallback={<DrawerLoadingFallback />}>
-                <AssistantDrawerContent onClose={() => setAssistantOpen(false)} />
-              </Suspense>
+            className={cn(
+              'tw fixed z-nav grid cursor-pointer place-items-center rounded-full bg-accent text-accent-foreground shadow-lg outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 motion-reduce:transition-none',
+              isMobile
+                ? 'right-[max(16px,env(safe-area-inset-right))] bottom-[calc(72px+env(safe-area-inset-bottom))] size-12'
+                : 'right-6 bottom-6 size-14',
             )}
-          </Drawer>
+          >
+            <Bot aria-hidden="true" className="size-6" />
+          </button>
+
+          <Sheet open={assistantOpen} onOpenChange={setAssistantOpen}>
+            <SheetContent side="right" aria-describedby={undefined} className="overflow-hidden">
+              <SheetTitle className="sr-only">Assistant</SheetTitle>
+              {assistantOpen && (
+                <Suspense fallback={<DrawerLoadingFallback />}>
+                  <AssistantDrawerContent onClose={() => setAssistantOpen(false)} />
+                </Suspense>
+              )}
+            </SheetContent>
+          </Sheet>
         </>
       )}
-    </Box>
+    </div>
   );
 }
 

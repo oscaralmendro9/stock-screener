@@ -1,48 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  CircularProgress,
-  IconButton,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Chip,
-  Alert,
-  Divider,
-  Card,
-  CardContent,
-  Tooltip,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CloudIcon from '@mui/icons-material/Cloud';
-import ComputerIcon from '@mui/icons-material/Computer';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import SettingsIcon from '@mui/icons-material/Settings';
+import { CircleAlert, CircleCheck, Cloud, Monitor, RefreshCw } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+import { Field, Pill, Select, Spinner } from '../../features/themes/themeUi';
 import {
   getLLMConfig,
   updateLLMModel,
   updateOllamaSettings,
   getOllamaModels,
 } from '../../api/themes';
-
-const STATUS_COLORS = {
-  connected: 'success',
-  disconnected: 'error',
-  timeout: 'warning',
-  error: 'error',
-  not_configured: 'default',
-};
 
 const STATUS_LABELS = {
   connected: 'Connected',
@@ -138,199 +106,138 @@ function ModelSettingsModal({ open, onClose }) {
   const currentModelInfo = config?.extraction?.model_info;
   const isLocalModel = currentModelInfo?.category === 'local';
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box display="flex" alignItems="center" gap={1}>
-            <SettingsIcon color="primary" />
-            <Typography variant="h6">LLM Settings</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Tooltip title="Refresh status">
-              <IconButton onClick={handleRefresh} size="small">
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            <IconButton onClick={onClose} size="small">
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </Box>
-      </DialogTitle>
+  const statusTone = { connected: 'gain', disconnected: 'loss', timeout: 'warning', error: 'loss' }[config?.ollama_status] || 'muted';
 
-      <DialogContent dividers>
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title="LLM Settings"
+        size="sm"
+        footer={(
+          <>
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
+              <RefreshCw aria-hidden="true" />
+              Refresh status
+            </Button>
+            <DialogClose asChild><Button variant="ghost" size="sm">Close</Button></DialogClose>
+          </>
+        )}
+      >
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Notice tone="error" className="mb-4" onDismiss={() => setError(null)}>
             {error}
-          </Alert>
+          </Notice>
         )}
 
         {successMessage && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage(null)}>
+          <Notice className="mb-4" onDismiss={() => setSuccessMessage(null)}>
             {successMessage}
-          </Alert>
+          </Notice>
         )}
 
         {isLoading ? (
-          <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
-          </Box>
+          <div className="flex justify-center p-8"><Spinner label="Loading LLM settings" /></div>
         ) : (
           <>
             {/* Current Model Status */}
-            <Card variant="outlined" sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Current Extraction Model
-                </Typography>
-                <Box display="flex" alignItems="center" gap={1}>
-                  {isLocalModel ? (
-                    <ComputerIcon color="primary" />
-                  ) : (
-                    <CloudIcon color="info" />
-                  )}
-                  <Typography variant="h6">
-                    {currentModelInfo?.name || selectedExtractionModel}
-                  </Typography>
-                  <Chip
-                    label={isLocalModel ? 'Local' : 'Cloud'}
-                    size="small"
-                    color={isLocalModel ? 'primary' : 'info'}
-                    variant="outlined"
-                  />
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Provider: {currentModelInfo?.provider || 'unknown'}
-                </Typography>
-              </CardContent>
-            </Card>
+            <section className="mb-6 rounded-md border border-border p-4">
+              <h3 className="mb-1 text-sm text-muted-foreground">Current Extraction Model</h3>
+              <div className="flex items-center gap-2">
+                {isLocalModel ? <Monitor aria-hidden="true" className="size-5" /> : <Cloud aria-hidden="true" className="size-5" />}
+                <span className="text-lg font-semibold">{currentModelInfo?.name || selectedExtractionModel}</span>
+                <Pill tone="muted">{isLocalModel ? 'Local' : 'Cloud'}</Pill>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Provider: {currentModelInfo?.provider || 'unknown'}</p>
+            </section>
 
             {/* Model Selection */}
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Extraction Model</InputLabel>
-              <Select
-                value={selectedExtractionModel}
-                label="Extraction Model"
-                onChange={(e) => handleModelChange(e.target.value)}
-                disabled={updateModelMutation.isPending}
-              >
-                {/* Cloud Models */}
-                <MenuItem disabled>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <CloudIcon fontSize="small" color="info" />
-                    <Typography variant="caption" fontWeight="bold">CLOUD MODELS</Typography>
-                  </Box>
-                </MenuItem>
+            <Select
+              label="Extraction Model"
+              value={selectedExtractionModel}
+              onChange={handleModelChange}
+              disabled={updateModelMutation.isPending}
+              className="mb-6"
+            >
+              <optgroup label="Cloud models">
                 {cloudModels.map((model) => (
-                  <MenuItem key={model.id} value={model.id}>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
-                      <Typography>{model.name}</Typography>
-                      <Chip label={model.provider} size="small" variant="outlined" />
-                    </Box>
-                  </MenuItem>
+                  <option key={model.id} value={model.id}>{`${model.name} · ${model.provider}`}</option>
                 ))}
-
-                {hasLocalModels && (
-                  <MenuItem disabled>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <ComputerIcon fontSize="small" color="primary" />
-                      <Typography variant="caption" fontWeight="bold">LOCAL MODELS (OLLAMA)</Typography>
-                    </Box>
-                  </MenuItem>
-                )}
-                {localModels.map((model) => (
-                  <MenuItem key={model.id} value={model.id}>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
-                      <Typography>{model.name}</Typography>
-                      <Chip label="local" size="small" color="primary" variant="outlined" />
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              </optgroup>
+              {hasLocalModels && (
+                <optgroup label="Local models (Ollama)">
+                  {localModels.map((model) => (
+                    <option key={model.id} value={model.id}>{model.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </Select>
 
             {hasLocalModels && (
               <>
-                <Divider sx={{ my: 3 }} />
+                <hr className="my-6 border-border" />
 
                 {/* Ollama Configuration */}
-                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ComputerIcon color="primary" />
+                <h3 className="mb-2 flex items-center gap-2 font-semibold">
+                  <Monitor aria-hidden="true" className="size-5" />
                   Ollama Configuration
-                </Typography>
+                </h3>
 
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <Typography variant="body2" color="text.secondary">Status:</Typography>
-                  <Chip
-                    icon={config?.ollama_status === 'connected' ? <CheckCircleIcon /> : <ErrorIcon />}
-                    label={STATUS_LABELS[config?.ollama_status] || 'Unknown'}
-                    size="small"
-                    color={STATUS_COLORS[config?.ollama_status] || 'default'}
-                  />
-                </Box>
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Pill tone={statusTone}>
+                    {config?.ollama_status === 'connected' ? <CircleCheck aria-hidden="true" className="size-3.5" /> : <CircleAlert aria-hidden="true" className="size-3.5" />}
+                    {STATUS_LABELS[config?.ollama_status] || 'Unknown'}
+                  </Pill>
+                </div>
 
-                <Box display="flex" gap={1} mb={2}>
-                  <TextField
-                    fullWidth
-                    size="small"
+                <div className="mb-4 flex items-start gap-2">
+                  <Field
+                    className="flex-1"
                     label="Ollama API URL"
                     value={ollamaApiBase}
                     onChange={(e) => setOllamaApiBase(e.target.value)}
                     placeholder="http://localhost:11434"
                     helperText="Default: http://localhost:11434"
                   />
-                  <Button
-                    variant="outlined"
-                    onClick={handleOllamaUpdate}
-                    disabled={updateOllamaMutation.isPending}
-                  >
-                    {updateOllamaMutation.isPending ? <CircularProgress size={20} /> : 'Test'}
+                  <Button variant="secondary" size="sm" className="mt-4" onClick={handleOllamaUpdate} disabled={updateOllamaMutation.isPending}>
+                    {updateOllamaMutation.isPending ? <Spinner label="Testing" className="size-4" /> : 'Test'}
                   </Button>
-                </Box>
+                </div>
 
                 {/* Installed Ollama Models */}
                 {config?.ollama_status === 'connected' && ollamaModelsData?.models?.length > 0 && (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Installed Models ({ollamaModelsData.models.length})
-                    </Typography>
-                    <Box display="flex" flexWrap="wrap" gap={0.5}>
+                  <div>
+                    <p className="mb-1 text-sm text-muted-foreground">Installed Models ({ollamaModelsData.models.length})</p>
+                    <div className="flex flex-wrap gap-1">
                       {ollamaModelsData.models.map((model) => (
-                        <Chip
+                        <button
                           key={model.id}
-                          label={model.name}
-                          size="small"
-                          variant="outlined"
+                          type="button"
                           onClick={() => handleModelChange(model.id)}
-                          sx={{ cursor: 'pointer' }}
-                        />
+                          className="inline-flex h-6 cursor-pointer items-center rounded-full border border-border px-2 text-[11px] outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {model.name}
+                        </button>
                       ))}
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
                 )}
 
                 {config?.ollama_status === 'disconnected' && (
-                  <Alert severity="info" sx={{ mt: 2 }}>
-                    <Typography variant="body2">
-                      To use local models, install and run Ollama:
-                    </Typography>
-                    <Typography variant="caption" component="div" sx={{ mt: 1, fontFamily: 'monospace' }}>
+                  <Notice className="mt-4">
+                    <p className="text-sm">To use local models, install and run Ollama:</p>
+                    <p className="mt-2 font-mono text-[11px]">
                       1. Install: curl -fsSL https://ollama.com/install.sh | sh<br />
                       2. Pull a model: ollama pull llama3.1:8b<br />
                       3. Start server: ollama serve
-                    </Typography>
-                  </Alert>
+                    </p>
+                  </Notice>
                 )}
               </>
             )}
           </>
         )}
       </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
   );
 }

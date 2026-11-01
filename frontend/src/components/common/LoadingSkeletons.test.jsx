@@ -13,16 +13,16 @@ describe('loading skeletons', () => {
   it('draw the requested table shape, with or without a title bar', () => {
     const { container, rerender } = renderWithProviders(<TableSkeleton rows={3} columns={4} title={false} />);
     // header bar + 3 rows x 4 cells
-    expect(container.querySelectorAll('.MuiSkeleton-root')).toHaveLength(1 + 3 * 4);
+    expect(container.querySelectorAll('[data-skeleton]')).toHaveLength(1 + 3 * 4);
 
     rerender(<TableSkeleton rows={3} columns={4} />);
-    expect(container.querySelectorAll('.MuiSkeleton-root')).toHaveLength(1 + 1 + 3 * 4);
+    expect(container.querySelectorAll('[data-skeleton]')).toHaveLength(1 + 1 + 3 * 4);
   });
 
   it('can sit bare inside an existing card', () => {
     const { container } = renderWithProviders(<TableSkeleton bare rows={1} columns={1} />);
 
-    expect(container.querySelector('.MuiPaper-root')).toBeNull();
+    expect(container.querySelector('[data-card]')).toBeNull();
   });
 
   it('page skeleton defaults to a generic label', () => {

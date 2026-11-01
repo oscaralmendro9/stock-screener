@@ -1,13 +1,7 @@
-import {
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
 import { activeSources, failingSources, useContentSources } from './contentSources';
+
+const TH = 'border-b border-border px-2 py-1.5 text-left font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5 align-top';
 
 function formatTime(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -19,63 +13,50 @@ export default function ThemeSourceHealth() {
   const failing = failingSources(data);
 
   return (
-    <div>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Theme content sources
-      </Typography>
+    <section className="tw">
+      <h2 className="mb-2 text-base font-semibold">Theme content sources</h2>
       {isLoading ? (
-        <CircularProgress size={20} />
+        <span role="progressbar" aria-label="Loading theme content sources" className="inline-block size-5 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
       ) : isError ? (
-        <Typography variant="body2" color="error">
-          Failed to load theme content sources.
-        </Typography>
+        <p className="text-sm text-loss">Failed to load theme content sources.</p>
       ) : (
         <>
-          <Typography
-            variant="body2"
-            color={failing.length === 0 ? 'success.main' : 'text.secondary'}
-            sx={{ mb: 1.5 }}
-          >
+          <p className={`mb-3 text-sm ${failing.length === 0 ? 'text-gain' : 'text-muted-foreground'}`}>
             {active.length} active · {failing.length === 0 ? 'all healthy' : `${failing.length} failing`}
-          </Typography>
+          </p>
           {failing.length > 0 && (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Source</TableCell>
-                  <TableCell>Failures</TableCell>
-                  <TableCell>Last success</TableCell>
-                  <TableCell>Last error</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {failing.map((source) => (
-                  <TableRow key={source.id}>
-                    <TableCell>
-                      <Typography variant="body2">{source.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {source.source_type}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{source.consecutive_failures}× in a row</TableCell>
-                    <TableCell>{formatTime(source.last_success_at)}</TableCell>
-                    <TableCell sx={{ maxWidth: 420 }}>
-                      <Typography variant="body2" noWrap title={source.last_error || undefined}>
-                        {source.last_error || '—'}
-                      </Typography>
-                      {source.last_error_at && (
-                        <Typography variant="caption" color="text.secondary">
-                          {formatTime(source.last_error_at)}
-                        </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    {['Source', 'Failures', 'Last success', 'Last error'].map((label) => (
+                      <th key={label} scope="col" className={TH}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {failing.map((source) => (
+                    <tr key={source.id}>
+                      <td className={TD}>
+                        <p>{source.name}</p>
+                        <p className="text-xs text-muted-foreground">{source.source_type}</p>
+                      </td>
+                      <td className={`${TD} tabular-nums`}>{source.consecutive_failures}× in a row</td>
+                      <td className={`${TD} tabular-nums`}>{formatTime(source.last_success_at)}</td>
+                      <td className={`${TD} max-w-[420px]`}>
+                        <p className="truncate" title={source.last_error || undefined}>{source.last_error || '—'}</p>
+                        {source.last_error_at && (
+                          <p className="text-xs text-muted-foreground tabular-nums">{formatTime(source.last_error_at)}</p>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }

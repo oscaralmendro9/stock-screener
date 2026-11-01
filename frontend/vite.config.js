@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 
 import { optionsValidatorsPlugin } from './build/optionsValidatorsPlugin.js';
@@ -43,8 +44,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    resolve: {
+      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    },
     plugins: [
       react(),
+      tailwindcss(),
       optionsValidatorsPlugin(),
       ...(env.VITE_STATIC_SITE === 'true' ? [staticSiteMetaPlugin(siteUrl)] : []),
     ],
@@ -102,10 +107,14 @@ export default defineConfig(({ mode }) => {
         'react',
         'react-dom',
         'react-router-dom',
-        '@mui/material',
         '@tanstack/react-query',
         '@tanstack/react-virtual',
         'recharts',
+        // CommonJS runtimes imported only by the generated virtual:options-validators
+        // module, which the dependency scanner never sees; pre-bundle them up front
+        // instead of re-optimizing (and reloading) the first time /options opens.
+        'ajv/dist/runtime/ucs2length.js',
+        'ajv-formats/dist/formats.js',
       ],
     },
   };

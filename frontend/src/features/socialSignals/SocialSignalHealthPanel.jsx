@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert, Box, Button, Chip, Collapse, Divider, FormControlLabel, MenuItem,
-  Paper, Select, Stack, Switch, Table, TableBody, TableCell, TableHead,
-  TableRow, TextField, Typography,
-} from '@mui/material';
 
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 import {
   createSocialSource, decideEconomicSocialAssociation, decideSocialAssociation, getSocialAdminHealth,
   getSocialAdminRuntime, getSocialAdminSources, getSocialAnalysis,
@@ -18,6 +16,22 @@ import {
 const money = (value) => `US$${value ?? '—'}`;
 const errorCode = (error) => error?.response?.data?.detail?.code
   || error?.response?.data?.detail || error?.message || 'Request failed';
+
+const TONE = { success: 'info', info: 'info', warning: 'warning', error: 'error' };
+const H3 = 'font-bold';
+const PILL = 'inline-flex h-6 items-center rounded-full border border-border px-2 text-[11px] whitespace-nowrap';
+const INPUT = 'h-11 w-full rounded-md border border-border bg-surface px-2.5 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8';
+const SELECT = 'h-11 cursor-pointer rounded-md border border-border bg-surface px-2 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8';
+const TD = 'border-b border-border px-2 py-1.5 align-top';
+
+function Field({ label, ...props }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      <input className={INPUT} {...props} />
+    </label>
+  );
+}
 
 export default function SocialSignalHealthPanel() {
   const queryClient = useQueryClient();
@@ -138,197 +152,251 @@ export default function SocialSignalHealthPanel() {
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, mt: 3 }}>
-      <Typography variant="h6">Social Signals administration</Typography>
-      <Typography variant="body2" color="text.secondary">
+    <section className="tw mt-6 rounded-lg border border-border bg-surface p-4 text-foreground">
+      <h2 className="text-lg font-semibold">Social Signals administration</h2>
+      <p className="text-sm text-muted-foreground">
         Shared provider, source, analysis budget, and published-run health. The key stays in this page only.
-      </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ my: 2 }}>
-        <TextField size="small" type="password" label="Social admin key" value={keyDraft}
+      </p>
+      <div className="my-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <Field label="Social admin key" type="password" value={keyDraft}
           onChange={(event) => setKeyDraft(event.target.value)} />
-        <Button variant="contained" disabled={!keyDraft.trim()}
+        <Button size="sm" disabled={!keyDraft.trim()}
           onClick={() => {
             setIdentityDraft(''); setAdminKey(keyDraft.trim());
             setKeyGeneration((value) => value + 1); setMessage(null);
           }}>
           Load Social administration
         </Button>
-      </Stack>
-      {!enabled ? <Alert severity="info">Enter the admin key to load Social health and controls.</Alert> : null}
-      {message ? <Alert severity={message.severity} sx={{ mb: 2 }}>{message.text}</Alert> : null}
+      </div>
+      {!enabled ? <Notice>Enter the admin key to load Social health and controls.</Notice> : null}
+      {message ? <Notice tone={TONE[message.severity]} className="mb-4">{message.text}</Notice> : null}
       {enabled && [runtime, health, sources].some((query) => query.isError) ? (
-        <Alert severity="error">Admin key rejected or Social administration could not be loaded.</Alert>
+        <Notice tone="error">Admin key rejected or Social administration could not be loaded.</Notice>
       ) : null}
-      <Collapse in={enabled}>
-        {health.data ? <HealthSummary health={health.data} /> : null}
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" fontWeight={700}>Runtime</Typography>
-        <Alert severity="warning" sx={{ my: 1 }}>
-          Validation can read X and spend the shared LLM allowance, but cannot publish. Live can publish after every safety check passes.
-        </Alert>
-        <Stack direction="row" gap={1} flexWrap="wrap">
-          <Select size="small" aria-label="Social mode" value={modeDraft ?? runtimeDraft.mode}
-            onChange={(event) => setModeDraft(event.target.value)}>
-            {['off', 'validation', 'live'].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
-          </Select>
-          <Select size="small" aria-label="Social provider" value={providerDraft ?? runtimeDraft.provider}
-            onChange={(event) => setProviderDraft(event.target.value)}>
-            {['disabled', 'official', 'xui'].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
-          </Select>
-          <Button onClick={() => mutation.mutate(
-            () => updateSocialAdminRuntime(adminKey, {
-              mode: modeDraft ?? runtimeDraft.mode, provider: providerDraft ?? runtimeDraft.provider,
-              expected_version: runtimeDraft.version,
-            }),
-            { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appCapabilities'] }) },
-          )}>Save runtime</Button>
-          <Button variant="outlined" onClick={doRefresh}>Refresh Social Signals</Button>
-        </Stack>
-        <Divider sx={{ my: 2 }} />
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="subtitle1" fontWeight={700}>Social Sources</Typography>
-          <FormControlLabel control={<Switch checked={showArchived}
-            onChange={(event) => setShowArchived(event.target.checked)} />} label="Show archived" />
-        </Stack>
-        <Alert severity="info" sx={{ mb: 1 }}>Test List reads at most five posts. A pending list cannot be enabled until the test passes.</Alert>
-        <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1 }}>
-          <TextField size="small" label="List name" value={newName} onChange={(event) => setNewName(event.target.value)} />
-          <TextField size="small" label="List ID or URL" value={newRef} onChange={(event) => setNewRef(event.target.value)} />
-          <Button disabled={!newName.trim() || !newRef.trim()} onClick={() => mutation.mutate(() =>
-            createSocialSource(adminKey, { name: newName.trim(), list_ref: newRef.trim() }))}>Add pending list</Button>
-        </Stack>
-        <SourceTable rows={sources.data || []} renameDrafts={renameDrafts} setRenameDrafts={setRenameDrafts}
-          run={(work) => mutation.mutate(work)} adminKey={adminKey} />
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" fontWeight={700}>Saved analysis</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Budget-paused work resumes after reset. Outside-window work is retained and only retried when you request it.
-        </Typography>
-        {(analysis.data || []).map((work) => <Stack key={work.work_id} direction="row" gap={1} alignItems="center">
-          <Typography variant="body2">
-            Work {work.work_id} · {work.error_code === 'skipped:no_signal' ? 'skipped: repost, or no ticker or company' : work.state}
-          </Typography>
-          {['waiting_budget', 'failed_retryable', 'failed_terminal', 'outside_window'].includes(work.state) ? (
-            <Button size="small" aria-label={`Retry work ${work.work_id}`}
-              onClick={() => mutation.mutate(() => retrySocialAnalysis(adminKey, work.work_id))}>Retry</Button>
+      {enabled && (
+        <div>
+          {health.data ? <HealthSummary health={health.data} /> : null}
+          <hr className="my-4 border-border" />
+          <h3 className={H3}>Runtime</h3>
+          <Notice tone="warning" className="my-2">
+            Validation can read X and spend the shared LLM allowance, but cannot publish. Live can publish after every safety check passes.
+          </Notice>
+          <div className="flex flex-wrap items-center gap-2">
+            <select aria-label="Social mode" value={modeDraft ?? runtimeDraft.mode}
+              onChange={(event) => setModeDraft(event.target.value)} className={SELECT}>
+              {['off', 'validation', 'live'].map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select aria-label="Social provider" value={providerDraft ?? runtimeDraft.provider}
+              onChange={(event) => setProviderDraft(event.target.value)} className={SELECT}>
+              {['disabled', 'official', 'xui'].map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <Button variant="ghost" size="sm" onClick={() => mutation.mutate(
+              () => updateSocialAdminRuntime(adminKey, {
+                mode: modeDraft ?? runtimeDraft.mode, provider: providerDraft ?? runtimeDraft.provider,
+                expected_version: runtimeDraft.version,
+              }),
+              { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appCapabilities'] }) },
+            )}>Save runtime</Button>
+            <Button variant="secondary" size="sm" onClick={doRefresh}>Refresh Social Signals</Button>
+          </div>
+          <hr className="my-4 border-border" />
+          <div className="flex items-center justify-between">
+            <h3 className={H3}>Social Sources</h3>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" role="switch" checked={showArchived}
+                onChange={(event) => setShowArchived(event.target.checked)} className="size-4 cursor-pointer accent-accent" />
+              Show archived
+            </label>
+          </div>
+          <Notice className="mb-2">Test List reads at most five posts. A pending list cannot be enabled until the test passes.</Notice>
+          <div className="mb-2 flex flex-wrap items-end gap-2">
+            <Field label="List name" value={newName} onChange={(event) => setNewName(event.target.value)} />
+            <Field label="List ID or URL" value={newRef} onChange={(event) => setNewRef(event.target.value)} />
+            <Button variant="ghost" size="sm" disabled={!newName.trim() || !newRef.trim()} onClick={() => mutation.mutate(() =>
+              createSocialSource(adminKey, { name: newName.trim(), list_ref: newRef.trim() }))}>Add pending list</Button>
+          </div>
+          <SourceTable rows={sources.data || []} renameDrafts={renameDrafts} setRenameDrafts={setRenameDrafts}
+            run={(work) => mutation.mutate(work)} adminKey={adminKey} />
+          <hr className="my-4 border-border" />
+          <h3 className={H3}>Saved analysis</h3>
+          <p className="text-sm text-muted-foreground">
+            Budget-paused work resumes after reset. Outside-window work is retained and only retried when you request it.
+          </p>
+          {(analysis.data || []).map((work) => (
+            <div key={work.work_id} className="flex items-center gap-2">
+              <p className="text-sm">
+                Work {work.work_id} · {work.error_code === 'skipped:no_signal' ? 'skipped: repost, or no ticker or company' : work.state}
+              </p>
+              {['waiting_budget', 'failed_retryable', 'failed_terminal', 'outside_window'].includes(work.state) ? (
+                <Button variant="ghost" size="sm" aria-label={`Retry work ${work.work_id}`}
+                  onClick={() => mutation.mutate(() => retrySocialAnalysis(adminKey, work.work_id))}>Retry</Button>
+              ) : null}
+            </div>
+          ))}
+          <hr className="my-4 border-border" />
+          <h3 className={H3}>Theme association review</h3>
+          <Notice className="my-2">
+            Social-linked Theme merges are not available in this version; ordinary legacy Theme merges are unchanged.
+          </Notice>
+          {(associations.data || []).map((row) => {
+            // An economic row (economic authority) is decided by its economic id
+            // and revision; a legacy row by its id and version (#515).
+            const key = row.economic_association_id ?? row.association_id;
+            const decide = (target) => (row.economic_association_id
+              ? decideEconomicSocialAssociation(adminKey, row.economic_association_id, {
+                target, reason: reasons[key].trim(), expected_revision: row.economic_revision,
+              })
+              : decideSocialAssociation(adminKey, row.association_id, {
+                target, reason: reasons[key].trim(), expected_version: row.version,
+              }));
+            return (
+              <div key={key} className="flex flex-wrap items-end gap-2">
+                <p className="text-sm">{row.theme_name} · {row.market}:{row.canonical_symbol} · {row.state}</p>
+                <Field label={`Decision reason ${key}`}
+                  value={reasons[key] || ''}
+                  onChange={(event) => setReasons((current) => ({ ...current, [key]: event.target.value }))} />
+                {['accepted', 'rejected'].map((target) => (
+                  <Button key={target} variant="ghost" size="sm"
+                    aria-label={`${target === 'accepted' ? 'Accept' : 'Reject'} ${row.canonical_symbol}`}
+                    disabled={!reasons[key]?.trim()}
+                    onClick={() => mutation.mutate(() => decide(target))}>{target}</Button>
+                ))}
+              </div>
+            );
+          })}
+          <hr className="my-4 border-border" />
+          <h3 className={H3}>Verified company identities</h3>
+          <Notice className="my-2">
+            You supply and verify issuer links. The LLM and this editor do not verify them; unknown companies cannot satisfy automatic thresholds.
+          </Notice>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">Identity entries JSON</span>
+            <textarea rows={3}
+              placeholder='[{"symbol":"0700","company_id":"issuer-id","verification_reference":"...","verified_at":"...+00:00"}]'
+              value={identityDraft} onChange={(event) => setIdentityDraft(event.target.value)}
+              className="w-full resize-y rounded-md border border-border bg-surface p-2.5 font-mono text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          </label>
+          <Button variant="ghost" size="sm" className="mt-2" onClick={saveIdentities}>Save verified identities</Button>
+          <hr className="my-4 border-border" />
+          <h3 className={H3}>Validation previews</h3>
+          {(runs.data || []).filter((run) => run.mode === 'validation').map((run) => (
+            <Button key={run.run_id} variant="ghost" size="sm" onClick={() => loadValidation(run.run_id)}>
+              Preview {run.run_id}
+            </Button>
+          ))}
+          {validation ? (
+            <p className="text-sm tabular-nums">
+              {validation.candidates?.length || 0} staged candidates · {validation.associations?.length || 0} association proposals · not published
+            </p>
           ) : null}
-        </Stack>)}
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" fontWeight={700}>Theme association review</Typography>
-        <Alert severity="info" sx={{ my: 1 }}>
-          Social-linked Theme merges are not available in this version; ordinary legacy Theme merges are unchanged.
-        </Alert>
-        {(associations.data || []).map((row) => {
-          // An economic row (economic authority) is decided by its economic id
-          // and revision; a legacy row by its id and version (#515).
-          const key = row.economic_association_id ?? row.association_id;
-          const decide = (target) => (row.economic_association_id
-            ? decideEconomicSocialAssociation(adminKey, row.economic_association_id, {
-              target, reason: reasons[key].trim(), expected_revision: row.economic_revision,
-            })
-            : decideSocialAssociation(adminKey, row.association_id, {
-              target, reason: reasons[key].trim(), expected_version: row.version,
-            }));
-          return <Stack key={key} direction="row" gap={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="body2">{row.theme_name} · {row.market}:{row.canonical_symbol} · {row.state}</Typography>
-            <TextField size="small" label={`Decision reason ${key}`}
-              value={reasons[key] || ''}
-              onChange={(event) => setReasons((current) => ({ ...current, [key]: event.target.value }))} />
-            {['accepted', 'rejected'].map((target) => <Button key={target} size="small"
-              aria-label={`${target === 'accepted' ? 'Accept' : 'Reject'} ${row.canonical_symbol}`}
-              disabled={!reasons[key]?.trim()}
-              onClick={() => mutation.mutate(() => decide(target))}>{target}</Button>)}
-          </Stack>;
-        })}
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" fontWeight={700}>Verified company identities</Typography>
-        <Alert severity="info" sx={{ my: 1 }}>
-          You supply and verify issuer links. The LLM and this editor do not verify them; unknown companies cannot satisfy automatic thresholds.
-        </Alert>
-        <TextField fullWidth multiline minRows={3} label="Identity entries JSON"
-          placeholder='[{"symbol":"0700","company_id":"issuer-id","verification_reference":"...","verified_at":"...+00:00"}]'
-          value={identityDraft} onChange={(event) => setIdentityDraft(event.target.value)} />
-        <Button sx={{ mt: 1 }} onClick={saveIdentities}>Save verified identities</Button>
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" fontWeight={700}>Validation previews</Typography>
-        {(runs.data || []).filter((run) => run.mode === 'validation').map((run) => (
-          <Button key={run.run_id} size="small" onClick={() => loadValidation(run.run_id)}>
-            Preview {run.run_id}
-          </Button>
-        ))}
-        {validation ? <Typography variant="body2">
-          {validation.candidates?.length || 0} staged candidates · {validation.associations?.length || 0} association proposals · not published
-        </Typography> : null}
-      </Collapse>
-    </Paper>
+        </div>
+      )}
+    </section>
   );
 }
 
 function HealthSummary({ health }) {
   const budget = health.budget || {};
   const reauth = (health.reason_codes || []).includes('reauthentication_required');
-  return <Box sx={{ mt: 2 }}>
-    <Stack direction="row" gap={0.75} flexWrap="wrap">
-      <Chip label={`${health.enabled_source_count ?? 0}/${health.source_count ?? 0} enabled sources`} />
-      <Chip label={`${health.participating_source_count ?? 0}/${health.enabled_source_count ?? 0} source coverage`} />
-      <Chip label={health.social_fresh ? 'Fresh' : 'Stale or degraded'} color={health.social_fresh ? 'success' : 'warning'} />
-      <Chip label={`${health.collection_status || 'unknown'} collection`} />
-      <Chip label={`${health.processing_status || 'unknown'} processing`} />
-    </Stack>
-    <Typography variant="body2" sx={{ mt: 1 }}>
-      Budget: {money(budget.limit_usd || '2')} per day · {money(budget.remaining_usd)} remaining · {money(budget.spent_usd)} spent · {money(budget.reserved_usd)} reserved
-    </Typography>
-    <Typography variant="caption" color="text.secondary">
-      Reset {budget.next_reset_at ? new Date(budget.next_reset_at).toLocaleString() : '—'} · {budget.timezone || 'Asia/Singapore'} · pricing {budget.pricing_status || 'not configured'}{budget.pricing_version ? ` (${budget.pricing_version})` : ''}{budget.blocked_models?.length ? ` · blocked models: ${budget.blocked_models.join(', ')}` : ''}
-    </Typography>
-    <Typography variant="body2">Backlog: {health.backlog?.waiting ?? 0} waiting · {health.backlog?.failed ?? 0} failed · {health.backlog?.outside_window ?? 0} outside window · {health.backlog?.no_signal ?? 0} skipped (repost, or no ticker or company)</Typography>
-    <Typography variant="body2">Last successful collection {health.last_collection_at ? new Date(health.last_collection_at).toLocaleString() : '—'}</Typography>
-    {reauth ? <Alert severity="error" sx={{ mt: 1 }}>
-      {health.provider === 'xui'
-        ? 'Reauthenticate the private worker outside this app, then run Test List.'
-        : 'Update the official X API credentials on the worker, then run Test List.'}
-    </Alert> : null}
-    {health.unknown_company_identity_count > 0 ? <Alert severity="warning" sx={{ mt: 1 }}>
-      {health.unknown_company_identity_count} company links need administrator verification before they can count toward automatic Theme thresholds.
-    </Alert> : null}
-  </Box>;
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap gap-1.5 tabular-nums">
+        <span className={PILL}>{`${health.enabled_source_count ?? 0}/${health.source_count ?? 0} enabled sources`}</span>
+        <span className={PILL}>{`${health.participating_source_count ?? 0}/${health.enabled_source_count ?? 0} source coverage`}</span>
+        <span className={cn(PILL, health.social_fresh ? 'text-gain' : 'text-warning')}>{health.social_fresh ? 'Fresh' : 'Stale or degraded'}</span>
+        <span className={PILL}>{`${health.collection_status || 'unknown'} collection`}</span>
+        <span className={PILL}>{`${health.processing_status || 'unknown'} processing`}</span>
+      </div>
+      <p className="mt-2 text-sm tabular-nums">
+        Budget: {money(budget.limit_usd || '2')} per day · {money(budget.remaining_usd)} remaining · {money(budget.spent_usd)} spent · {money(budget.reserved_usd)} reserved
+      </p>
+      <p className="text-[11px] text-muted-foreground">
+        Reset {budget.next_reset_at ? new Date(budget.next_reset_at).toLocaleString() : '—'} · {budget.timezone || 'Asia/Singapore'} · pricing {budget.pricing_status || 'not configured'}{budget.pricing_version ? ` (${budget.pricing_version})` : ''}{budget.blocked_models?.length ? ` · blocked models: ${budget.blocked_models.join(', ')}` : ''}
+      </p>
+      <p className="text-sm tabular-nums">Backlog: {health.backlog?.waiting ?? 0} waiting · {health.backlog?.failed ?? 0} failed · {health.backlog?.outside_window ?? 0} outside window · {health.backlog?.no_signal ?? 0} skipped (repost, or no ticker or company)</p>
+      <p className="text-sm">Last successful collection {health.last_collection_at ? new Date(health.last_collection_at).toLocaleString() : '—'}</p>
+      {reauth ? (
+        <Notice tone="error" className="mt-2">
+          {health.provider === 'xui'
+            ? 'Reauthenticate the private worker outside this app, then run Test List.'
+            : 'Update the official X API credentials on the worker, then run Test List.'}
+        </Notice>
+      ) : null}
+      {health.unknown_company_identity_count > 0 ? (
+        <Notice tone="warning" className="mt-2">
+          {health.unknown_company_identity_count} company links need administrator verification before they can count toward automatic Theme thresholds.
+        </Notice>
+      ) : null}
+    </div>
+  );
 }
 
 function SourceTable({ rows, renameDrafts, setRenameDrafts, run, adminKey }) {
-  return <Table size="small"><TableHead><TableRow>
-    {['Name', 'List', 'State', 'Test', 'Last success', 'Actions'].map((value) => <TableCell key={value}>{value}</TableCell>)}
-  </TableRow></TableHead><TableBody>{rows.map((source) => {
-    const passed = source.test_outcome?.status === 'passed';
-    const testState = source.test_progress || source.test_outcome?.status || 'untested';
-    const testDetail = source.test_outcome
-      ? `${source.test_outcome.provider} ${testState} · ${source.test_outcome.sample_count}/5${source.test_outcome.tested_at ? ` · ${new Date(source.test_outcome.tested_at).toLocaleString()}` : ''}`
-      : testState;
-    return <TableRow key={source.source_id}>
-      <TableCell><TextField size="small" aria-label={`Rename ${source.name}`}
-        value={renameDrafts[source.source_id] ?? source.name}
-        onChange={(event) => setRenameDrafts((current) => ({ ...current, [source.source_id]: event.target.value }))} /></TableCell>
-      <TableCell><Typography variant="body2">{source.list_id}</Typography><Typography variant="caption">{source.canonical_url}</Typography></TableCell>
-      <TableCell><Chip size="small" label={source.lifecycle} /></TableCell>
-      <TableCell>{testDetail}</TableCell>
-      <TableCell>{source.collected_at ? new Date(source.collected_at).toLocaleString() : 'Never'}</TableCell>
-      <TableCell><Stack direction="row" gap={0.5} flexWrap="wrap">
-        <Button size="small" disabled={(renameDrafts[source.source_id] ?? source.name) === source.name}
-          onClick={() => run(() => renameSocialSource(adminKey, source.source_id,
-            renameDrafts[source.source_id], source.version))}>Rename</Button>
-        {source.lifecycle !== 'archived' ? <Button size="small" aria-label={`Test ${source.name}`}
-          onClick={() => run(() => testSocialSource(adminKey, source.source_id, source.version))}>Test</Button> : null}
-        {source.lifecycle !== 'enabled' && source.lifecycle !== 'archived' && passed ? <Button size="small"
-          aria-label={`Enable ${source.name}`} onClick={() => run(() => transitionSocialSource(
-            adminKey, source.source_id, 'enabled', source.version))}>Enable</Button> : null}
-        {source.lifecycle === 'enabled' ? <Button size="small" onClick={() => run(() => transitionSocialSource(
-          adminKey, source.source_id, 'disabled', source.version))}>Disable</Button> : null}
-        {source.lifecycle !== 'archived' ? <Button size="small" color="warning" onClick={() => {
-          if (window.confirm(`Archive ${source.name}? Its audit history will be retained.`)) run(() => transitionSocialSource(
-            adminKey, source.source_id, 'archived', source.version));
-        }}>Archive</Button> : null}
-      </Stack><Typography variant="caption" display="block">
-        {(source.audit || []).map((event) => `${event.action} · ${event.occurred_at}`).join(' | ')}
-      </Typography></TableCell>
-    </TableRow>;
-  })}</TableBody></Table>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr>
+            {['Name', 'List', 'State', 'Test', 'Last success', 'Actions'].map((value) => (
+              <th key={value} scope="col" className="border-b border-border px-2 py-2 text-left text-xs font-semibold text-muted-foreground">{value}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((source) => {
+            const passed = source.test_outcome?.status === 'passed';
+            const testState = source.test_progress || source.test_outcome?.status || 'untested';
+            const testDetail = source.test_outcome
+              ? `${source.test_outcome.provider} ${testState} · ${source.test_outcome.sample_count}/5${source.test_outcome.tested_at ? ` · ${new Date(source.test_outcome.tested_at).toLocaleString()}` : ''}`
+              : testState;
+            return (
+              <tr key={source.source_id}>
+                <td className={TD}>
+                  <input aria-label={`Rename ${source.name}`}
+                    value={renameDrafts[source.source_id] ?? source.name}
+                    onChange={(event) => setRenameDrafts((current) => ({ ...current, [source.source_id]: event.target.value }))}
+                    className={INPUT} />
+                </td>
+                <td className={TD}>
+                  <p className="text-sm">{source.list_id}</p>
+                  <p className="text-[11px] text-muted-foreground">{source.canonical_url}</p>
+                </td>
+                <td className={TD}><span className={PILL}>{source.lifecycle}</span></td>
+                <td className={TD}>{testDetail}</td>
+                <td className={TD}>{source.collected_at ? new Date(source.collected_at).toLocaleString() : 'Never'}</td>
+                <td className={TD}>
+                  <div className="flex flex-wrap gap-1">
+                    <Button variant="ghost" size="sm" disabled={(renameDrafts[source.source_id] ?? source.name) === source.name}
+                      onClick={() => run(() => renameSocialSource(adminKey, source.source_id,
+                        renameDrafts[source.source_id], source.version))}>Rename</Button>
+                    {source.lifecycle !== 'archived' ? (
+                      <Button variant="ghost" size="sm" aria-label={`Test ${source.name}`}
+                        onClick={() => run(() => testSocialSource(adminKey, source.source_id, source.version))}>Test</Button>
+                    ) : null}
+                    {source.lifecycle !== 'enabled' && source.lifecycle !== 'archived' && passed ? (
+                      <Button variant="ghost" size="sm" aria-label={`Enable ${source.name}`} onClick={() => run(() => transitionSocialSource(
+                        adminKey, source.source_id, 'enabled', source.version))}>Enable</Button>
+                    ) : null}
+                    {source.lifecycle === 'enabled' ? (
+                      <Button variant="ghost" size="sm" onClick={() => run(() => transitionSocialSource(
+                        adminKey, source.source_id, 'disabled', source.version))}>Disable</Button>
+                    ) : null}
+                    {source.lifecycle !== 'archived' ? (
+                      <Button variant="ghost" size="sm" className="text-warning" onClick={() => {
+                        if (window.confirm(`Archive ${source.name}? Its audit history will be retained.`)) run(() => transitionSocialSource(
+                          adminKey, source.source_id, 'archived', source.version));
+                      }}>Archive</Button>
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {(source.audit || []).map((event) => `${event.action} · ${event.occurred_at}`).join(' | ')}
+                  </p>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }

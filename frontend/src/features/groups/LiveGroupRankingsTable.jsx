@@ -1,149 +1,117 @@
-import {
-  Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-} from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+
 import {
   LIVE_GROUP_RANKING_COLUMNS,
   deriveHistoricalRank,
   derivePctRsAbove80,
   formatGroupRs,
 } from './groupRankingFields';
-import { groupRsCellSx, groupRsTone } from './groupRsVisualEncoding';
+import { GROUP_RS_TINT_CLASS, groupRsTone } from './groupRsVisualEncoding';
+import RankChange from './RankChange';
 
-const RankChangeCell = ({ value }) => {
-  if (value === null || value === undefined) {
-    return <Box sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>-</Box>;
-  }
-  const color = value > 0 ? 'success.main' : value < 0 ? 'error.main' : 'text.secondary';
-  const prefix = value > 0 ? '+' : '';
+const ALIGN = { left: 'text-left', right: 'text-right', center: 'text-center' };
+const CELL = 'border-b border-border px-2 py-1.5 whitespace-nowrap';
+
+const SortableHeaderCell = ({ column, order, orderBy, onSort }) => {
+  const active = orderBy === column.field;
+  const Icon = !active ? ArrowUpDown : order === 'asc' ? ArrowUp : ArrowDown;
   return (
-    <Box display="flex" alignItems="center" justifyContent="flex-end" sx={{ fontFamily: 'monospace' }}>
-      {value > 0 && <TrendingUpIcon sx={{ fontSize: 12, mr: 0.25, color }} />}
-      {value < 0 && <TrendingDownIcon sx={{ fontSize: 12, mr: 0.25, color }} />}
-      <Box component="span" sx={{ color, fontWeight: value !== 0 ? 600 : 400, fontSize: '11px' }}>
-        {prefix}{value}
-      </Box>
-    </Box>
-  );
-};
-
-const HistoricalRankCell = ({ row, rankChange }) => {
-  const historicalRank = deriveHistoricalRank(row, rankChange);
-  if (historicalRank == null) {
-    return <Box sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '11px' }}>-</Box>;
-  }
-  return (
-    <Box sx={{ fontFamily: 'monospace', fontSize: '11px', textAlign: 'right' }}>
-      {historicalRank}
-    </Box>
-  );
-};
-
-const SortableHeaderCell = ({ column, order, orderBy, onSort }) => (
-  <TableCell align={column.align}>
-    <TableSortLabel
-      active={orderBy === column.field}
-      direction={orderBy === column.field ? order : 'asc'}
-      onClick={() => onSort(column.field)}
-      title={column.description}
+    <th
+      scope="col"
+      aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={cn(
+        'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-1.5 font-medium',
+        ALIGN[column.align],
+        active ? 'text-foreground' : 'text-muted-foreground',
+      )}
     >
-      {column.label}
-    </TableSortLabel>
-  </TableCell>
-);
+      <button
+        type="button"
+        onClick={() => onSort(column.field)}
+        title={column.description}
+        className={cn(
+          'inline-flex cursor-pointer items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+          column.align === 'right' && 'flex-row-reverse',
+        )}
+      >
+        {column.label}
+        <Icon aria-hidden="true" className={cn('size-3', !active && 'opacity-40')} />
+      </button>
+    </th>
+  );
+};
 
+// Top-20 groups are the leaders the page is about; the rest read as plain numbers.
 const RankBadge = ({ rank }) => (
-  <Box
-    component="span"
-    sx={{
-      backgroundColor: rank <= 20 ? 'success.main' : rank >= 177 ? 'error.main' : 'warning.main',
-      color: rank <= 20 ? 'success.contrastText' : rank >= 177 ? 'error.contrastText' : 'warning.contrastText',
-      padding: '1px 5px',
-      borderRadius: '2px',
-      fontSize: '10px',
-      fontWeight: 600,
-      fontFamily: 'monospace',
-    }}
-  >
-    {rank}
-  </Box>
+  rank <= 20
+    ? <Badge tone="accent" className="font-semibold">{rank}</Badge>
+    : <span className="px-1.5 font-medium tabular-nums">{rank}</span>
 );
 
 const LiveRankingCell = ({ row, column, showHistoricalRanks }) => {
+  const align = ALIGN[column.align];
+
   if (column.kind === 'rank') {
-    return (
-      <TableCell>
-        <RankBadge rank={row.rank} />
-      </TableCell>
-    );
+    return <td className={CELL}><RankBadge rank={row.rank} /></td>;
   }
 
   if (column.kind === 'group') {
     return (
-      <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <td className={cn(CELL, 'max-w-[180px] truncate font-medium')} title={row.industry_group}>
         {row.industry_group}
-      </TableCell>
+      </td>
     );
   }
 
   if (column.kind === 'rankChange') {
+    const historicalRank = showHistoricalRanks ? deriveHistoricalRank(row, row[column.field]) : null;
     return (
-      <TableCell align={column.align}>
-        {showHistoricalRanks ? (
-          <HistoricalRankCell row={row} rankChange={row[column.field]} />
+      <td className={cn(CELL, align)}>
+        {!showHistoricalRanks ? (
+          <RankChange value={row[column.field]} />
+        ) : historicalRank == null ? (
+          <span className="text-muted-foreground">-</span>
         ) : (
-          <RankChangeCell value={row[column.field]} />
+          <span className="tabular-nums">{historicalRank}</span>
         )}
-      </TableCell>
+      </td>
     );
   }
 
   if (column.kind === 'pctAbove80') {
     const pctRsAbove80 = derivePctRsAbove80(row);
     return (
-      <TableCell align={column.align} sx={{ fontFamily: 'monospace' }}>
+      <td className={cn(CELL, align, 'tabular-nums')}>
         {pctRsAbove80 != null ? `${pctRsAbove80.toFixed(1)}%` : '-'}
-      </TableCell>
+      </td>
     );
   }
 
   if (column.kind === 'topStock') {
     return (
-      <TableCell align={column.align} sx={{ color: 'text.secondary', fontWeight: 500 }}>
+      <td className={cn(CELL, align, 'font-medium text-muted-foreground')}>
         {row.top_symbol || '-'}
-      </TableCell>
+      </td>
     );
   }
 
   if (column.kind === 'integer') {
-    return (
-      <TableCell align={column.align} sx={{ fontFamily: 'monospace' }}>
-        {row[column.field]}
-      </TableCell>
-    );
+    return <td className={cn(CELL, align, 'tabular-nums')}>{row[column.field]}</td>;
   }
 
   const value = row[column.field];
   const isRsRating = column.kind === 'rs';
+  const tone = isRsRating ? groupRsTone(value) : undefined;
   return (
-    <TableCell
-      align={column.align}
-      data-rs-tone={isRsRating ? groupRsTone(value) : undefined}
-      sx={{
-        fontFamily: 'monospace',
-        ...(isRsRating && groupRsCellSx(value)),
-      }}
+    <td
+      data-rs-tone={tone}
+      className={cn(CELL, align, 'tabular-nums', isRsRating && GROUP_RS_TINT_CLASS[tone])}
     >
       {formatGroupRs(value)}
-    </TableCell>
+    </td>
   );
 };
 
@@ -156,10 +124,10 @@ export default function LiveGroupRankingsTable({
   showHistoricalRanks,
 }) {
   return (
-    <TableContainer sx={{ maxHeight: 'calc(100vh - 200px)', flexGrow: 1 }}>
-      <Table stickyHeader size="small" sx={{ minWidth: 1120 }}>
-        <TableHead>
-          <TableRow>
+    <div className="max-h-[calc(100dvh-200px)] flex-1 overflow-auto">
+      <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr>
             {LIVE_GROUP_RANKING_COLUMNS.map((column) => (
               <SortableHeaderCell
                 key={column.field}
@@ -169,13 +137,12 @@ export default function LiveGroupRankingsTable({
                 onSort={onSort}
               />
             ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
+          </tr>
+        </thead>
+        <tbody>
           {rankings.map((row) => (
-            <TableRow
+            <tr
               key={row.industry_group}
-              hover
               onClick={() => onSelectGroup(row.industry_group)}
               tabIndex={0}
               onKeyDown={(event) => {
@@ -184,7 +151,7 @@ export default function LiveGroupRankingsTable({
                   onSelectGroup(row.industry_group);
                 }
               }}
-              sx={{ cursor: 'pointer' }}
+              className="cursor-pointer outline-none hover:bg-surface-subtle focus-visible:bg-accent/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
               {LIVE_GROUP_RANKING_COLUMNS.map((column) => (
                 <LiveRankingCell
@@ -194,10 +161,10 @@ export default function LiveGroupRankingsTable({
                   showHistoricalRanks={showHistoricalRanks}
                 />
               ))}
-            </TableRow>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </tbody>
+      </table>
+    </div>
   );
 }

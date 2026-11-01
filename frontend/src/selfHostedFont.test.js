@@ -19,7 +19,7 @@ const faces = (css.match(/@font-face\s*{[^}]*}/g) ?? []).map((block) => ({
 const covers = (face, codePoint) => face.ranges.some(([lo, hi]) => codePoint >= lo && codePoint <= hi);
 const latin = faces.find((face) => covers(face, 'A'.codePointAt(0)));
 
-describe('the Inter font', () => {
+describe('the UI fonts', () => {
   it('is not fetched from a third-party stylesheet', () => {
     // A CSS @import blocks first paint until another origin answers.
     expect(css).not.toMatch(/@import\s+url\(\s*['"]?https?:/);
@@ -28,7 +28,8 @@ describe('the Inter font', () => {
   it('comes from bundled files', () => {
     expect(faces.length).toBeGreaterThan(0);
     for (const face of faces) {
-      expect(face.block).toMatch(/font-family:\s*'Inter'/);
+      // Instrument Sans for text; Inter only for its Greek subset (β, Δ).
+      expect(face.block).toMatch(covers(face, 'β'.codePointAt(0)) ? /font-family:\s*'Inter'/ : /font-family:\s*'Instrument Sans'/);
       expect(face.src).not.toMatch(/^https?:/);
       expect(existsSync(local(face.src))).toBe(true);
     }
@@ -62,6 +63,7 @@ describe('the Inter font', () => {
   });
 
   it('ships its licence with the app', () => {
+    expect(existsSync(local('../public/fonts/InstrumentSans-OFL.txt'))).toBe(true);
     expect(existsSync(local('../public/fonts/Inter-OFL.txt'))).toBe(true);
   });
 

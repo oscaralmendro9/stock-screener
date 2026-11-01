@@ -36,7 +36,9 @@ const replaceRuntimeImports = (generatedCode) => {
       ? 'import ucs2LengthModule from "ajv/dist/runtime/ucs2length.js";\nconst ucs2length = ucs2LengthModule.default ?? ucs2LengthModule;'
       : '',
     needsFormats
-      ? 'import formatsModule from "ajv-formats/dist/formats.js";\nconst fullFormats = formatsModule.fullFormats ?? formatsModule.default?.fullFormats;'
+      // Namespace import: the file sets __esModule without a default export, so
+      // Vite's dev interop resolves a default import to undefined.
+      ? 'import * as formatsModule from "ajv-formats/dist/formats.js";\nconst fullFormats = formatsModule.fullFormats ?? formatsModule.default?.fullFormats;'
       : '',
   ].filter(Boolean).join('\n');
 

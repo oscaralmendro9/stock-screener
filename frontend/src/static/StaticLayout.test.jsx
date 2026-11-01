@@ -46,15 +46,15 @@ describe('StaticLayout market selector', () => {
 
   it('lists unavailable markets as disabled options', () => {
     renderLayout();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Static market selector' }));
-    const option = within(screen.getByRole('listbox')).getByRole('option', { name: /IN — unavailable/ });
-    expect(option).toHaveAttribute('aria-disabled', 'true');
+    const select = screen.getByRole('combobox', { name: 'Static market selector' });
+    expect(within(select).getByRole('option', { name: /IN — unavailable/ })).toBeDisabled();
   });
 
   it('keeps an unavailable market from the URL selected and says so (#504)', () => {
     renderLayout('/?market=IN');
 
-    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveTextContent('IN — unavailable');
+    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveValue('IN');
+    expect(screen.getByText(/IN — unavailable$/, { selector: 'span' })).toBeInTheDocument();
     expect(screen.queryByTestId('page')).not.toBeInTheDocument();
     expect(screen.getByText(/IN data is not available in this publish/)).toBeInTheDocument();
 
@@ -66,7 +66,7 @@ describe('StaticLayout market selector', () => {
     window.localStorage.setItem(STATIC_MARKET_STORAGE_KEY, 'IN');
     renderLayout('/');
 
-    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveTextContent('IN — unavailable');
+    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveValue('IN');
     expect(screen.queryByTestId('page')).not.toBeInTheDocument();
   });
 
@@ -97,7 +97,7 @@ describe('StaticLayout repo link and page title', () => {
   it('titles the tab with the page and market', () => {
     renderLayout('/breadth');
 
-    expect(document.title).toBe('Breadth · US · Stock Scanner Daily');
+    expect(document.title).toBe('Market · US · Stock Scanner Daily');
   });
 
   it('names the Options page even when the market has no options nav item', () => {
@@ -202,7 +202,8 @@ describe('StaticLayout on a phone-width screen', () => {
     renderLayout();
 
     expect(screen.getByRole('img', { name: 'Read-only' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveTextContent(/^🇺🇸 US$/);
+    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveValue('US');
+    expect(screen.getByText('🇺🇸 US')).toBeInTheDocument();
 
     const nav = screen.getByRole('navigation', { name: 'Main' });
     fireEvent.click(within(nav).getByRole('button', { name: 'More' }));

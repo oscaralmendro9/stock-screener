@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
 import AssistantMessageBubble from './AssistantMessageBubble';
 
 const SUGGESTIONS = [
@@ -14,76 +13,44 @@ function AssistantMessageList({ messages, isLoading }) {
 
   useEffect(() => {
     if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      bottomRef.current.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth' });
     }
   }, [messages, isLoading]);
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 3,
-        }}
-      >
-        <Typography variant="body1" color="text.secondary" gutterBottom>
-          Start a conversation with the assistant
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, textAlign: 'center' }}>
+      <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+        <p className="mb-2 text-muted-foreground">Start a conversation with the assistant</p>
+        <p className="max-w-[440px] text-sm text-muted-foreground">
           It can use StockScreenClaude scan outputs, themes, breadth, watchlists, and wider web context in one response.
-        </Typography>
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        </p>
+        <ul className="mt-4 flex flex-col gap-2">
           {SUGGESTIONS.map((suggestion) => (
-            <Typography
-              key={suggestion}
-              variant="body2"
-              sx={{
-                p: 1,
-                px: 2,
-                borderRadius: 2,
-                backgroundColor: 'action.hover',
-                cursor: 'default',
-                fontSize: '13px',
-              }}
-            >
+            <li key={suggestion} className="rounded-lg bg-surface-subtle px-4 py-2 text-[13px]">
               &quot;{suggestion}&quot;
-            </Typography>
+            </li>
           ))}
-        </Box>
-      </Box>
+        </ul>
+      </div>
     );
   }
 
   return (
-    <Box
-      sx={{
-        flex: 1,
-        overflow: 'auto',
-        p: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-      }}
-    >
+    <div className="flex flex-1 flex-col gap-4 overflow-auto p-4" aria-live="polite">
       {messages.map((message) => (
         <AssistantMessageBubble key={message.id} message={message} />
       ))}
 
       {isLoading && messages.length > 0 && !messages[messages.length - 1]?.isStreaming && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 1 }}>
-          <CircularProgress size={16} />
-          <Typography variant="caption" color="text.secondary">
-            Thinking...
-          </Typography>
-        </Box>
+        <div role="status" className="flex items-center gap-2 pl-2 text-[11px] text-muted-foreground">
+          <span aria-hidden="true" className="inline-block size-4 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+          Thinking...
+        </div>
       )}
 
       <div ref={bottomRef} />
-    </Box>
+    </div>
   );
 }
 

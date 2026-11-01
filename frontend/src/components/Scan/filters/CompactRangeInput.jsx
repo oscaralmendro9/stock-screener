@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box, TextField, Typography } from '@mui/material';
 
 /**
  * Compact min/max number input for filtering
@@ -56,96 +55,44 @@ function CompactRangeInput({
     debouncedOnChange(localMin, value);
   };
 
+  const field = (props, width, adornStart, adornEnd) => (
+    <span className="relative flex h-11 items-center rounded-md border border-border bg-surface focus-within:ring-2 focus-within:ring-ring md:h-7" style={{ width }}>
+      {adornStart && <span className="pl-1.5 text-[11px] text-muted-foreground">{adornStart}</span>}
+      <input
+        type="number"
+        step={step}
+        min={minLimit}
+        max={maxLimit}
+        className="h-full w-full min-w-0 appearance-none bg-transparent px-1.5 font-[inherit] text-xs text-foreground tabular-nums outline-none [-moz-appearance:textfield] placeholder:text-muted-foreground [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        {...props}
+      />
+      {adornEnd && <span className="pr-1.5 text-[11px] text-muted-foreground">{adornEnd}</span>}
+    </span>
+  );
+
   return (
-    <Box sx={{ minWidth: 100 }}>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}
-      >
-        {label}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <TextField
-          size="small"
-          type="number"
-          value={localMin}
-          onChange={handleMinChange}
-          placeholder={minOnly ? '≥' : 'Min'}
-          inputProps={{
-            step,
-            min: minLimit,
-            max: maxLimit,
-            style: { padding: '4px 6px', fontSize: '0.75rem' },
-          }}
-          sx={{
-            width: minOnly ? 70 : 55,
-            '& .MuiOutlinedInput-root': {
-              height: 28,
-            },
-            '& input[type=number]': {
-              MozAppearance: 'textfield',
-            },
-            '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-              WebkitAppearance: 'none',
-              margin: 0,
-            },
-          }}
-          InputProps={{
-            startAdornment: prefix ? (
-              <Typography variant="caption" sx={{ mr: 0.25, color: 'text.secondary' }}>
-                {prefix}
-              </Typography>
-            ) : null,
-            endAdornment: minOnly && suffix ? (
-              <Typography variant="caption" sx={{ ml: 0.25, color: 'text.secondary' }}>
-                {suffix}
-              </Typography>
-            ) : null,
-          }}
-        />
+    <div role="group" aria-label={label} className="tw min-w-25">
+      <span className="mb-1 block text-[11px] text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1">
+        {field(
+          { value: localMin, onChange: handleMinChange, placeholder: minOnly ? '≥' : 'Min', 'aria-label': minOnly ? `${label} minimum` : `${label} min` },
+          minOnly ? 70 : 55,
+          prefix,
+          minOnly ? suffix : '',
+        )}
         {!minOnly && (
           <>
-            <Typography variant="caption" color="text.secondary">
-              -
-            </Typography>
-            <TextField
-              size="small"
-              type="number"
-              value={localMax}
-              onChange={handleMaxChange}
-              placeholder="Max"
-              inputProps={{
-                step,
-                min: minLimit,
-                max: maxLimit,
-                style: { padding: '4px 6px', fontSize: '0.75rem' },
-              }}
-              sx={{
-                width: 55,
-                '& .MuiOutlinedInput-root': {
-                  height: 28,
-                },
-                '& input[type=number]': {
-                  MozAppearance: 'textfield',
-                },
-                '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                  WebkitAppearance: 'none',
-                  margin: 0,
-                },
-              }}
-              InputProps={{
-                endAdornment: suffix ? (
-                  <Typography variant="caption" sx={{ ml: 0.25, color: 'text.secondary' }}>
-                    {suffix}
-                  </Typography>
-                ) : null,
-              }}
-            />
+            <span className="text-[11px] text-muted-foreground">-</span>
+            {field(
+              { value: localMax, onChange: handleMaxChange, placeholder: 'Max', 'aria-label': `${label} max` },
+              55,
+              '',
+              suffix,
+            )}
           </>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 

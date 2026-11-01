@@ -1,33 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Autocomplete,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Radio,
-  RadioGroup,
-  Select,
-  Stack,
-  Switch,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import {
   conditionLabel,
   newCondition,
@@ -40,12 +12,46 @@ import {
   fieldValueOptions,
   isOpportunityStateField,
 } from '../scanFilterFields';
+import CompactMultiSelect from '../../../components/Scan/filters/CompactMultiSelect';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
 const groupId = () => `setup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 function clone(value) {
   return structuredClone(value);
 }
+
+const INPUT = 'h-11 w-full rounded-md border border-border bg-surface px-2.5 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8';
+
+function TextInput({ label, className, ...props }) {
+  return (
+    <label className={cn('flex min-w-0 flex-col gap-0.5', className)}>
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      <input className={INPUT} {...props} />
+    </label>
+  );
+}
+
+// Fields grouped by category, so the picker reads like the old two-line menu.
+function FieldOptions({ fieldCatalog }) {
+  const byCategory = new Map();
+  fieldCatalog.forEach((item) => {
+    const list = byCategory.get(item.category) || [];
+    list.push(item);
+    byCategory.set(item.category, list);
+  });
+  return [...byCategory].map(([category, items]) => (
+    <optgroup key={category} label={category}>
+      {items.map((item) => <option key={item.field} value={item.field}>{item.label}</option>)}
+    </optgroup>
+  ));
+}
+
+const ICON = 'grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:size-8';
 
 function ConditionEditor({
   condition,
@@ -66,121 +72,81 @@ function ConditionEditor({
   const handleFieldChange = (field) => onChange(newCondition(field));
 
   return (
-    <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
-        <FormControl size="small" sx={{ minWidth: 210 }}>
-          <InputLabel>Field</InputLabel>
-          <Select
-            label="Field"
-            value={condition.field}
-            onChange={(event) => handleFieldChange(event.target.value)}
-          >
-            {fieldCatalog.map((item) => (
-              <MenuItem key={item.field} value={item.field}>
-                <Box>
-                  <Typography variant="body2">{item.label}</Typography>
-                  <Typography variant="caption" color="text.secondary">{item.category}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+    <div className="rounded-md border border-border bg-background p-2">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end">
+        <NativeSelect label="Field" value={condition.field} onChange={handleFieldChange} className="md:w-52">
+          <FieldOptions fieldCatalog={fieldCatalog} />
+        </NativeSelect>
 
         {meta.type === 'range' && (
           <>
-            <TextField
-              size="small"
+            <TextInput
               label="Minimum"
               type={rangeInputType}
               value={condition.min ?? ''}
-              onChange={(event) => onChange({
-                ...condition,
-                min: rangeValue(event.target.value),
-              })}
-              sx={{ width: 135 }}
+              onChange={(event) => onChange({ ...condition, min: rangeValue(event.target.value) })}
+              className="md:w-[135px]"
             />
-            <TextField
-              size="small"
+            <TextInput
               label="Maximum"
               type={rangeInputType}
               value={condition.max ?? ''}
-              onChange={(event) => onChange({
-                ...condition,
-                max: rangeValue(event.target.value),
-              })}
-              sx={{ width: 135 }}
+              onChange={(event) => onChange({ ...condition, max: rangeValue(event.target.value) })}
+              className="md:w-[135px]"
             />
           </>
         )}
 
         {meta.type === 'categorical' && (
           <>
-            <FormControl size="small" sx={{ minWidth: 115 }}>
-              <InputLabel>Mode</InputLabel>
-              <Select
-                label="Mode"
-                value={condition.mode}
-                onChange={(event) => onChange({ ...condition, mode: event.target.value })}
-              >
-                <MenuItem value="include">Include</MenuItem>
-                <MenuItem value="exclude">Exclude</MenuItem>
-              </Select>
-            </FormControl>
-            <Autocomplete
-              multiple
-              freeSolo
-              size="small"
-              options={valueOptions}
-              value={condition.values || []}
-              onChange={(_event, values) => onChange({
-                ...condition,
-                values: values.map((value) => String(value).trim()).filter(Boolean),
-              })}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Values"
-                  placeholder={valueOptions.length ? 'Choose or type a value' : 'Type a value, then press Enter'}
-                  error={categoricalLimitExceeded}
-                  helperText={`${categoricalValueCount}/${EXPRESSION_LIMITS.maxCategoricalValues} values`}
-                />
-              )}
-              sx={{ minWidth: 260, flex: 1 }}
-            />
+            <NativeSelect label="Mode" value={condition.mode} onChange={(mode) => onChange({ ...condition, mode })} className="md:w-28">
+              <option value="include">Include</option>
+              <option value="exclude">Exclude</option>
+            </NativeSelect>
+            <div className="min-w-0 flex-1 md:min-w-[260px]">
+              <CompactMultiSelect
+                label="Values"
+                values={condition.values || []}
+                options={valueOptions}
+                onChange={(values) => onChange({
+                  ...condition,
+                  values: values.map((value) => String(value).trim()).filter(Boolean),
+                })}
+                placeholder={valueOptions.length ? 'Choose or type a value' : 'Type a value, then press Enter'}
+                freeSolo
+                error={categoricalLimitExceeded}
+                helperText={`${categoricalValueCount}/${EXPRESSION_LIMITS.maxCategoricalValues} values`}
+              />
+            </div>
           </>
         )}
 
         {meta.type === 'boolean' && (
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <InputLabel>Value</InputLabel>
-            <Select
-              label="Value"
-              value={condition.value ? 'yes' : 'no'}
-              onChange={(event) => onChange({ ...condition, value: event.target.value === 'yes' })}
-            >
-              <MenuItem value="yes">Yes</MenuItem>
-              <MenuItem value="no">No</MenuItem>
-            </Select>
-          </FormControl>
+          <NativeSelect
+            label="Value"
+            value={condition.value ? 'yes' : 'no'}
+            onChange={(value) => onChange({ ...condition, value: value === 'yes' })}
+            className="md:w-32"
+          >
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </NativeSelect>
         )}
 
         {meta.type === 'text' && (
-          <TextField
-            size="small"
-            fullWidth
+          <TextInput
             label="Contains"
             value={condition.pattern || ''}
             onChange={(event) => onChange({ ...condition, pattern: event.target.value })}
+            className="flex-1"
           />
         )}
 
-        <Tooltip title="Remove rule">
-          <IconButton size="small" onClick={onDelete} aria-label="Remove rule">
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Stack>
-    </Paper>
+        <button type="button" onClick={onDelete} aria-label="Remove rule" title="Remove rule" className={ICON}>
+          <Trash2 aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -201,53 +167,40 @@ function SetupGroupCard({
   };
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{ p: 1.5, opacity: group.enabled ? 1 : 0.68, borderColor: group.enabled ? 'primary.light' : 'divider' }}
-    >
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-        <TextField
-          size="small"
+    <div className={cn('rounded-lg border p-3', group.enabled ? 'border-accent/50' : 'border-border opacity-70')}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <TextInput
           label={`Setup ${index + 1} name`}
           value={group.name}
-          inputProps={{ maxLength: EXPRESSION_LIMITS.maxGroupNameLength }}
+          maxLength={EXPRESSION_LIMITS.maxGroupNameLength}
           onChange={(event) => onChange({ ...group, name: event.target.value })}
-          sx={{ minWidth: 230 }}
+          className="sm:w-60"
         />
-        <FormControl size="small" sx={{ minWidth: 175 }}>
-          <InputLabel>Rules in this setup</InputLabel>
-          <Select
-            label="Rules in this setup"
-            value={group.match}
-            onChange={(event) => onChange({ ...group, match: event.target.value })}
-          >
-            <MenuItem value="all">Match all rules</MenuItem>
-            <MenuItem value="any">Match any rule</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControlLabel
-          sx={{ ml: { sm: 'auto' } }}
-          control={(
-            <Switch
-              checked={group.enabled}
-              onChange={(event) => onChange({ ...group, enabled: event.target.checked })}
-            />
-          )}
-          label={group.enabled ? 'Enabled' : 'Disabled'}
-        />
-        <Tooltip title="Duplicate setup">
-          <IconButton size="small" onClick={onDuplicate} aria-label="Duplicate setup">
-            <ContentCopyIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Delete setup">
-          <IconButton size="small" color="error" onClick={onDelete} aria-label="Delete setup">
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+        <NativeSelect label="Rules in this setup" value={group.match} onChange={(match) => onChange({ ...group, match })} className="sm:w-44">
+          <option value="all">Match all rules</option>
+          <option value="any">Match any rule</option>
+        </NativeSelect>
+        <label className="flex h-11 cursor-pointer items-center gap-2 text-sm sm:ml-auto md:h-8">
+          <input
+            type="checkbox"
+            role="switch"
+            checked={group.enabled}
+            onChange={(event) => onChange({ ...group, enabled: event.target.checked })}
+            className="size-4 cursor-pointer accent-accent"
+          />
+          {group.enabled ? 'Enabled' : 'Disabled'}
+        </label>
+        <span className="flex">
+          <button type="button" onClick={onDuplicate} aria-label="Duplicate setup" title="Duplicate setup" className={ICON}>
+            <Copy aria-hidden="true" className="size-4" />
+          </button>
+          <button type="button" onClick={onDelete} aria-label="Delete setup" title="Delete setup" className={cn(ICON, 'hover:text-loss')}>
+            <Trash2 aria-hidden="true" className="size-4" />
+          </button>
+        </span>
+      </div>
 
-      <Stack spacing={1} sx={{ mt: 1.25 }}>
+      <div className="mt-2.5 flex flex-col gap-2">
         {group.conditions.map((condition, conditionIndex) => (
           <ConditionEditor
             key={`${group.id}-${conditionIndex}`}
@@ -261,27 +214,28 @@ function SetupGroupCard({
             valueOptions={fieldValueOptions(condition.field, optionValues)}
           />
         ))}
-      </Stack>
+      </div>
 
       <Button
-        size="small"
-        startIcon={<AddIcon />}
-        sx={{ mt: 1 }}
+        variant="ghost"
+        size="sm"
+        className="mt-2"
         disabled={!defaultField || group.conditions.length >= EXPRESSION_LIMITS.maxGroupConditions}
         onClick={() => onChange({
           ...group,
           conditions: [...group.conditions, newCondition(defaultField)],
         })}
       >
+        <Plus aria-hidden="true" />
         Add rule
       </Button>
 
       {group.conditions.length > 0 && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+        <p className="mt-1 text-[11px] text-muted-foreground">
           Reads as: {group.conditions.map((condition) => conditionLabel(condition)).join(group.match === 'all' ? ' AND ' : ' OR ')}
-        </Typography>
+        </p>
       )}
-    </Paper>
+    </div>
   );
 }
 
@@ -346,45 +300,60 @@ export default function GuidedFilterBuilderDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle>Build scan logic</DialogTitle>
-      <DialogContent dividers>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title="Build scan logic"
+        size="lg"
+        footer={(
+          <>
+            <DialogClose asChild><Button variant="ghost" size="sm">Cancel</Button></DialogClose>
+            <Button size="sm" onClick={handleApply}>Apply logic</Button>
+          </>
+        )}
+      >
+        <p className="mb-4 text-sm text-muted-foreground">
           Keep non-negotiable rules in “Always require,” then describe alternate named setups.
           This makes the result list explainable without exposing raw boolean syntax.
-        </Typography>
+        </p>
 
-        <Paper variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: 'action.hover' }}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="subtitle2">Always require</Typography>
-            <Chip size="small" label={`${draft.required.conditions.length} rules`} />
-            <Typography variant="caption" color="text.secondary">
+        <div className="mb-4 rounded-lg border border-border bg-surface-subtle p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold">Always require</h3>
+            <span className="inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] tabular-nums">{`${draft.required.conditions.length} rules`}</span>
+            <span className="text-[11px] text-muted-foreground">
               Managed by the quick filters on the results page. Every matching stock must pass these rules.
-            </Typography>
-          </Stack>
+            </span>
+          </div>
           {draft.required.conditions.length > 0 && (
-            <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+            <p className="mt-2 text-[11px]">
               {draft.required.conditions
                 .map((condition) => conditionLabel(condition))
                 .join(' AND ')}
-            </Typography>
+            </p>
           )}
-        </Paper>
+        </div>
 
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2">How should named setups combine?</Typography>
-          <RadioGroup
-            row
-            value={draft.group_join}
-            onChange={(event) => setDraft({ ...draft, group_join: event.target.value })}
-          >
-            <FormControlLabel value="any" control={<Radio size="small" />} label="Match any setup (broader)" />
-            <FormControlLabel value="all" control={<Radio size="small" />} label="Match all setups (narrower)" />
-          </RadioGroup>
-        </Box>
+        <fieldset className="mb-4">
+          <legend className="text-sm font-semibold">How should named setups combine?</legend>
+          <div className="flex flex-wrap gap-x-6">
+            {[['any', 'Match any setup (broader)'], ['all', 'Match all setups (narrower)']].map(([value, label]) => (
+              <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-9">
+                <input
+                  type="radio"
+                  name="group-join"
+                  value={value}
+                  checked={draft.group_join === value}
+                  onChange={() => setDraft({ ...draft, group_join: value })}
+                  className="size-4 cursor-pointer accent-accent"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-        <Divider sx={{ mb: 2 }} />
-        <Stack spacing={1.5}>
+        <hr className="mb-4 border-border" />
+        <div className="flex flex-col gap-3">
           {draft.groups.map((group, index) => (
             <SetupGroupCard
               key={group.id}
@@ -410,35 +379,31 @@ export default function GuidedFilterBuilderDialog({
               fieldCatalog={fieldCatalog}
             />
           ))}
-        </Stack>
+        </div>
 
         {!draft.groups.length && (
-          <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', borderStyle: 'dashed' }}>
-            <Typography variant="body2" color="text.secondary">
-              Add a named setup such as “Breakout ready” or “Pullback candidate.”
-            </Typography>
-          </Paper>
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Add a named setup such as “Breakout ready” or “Pullback candidate.”
+          </div>
         )}
 
         <Button
-          startIcon={<AddIcon />}
+          variant="secondary"
+          size="sm"
+          className="mt-3"
           onClick={addGroup}
           disabled={!defaultField || draft.groups.length >= EXPRESSION_LIMITS.maxGroups}
-          sx={{ mt: 1.5 }}
         >
+          <Plus aria-hidden="true" />
           Add named setup
         </Button>
 
         {showErrors && errors.length > 0 && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
+          <Notice tone="warning" role="alert" className="mt-4">
             {errors.map((error) => <div key={error}>{error}</div>)}
-          </Alert>
+          </Notice>
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 1.5 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleApply}>Apply logic</Button>
-      </DialogActions>
     </Dialog>
   );
 }

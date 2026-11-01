@@ -132,7 +132,7 @@ npm run lint
 - `frontend/src/components/Scan/filters/` — filter sub-component tests (CompactRangeInput, CompactCheckbox)
 - `frontend/src/utils/` — utility tests (formatUtils)
 - `frontend/src/test/fixtures/` — shared test fixtures
-- `frontend/src/test/renderWithProviders.jsx` — MUI ThemeProvider test wrapper
+- `frontend/src/test/renderWithProviders.jsx` — React Query test wrapper
 
 ### Quality Gates (Setup Engine)
 ```bash
@@ -215,9 +215,9 @@ The Celery task `app.tasks.cache_tasks.cleanup_orphaned_scans` remains the sched
 
 ### Frontend Structure
 - **React 18** with Vite
-- **Material-UI** for components
+- **Tailwind CSS v4** (tokens and preflight in `src/styles/tailwind.css`) with Radix-based primitives in `frontend/src/ui/*`
 - **React Query** (TanStack) for data fetching
-- **MUI Table** with TanStack Virtual row virtualization for results display
+- Native tables with TanStack Virtual row virtualization for results display
 - Pages in `frontend/src/pages/`: ScanPage, ChatbotPage, ThemesPage, GroupRankingsPage, BreadthPage, SignalsPage
 
 ### Frontend API Client Convention
@@ -358,3 +358,10 @@ test(canslim): add unit tests for EPS calculation
 
 **Scopes** (optional): `api`, `scanner`, `chatbot`, `frontend`, `celery`, `db`, `cache`, `themes`, `signals`
 
+
+## UI work (fork additions)
+
+- Read `DESIGN.md` before any UI change; it overrides `design-system/mercados/MASTER.md`.
+- Use the installed skills in `.claude/skills`: `ui-ux-pro-max` for design decisions, `baseline-ui` / `fixing-accessibility` / `fixing-motion-performance` as review checklists.
+- UI code uses Tailwind + `frontend/src/ui/*` (import via `@/`). MUI and Emotion were removed; do not reintroduce them. Tailwind preflight is on.
+- Plan and status of the fork live in `ROADMAP.md`.

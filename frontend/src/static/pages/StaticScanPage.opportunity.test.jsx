@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import StaticScanPage from './StaticScanPage';
 
@@ -80,9 +79,9 @@ const renderPage = () => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <StaticScanPage />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };
@@ -253,8 +252,8 @@ describe('StaticScanPage', () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole('button', { name: 'Setup Ready' }));
-    expect(screen.getByRole('presentation')).toHaveTextContent('Resilience score');
-    expect(screen.getByRole('presentation')).toHaveTextContent('SPY');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Resilience score');
+    expect(screen.getByRole('dialog')).toHaveTextContent('SPY');
     expect(screen.getByText('Not computed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Not computed' })).not.toBeInTheDocument();
     expect(resultsTableSpy.mock.calls.at(-1)?.[0]).not.toHaveProperty('opportunityTelemetrySurface');

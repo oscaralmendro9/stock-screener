@@ -38,7 +38,7 @@ describe('MarketThemesList', () => {
 
       await user.click(screen.getByText('+4'));
 
-      const dialog = await screen.findByRole('presentation');
+      const dialog = await screen.findByRole('dialog');
       const scope = within(dialog);
       HK_THEMES.forEach((theme) => {
         expect(scope.getByText(theme)).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('MarketThemesList', () => {
       );
 
       await user.click(screen.getByText('+4'));
-      const dialog = await screen.findByRole('presentation');
+      const dialog = await screen.findByRole('dialog');
       // Click a chip rendered inside the popover.
       await user.click(within(dialog).getByText('Telecom Equipment'));
       expect(onRowClick).not.toHaveBeenCalled();

@@ -101,8 +101,8 @@ describe('ResultsTable', () => {
 
       await user.click(screen.getByRole('button', { name: 'Setup Ready' }));
 
-      expect(screen.getByRole('presentation')).toHaveTextContent('Resilience score');
-      expect(screen.getByRole('presentation')).toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('Resilience score');
+      expect(screen.getByRole('dialog')).toHaveTextContent('84.0');
       expect(onOpenChart).not.toHaveBeenCalled();
     });
 
@@ -112,7 +112,7 @@ describe('ResultsTable', () => {
         <ResultsTable {...defaultProps} results={[opportunityRow]} />,
       );
       await user.click(screen.getByRole('button', { name: 'Setup Ready' }));
-      expect(screen.getByRole('presentation')).toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('84.0');
 
       rerender(
         <ResultsTable
@@ -120,8 +120,8 @@ describe('ResultsTable', () => {
           results={[{ ...opportunityRow, resilience_score: 79.0 }]}
         />,
       );
-      expect(screen.getByRole('presentation')).toHaveTextContent('79.0');
-      expect(screen.getByRole('presentation')).not.toHaveTextContent('84.0');
+      expect(screen.getByRole('dialog')).toHaveTextContent('79.0');
+      expect(screen.getByRole('dialog')).not.toHaveTextContent('84.0');
 
       rerender(
         <ResultsTable
@@ -234,7 +234,7 @@ describe('ResultsTable', () => {
       expect(screen.getByRole('button', { name: 'Watch' })).toBeInTheDocument();
       expect(screen.getByText('91.0')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Watch' }));
-      expect(screen.getByRole('presentation')).toHaveTextContent('QQQ');
+      expect(screen.getByRole('dialog')).toHaveTextContent('QQQ');
     });
   });
 
@@ -346,7 +346,7 @@ describe('ResultsTable', () => {
       expect(screen.getByText('New IPO')).toBeInTheDocument();
       expect(screen.getByText('RS:30:1')).toBeInTheDocument();
       expect(screen.getByText('Price:30:1:2.5')).toBeInTheDocument();
-      expect(screen.getByText('50')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('50')).toBeInTheDocument();
       expect(screen.getByText('10.0%')).toBeInTheDocument();
       expect(screen.queryByText('S2')).not.toBeInTheDocument();
     });
@@ -430,7 +430,6 @@ describe('ResultsTable', () => {
       renderWithProviders(
         <ResultsTable {...defaultProps} results={[fullSeRow]} total={50} />
       );
-      // MUI TablePagination renders "Rows per page:" text
       expect(screen.getByText(/rows per page/i)).toBeInTheDocument();
     });
 
@@ -551,11 +550,11 @@ describe('ResultsTable', () => {
     });
   });
 
-  it('fills the stage badge from the theme, overriding the neutral default', () => {
+  it('tones the stage by its direction instead of a filled box', () => {
     renderWithProviders(<ResultsTable {...defaultProps} />);
 
-    // Stage 2 = success.main in the dark test theme (#2ebd85).
-    expect(screen.getByText('S2')).toHaveStyle({ backgroundColor: 'rgb(46, 189, 133)' });
+    // Stage 2 = advancing.
+    expect(screen.getByText('S2')).toHaveClass('text-gain');
   });
 
   describe('on a phone-width screen', () => {
@@ -591,8 +590,7 @@ describe('ResultsTable', () => {
       fireEvent.click(screen.getByRole('button', { name: /Sorted descending/ }));
       expect(onSortChange).toHaveBeenLastCalledWith('composite_score', 'asc');
 
-      await userEvent.click(screen.getByRole('combobox', { name: 'Sort by' }));
-      await userEvent.click(screen.getByRole('option', { name: 'RS rating' }));
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'RS rating');
       expect(onSortChange).toHaveBeenLastCalledWith('rs_rating', 'desc');
     });
 
@@ -690,15 +688,14 @@ describe('ResultsTable', () => {
       const onSortChange = vi.fn();
       renderWithProviders(<ResultsTable {...defaultProps} onSortChange={onSortChange} />);
 
-      await userEvent.click(screen.getByRole('combobox', { name: 'Sort by' }));
-      const options = screen.getAllByRole('option').map((option) => option.textContent);
+      const options = within(screen.getByRole('combobox', { name: 'Sort by' })).getAllByRole('option').map((option) => option.textContent);
       expect(options.slice(0, 3)).toEqual(['Composite score', 'Minervini', 'CANSLIM']);
       for (const name of ['Price', 'EPS growth Q/Q', 'VCP score', 'Market cap', 'ADR', 'Beta']) {
         expect(options).toContain(name);
       }
       expect(new Set(options).size).toBe(options.length);
 
-      await userEvent.click(screen.getByRole('option', { name: 'Market cap' }));
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Market cap');
       expect(onSortChange).toHaveBeenLastCalledWith('market_cap', 'desc');
     });
 
@@ -730,22 +727,21 @@ describe('ResultsTable', () => {
       const onSortChange = vi.fn();
       renderWithProviders(<ResultsTable {...defaultProps} sortBy="price" onSortChange={onSortChange} />);
 
-      await userEvent.click(screen.getByRole('combobox', { name: 'Sort by' }));
       expect(screen.getAllByRole('option', { name: 'Price' })).toHaveLength(1);
-      expect(screen.getByRole('option', { name: 'Price' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('option', { name: 'Price' }).selected).toBe(true);
     });
 
     it('labels the price sort alias in the picker', () => {
       // scanFilterFields.json marks `price` sortable (same column as current_price).
       renderWithProviders(<ResultsTable {...defaultProps} sortBy="price" />);
 
-      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveTextContent('Price');
+      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveDisplayValue('Price');
     });
 
     it('labels a preset-only active sort in the picker without exposing its field id', () => {
       renderWithProviders(<ResultsTable {...defaultProps} sortBy="gap_percent" />);
 
-      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveTextContent('Gap');
+      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveDisplayValue('Gap');
       expect(screen.getByRole('combobox', { name: 'Sort by' })).not.toHaveTextContent('gap_percent');
     });
 
@@ -761,7 +757,7 @@ describe('ResultsTable', () => {
     it('keeps an active sort that the picker does not list', () => {
       renderWithProviders(<ResultsTable {...defaultProps} sortBy="beta" />);
 
-      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveTextContent('Beta');
+      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveDisplayValue('Beta');
     });
   });
 
@@ -775,7 +771,7 @@ describe('ResultsTable', () => {
     const zeros = screen.getAllByText('0.0');
     expect(zeros).toHaveLength(2);
     zeros.forEach((cell) => expect(cell.className).not.toMatch(/rt-heat/));
-    // The generated rule paints the tint (success.main at step 5).
-    expect(screen.getByText('95.4')).toHaveStyle({ backgroundColor: 'rgba(46, 189, 133, 0.5)' });
+    // The tint is the gain token at 30% (step 5).
+    expect(screen.getByText('95.4').getAttribute('style')).toContain('var(--gain) 30.0%');
   });
 });

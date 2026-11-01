@@ -1,11 +1,9 @@
-import { Box, Chip, Divider, Tooltip } from '@mui/material';
+import { cn } from '@/lib/cn';
 
-const chipSx = (isActive) => ({
-  fontSize: '11px',
-  fontWeight: isActive ? 600 : 400,
-  cursor: 'pointer',
-  '& .MuiChip-label': { px: 1 },
-});
+const chipClass = (isActive) => cn(
+  'inline-flex h-11 shrink-0 cursor-pointer items-center rounded-full border px-2.5 text-[11px] whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-6',
+  isActive ? 'border-accent bg-accent font-semibold text-accent-foreground' : 'border-border bg-surface text-foreground hover:bg-surface-subtle',
+);
 
 function ScreenSelector({ screens, activeScreenId, onSelectScreen, matchCounts }) {
   if (!screens?.length) return null;
@@ -19,46 +17,33 @@ function ScreenSelector({ screens, activeScreenId, onSelectScreen, matchCounts }
     const label = count != null ? `${screen.short_name} (${count})` : screen.short_name;
 
     return (
-      <Tooltip key={screen.id} title={`${screen.name} — ${screen.description}`} arrow>
-        <Chip
-          label={label}
-          size="small"
-          variant={isActive ? 'filled' : 'outlined'}
-          color={isActive ? 'primary' : 'default'}
-          onClick={() => onSelectScreen(isActive ? null : screen.id)}
-          sx={chipSx(isActive)}
-        />
-      </Tooltip>
+      <button
+        key={screen.id}
+        type="button"
+        aria-pressed={isActive}
+        title={`${screen.name} — ${screen.description}`}
+        onClick={() => onSelectScreen(isActive ? null : screen.id)}
+        className={chipClass(isActive)}
+      >
+        {label}
+      </button>
     );
   };
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.75,
-        overflowX: 'auto',
-        pb: 0.5,
-        mb: 1.5,
-        '&::-webkit-scrollbar': { height: 4 },
-        '&::-webkit-scrollbar-thumb': { borderRadius: 2, bgcolor: 'divider' },
-      }}
-    >
-      <Chip
-        label="All Stocks"
-        size="small"
-        variant={activeScreenId == null ? 'filled' : 'outlined'}
-        color={activeScreenId == null ? 'primary' : 'default'}
+    <div role="group" aria-label="Screens" className="tw mb-3 flex items-center gap-1.5 overflow-x-auto pb-1">
+      <button
+        type="button"
+        aria-pressed={activeScreenId == null}
         onClick={() => onSelectScreen(null)}
-        sx={chipSx(activeScreenId == null)}
-      />
+        className={chipClass(activeScreenId == null)}
+      >
+        All Stocks
+      </button>
       {tier1.map(renderChip)}
-      {tier2.length > 0 && (
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
-      )}
+      {tier2.length > 0 && <span aria-hidden="true" className="mx-0.5 h-5 w-px shrink-0 bg-border" />}
       {tier2.map(renderChip)}
-    </Box>
+    </div>
   );
 }
 

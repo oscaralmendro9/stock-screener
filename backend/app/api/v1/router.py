@@ -51,6 +51,8 @@ _include(
 )
 _include("social_signals", prefix="/social-signals", tags=["social-signals"])
 _include("cot", prefix="/cot", tags=["cot"])
+_include("futures", prefix="/futures", tags=["futures"])
+_include("options_chain", prefix="/options", tags=["options"])
 
 _include("cache", tags=["cache"])
 _include("fundamentals", tags=["fundamentals"])

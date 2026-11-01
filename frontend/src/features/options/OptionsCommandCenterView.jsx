@@ -1,20 +1,8 @@
 import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Card } from '@/ui/card';
 
 import OptionsQualityBadge from './OptionsQualityBadge';
 import OptionsSourceBadges from './OptionsSourceBadges';
@@ -46,6 +34,10 @@ const LENSES = {
     { name: 'near_spot_open_interest_concentration', percent: true },
   ],
 };
+const LENS_LABELS = { gamma: 'Gamma', volatility: 'Volatility', skew: 'Skew', activity: 'Activity' };
+
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-1.5 font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
 
 const sortRows = (items, metricName, direction) => [...items].sort((left, right) => {
   const leftMetric = left.metrics[metricName];
@@ -70,8 +62,8 @@ export default function OptionsCommandCenterView({ data, onOpenSymbol }) {
     [rows, sort.metric],
   );
 
-  const changeLens = (_, nextLens) => {
-    if (!nextLens) return;
+  const changeLens = (nextLens) => {
+    if (nextLens === lens) return;
     setLens(nextLens);
     setSort({ metric: LENSES[nextLens][0].name, direction: -1 });
   };
@@ -91,98 +83,112 @@ export default function OptionsCommandCenterView({ data, onOpenSymbol }) {
   };
 
   return (
-    <Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h4" component="h1">Options Command Center</Typography>
-        <Typography color="text.secondary">
+    <div className="tw">
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold text-balance">Options Command Center</h1>
+        <p className="text-sm text-muted-foreground">
           A focused read of the current liquid Candidates and Leaders—not an option-chain scanner.
-        </Typography>
-      </Box>
+        </p>
+      </div>
       <OptionsStatusBanner data={data} />
-      <Paper variant="outlined">
-        <Box sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-          <Typography variant="subtitle2">{data.items.length} current symbols</Typography>
-          <ToggleButtonGroup exclusive size="small" value={lens} onChange={changeLens} aria-label="Metric focus">
-            <ToggleButton value="gamma">Gamma</ToggleButton>
-            <ToggleButton value="volatility">Volatility</ToggleButton>
-            <ToggleButton value="skew">Skew</ToggleButton>
-            <ToggleButton value="activity">Activity</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        <TableContainer>
-          <Table size="small" aria-label="Options Command Center current symbols">
-            <TableHead>
-              <TableRow>
-                <TableCell>#</TableCell>
-                <TableCell>Symbol</TableCell>
-                <TableCell>Equity source</TableCell>
-                <TableCell>Quality</TableCell>
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
+          <h2 className="text-sm font-semibold tabular-nums">{data.items.length} current symbols</h2>
+          <div role="group" aria-label="Metric focus" className="inline-flex rounded-md border border-border p-0.5">
+            {Object.keys(LENSES).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={lens === value}
+                onClick={() => changeLens(value)}
+                className={cn(
+                  'h-9 cursor-pointer rounded-sm px-3 text-xs font-semibold outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring md:h-7',
+                  lens === value ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-surface-subtle hover:text-foreground',
+                )}
+              >
+                {LENS_LABELS[value]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table aria-label="Options Command Center current symbols" className="w-full min-w-[720px] border-separate border-spacing-0 text-xs">
+            <thead>
+              <tr>
+                <th scope="col" className={cn(TH, 'w-8 text-left')}>#</th>
+                <th scope="col" className={cn(TH, 'text-left')}>Symbol</th>
+                <th scope="col" className={cn(TH, 'text-left')}>Equity source</th>
+                <th scope="col" className={cn(TH, 'text-left')}>Quality</th>
                 {columns.map(({ name }) => {
                   const label = data.items.find((item) => item.metrics[name])?.metrics[name]?.label || name;
                   const selected = sort.metric === name;
                   const direction = selected && sort.direction === 1 ? 'ascending' : 'descending';
-                  const muiDirection = direction === 'ascending' ? 'asc' : 'desc';
+                  const Icon = sort.direction === 1 ? ArrowUp : ArrowDown;
                   return (
-                    <TableCell key={name} align="right" sortDirection={selected ? muiDirection : false}>
-                      <Button
-                        size="small"
-                        color="inherit"
+                    <th
+                      key={name}
+                      scope="col"
+                      aria-sort={selected ? direction : undefined}
+                      className={cn(TH, 'text-right', selected && 'text-foreground')}
+                    >
+                      <button
+                        type="button"
                         aria-pressed={selected}
                         aria-label={`Sort by ${label}${selected ? `, ${direction}` : ''}`}
                         onClick={() => changeSort(name)}
-                        endIcon={selected
-                          ? (sort.direction === 1 ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />)
-                          : null}
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-right outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {label}
-                      </Button>
-                    </TableCell>
+                        {selected && <Icon aria-hidden="true" className="size-3 shrink-0" />}
+                      </button>
+                    </th>
                   );
                 })}
-              </TableRow>
-            </TableHead>
-            <TableBody>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map((item) => {
                 const rank = rankedSymbols.indexOf(item.symbol) + 1;
                 return (
-                  <TableRow
-                    hover
+                  <tr
                     key={item.symbol}
                     tabIndex={0}
                     onClick={() => onOpenSymbol(item.symbol)}
                     onKeyDown={(event) => openFromKeyboard(event, item.symbol)}
-                    sx={{ cursor: 'pointer' }}
+                    className="cursor-pointer outline-none hover:bg-surface-subtle focus-visible:bg-accent/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >
-                    <TableCell>{rank > 0 && <span aria-label={`Metric rank ${rank}`}>{rank}</span>}</TableCell>
-                    <TableCell>
-                      <Typography fontWeight={700}>{item.symbol}</Typography>
-                      <Typography variant="caption" color="text.secondary">Max Pain: {item.metrics.max_pain.available ? formatOptionsMetric(item.metrics.max_pain) : '—'}</Typography>
-                    </TableCell>
-                    <TableCell>
+                    <td className={cn(TD, 'text-muted-foreground tabular-nums')}>
+                      {rank > 0 && <span aria-label={`Metric rank ${rank}`}>{rank}</span>}
+                    </td>
+                    <td className={TD}>
+                      <p className="text-sm font-semibold">{item.symbol}</p>
+                      <p className="text-[11px] text-muted-foreground tabular-nums">Max Pain: {item.metrics.max_pain.available ? formatOptionsMetric(item.metrics.max_pain) : '—'}</p>
+                    </td>
+                    <td className={TD}>
                       <OptionsSourceBadges
                         badges={item.source_badges}
                         candidateRank={item.candidate_rank}
                         leaderRank={item.leader_rank}
                       />
-                    </TableCell>
-                    <TableCell><OptionsQualityBadge state={item.state} reasonCodes={item.reason_codes} /></TableCell>
+                    </td>
+                    <td className={TD}><OptionsQualityBadge state={item.state} reasonCodes={item.reason_codes} /></td>
                     {columns.map(({ name, percent }) => {
                       const metric = item.metrics[name];
                       return (
-                        <TableCell key={name} align="right">
+                        <td key={name} className={cn(TD, 'text-right font-medium tabular-nums')}>
                           {metric.available
                             ? formatOptionsMetric(metric, { percent })
                             : <UnavailableMetric metric={metric} />}
-                        </TableCell>
+                        </td>
                       );
                     })}
-                  </TableRow>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-    </Box>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
   );
 }

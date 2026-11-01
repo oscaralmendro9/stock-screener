@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import StaticGroupsPage from './StaticGroupsPage';
 
@@ -16,9 +16,9 @@ const renderPage = () => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <StaticGroupsPage />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };
@@ -187,15 +187,12 @@ describe('StaticGroupsPage', () => {
       'neutral',
       'down-strong',
     ]);
-    // Translucent success/error tints from MUI's default theme (success #2e7d32,
-    // error #d32f2f): strong deeper than soft, neutral untinted.
-    const tint = (cell) => getComputedStyle(cell).backgroundColor;
-    const opacity = (cell) => Number(tint(cell).match(/, ([\d.]+)\)$/)[1]);
-    expect(tint(leaderCells[2])).toMatch(/^rgba\(46, 125, 50, /);
-    expect(tint(leaderCells[4])).toMatch(/^rgba\(46, 125, 50, /);
-    expect(opacity(leaderCells[2])).toBeGreaterThan(opacity(leaderCells[4]));
-    expect(tint(leaderCells[5])).toBe('rgba(0, 0, 0, 0)');
-    expect(tint(laggardCells[2])).toMatch(/^rgba\(211, 47, 47, /);
+    // Translucent gain/loss tints (Tailwind classes, as on the live table):
+    // strong deeper than soft, neutral untinted.
+    expect(leaderCells[2].className).toMatch(/\bbg-gain\/40\b/);
+    expect(leaderCells[4].className).toMatch(/\bbg-gain\/20\b/);
+    expect(leaderCells[5].className).not.toMatch(/\bbg-(gain|loss)\//);
+    expect(laggardCells[2].className).toMatch(/\bbg-loss\/35\b/);
   });
 
   it('sorts static group rankings by RS columns', async () => {
@@ -298,7 +295,7 @@ describe('StaticGroupsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'US Group Rankings' })).toBeInTheDocument();
     // Switch from the table view to the Relative Rotation Graph.
-    fireEvent.click(screen.getByRole('tab', { name: 'RRG' }));
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'RRG' }));
     expect(await screen.findByText(/Relative Rotation Graph/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sectors' })).not.toBeInTheDocument();
   });
@@ -316,7 +313,7 @@ describe('StaticGroupsPage', () => {
   renderPage();
   expect(await screen.findByRole('tab', {name:'Matrix'})).toBeInTheDocument();
   expect(requested).not.toContain('matrix.json');
-  fireEvent.click(screen.getByRole('tab', {name:'Matrix'}));
+  await userEvent.setup().click(screen.getByRole('tab', {name:'Matrix'}));
   expect(await screen.findByText(/IBD classifications are not available/)).toBeInTheDocument();
   expect(requested.every(path=>Boolean(path))).toBe(true);
   vi.unstubAllEnvs();

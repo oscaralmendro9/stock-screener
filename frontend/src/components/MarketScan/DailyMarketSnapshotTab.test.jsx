@@ -31,6 +31,12 @@ vi.mock('../Scan/RSSparkline', () => ({
   default: () => <span data-testid="rs-sparkline" />,
 }));
 
+// Home's breadth bars, signal lists and market map fetch on their own and
+// have their own tests; stubbed so these cases cover the snapshot request.
+vi.mock('../../features/home/BreadthBars', () => ({ default: () => <div data-testid="breadth-bars" /> }));
+vi.mock('../../features/home/SignalTables', () => ({ default: () => <div data-testid="signal-tables" /> }));
+vi.mock('../../features/home/MarketHeatmap', () => ({ default: () => <div data-testid="market-heatmap" /> }));
+
 vi.mock('./MarketHealthExposure', () => ({
   default: () => <div data-testid="market-health-exposure" />,
 }));
@@ -201,8 +207,7 @@ describe('DailyMarketSnapshotTab', () => {
     expect(await screen.findByText('LIVE')).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox', { name: 'Mkt Cap' }));
-    await user.click(await screen.findByRole('option', { name: '>$1B' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Mkt Cap' }), '1000000000');
 
     await waitFor(() => {
       expect(getScanResults).toHaveBeenLastCalledWith(
@@ -225,7 +230,8 @@ describe('DailyMarketSnapshotTab', () => {
 
     renderWithProviders(<DailyMarketSnapshotTab />);
 
-    expect(await screen.findByText('Failed to load the daily snapshot.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load the daily snapshot: snapshot failed');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('uses USD-normalized market cap and keeps modal navigation scoped to visible rows', async () => {

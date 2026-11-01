@@ -1,25 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
 import { previewWatchlistAdd } from '../../api/assistant';
 import { bulkAddItems, getWatchlists } from '../../api/userWatchlists';
 import { invalidateWatchlistItems } from '../../api/userWatchlistQueries';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+
+const Spinner = () => (
+  <div role="status" aria-label="Loading" className="flex justify-center py-2">
+    <span aria-hidden="true" className="inline-block size-6 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+  </div>
+);
 
 function AssistantWatchlistDialog({ open, symbols, onClose }) {
   const queryClient = useQueryClient();
@@ -79,90 +73,73 @@ function AssistantWatchlistDialog({ open, symbols, onClose }) {
     && !addMutation.isPending;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Add assistant tickers to watchlist</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <Typography variant="body2" color="text.secondary">
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title="Add assistant tickers to watchlist"
+        footer={(
+          <>
+            <DialogClose asChild><Button variant="ghost" size="sm">Cancel</Button></DialogClose>
+            <Button
+              size="sm"
+              onClick={() => addMutation.mutate({
+                watchlistId: Number(selectedWatchlistId),
+                addableSymbols: preview.addable_symbols,
+              })}
+              disabled={!canConfirm}
+            >
+              {addMutation.isPending ? 'Adding...' : 'Confirm add'}
+            </Button>
+          </>
+        )}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
             Symbols extracted from the latest assistant response: {symbols.join(', ')}
-          </Typography>
+          </p>
 
           {watchlistsQuery.isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-              <CircularProgress size={24} />
-            </Box>
+            <Spinner />
           ) : watchlistsQuery.isError ? (
-            <Alert severity="error">
+            <Notice tone="error">
               {getErrorMessage(watchlistsQuery.error, 'Failed to load watchlists.')}
-            </Alert>
+            </Notice>
           ) : noWatchlists ? (
-            <Alert severity="info">Create a watchlist first to add assistant suggestions.</Alert>
+            <Notice>Create a watchlist first to add assistant suggestions.</Notice>
           ) : (
-            <FormControl fullWidth size="small">
-              <InputLabel id="assistant-watchlist-select-label">Watchlist</InputLabel>
-              <Select
-                labelId="assistant-watchlist-select-label"
-                value={selectedWatchlistId}
-                label="Watchlist"
-                onChange={(event) => setSelectedWatchlistId(event.target.value)}
-              >
-                {watchlists.map((watchlist) => (
-                  <MenuItem key={watchlist.id} value={String(watchlist.id)}>
-                    {watchlist.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <NativeSelect label="Watchlist" value={selectedWatchlistId} onChange={setSelectedWatchlistId}>
+              {watchlists.map((watchlist) => (
+                <option key={watchlist.id} value={String(watchlist.id)}>
+                  {watchlist.name}
+                </option>
+              ))}
+            </NativeSelect>
           )}
 
-          {selectedWatchlist && previewQuery.isLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
-              <CircularProgress size={24} />
-            </Box>
-          )}
+          {selectedWatchlist && previewQuery.isLoading && <Spinner />}
 
           {selectedWatchlist && previewQuery.isError && (
-            <Alert severity="error">
+            <Notice tone="error">
               {getErrorMessage(previewQuery.error, 'Failed to preview symbols for this watchlist.')}
-            </Alert>
+            </Notice>
           )}
 
-          {preview?.summary && <Alert severity="info">{preview.summary}</Alert>}
+          {preview?.summary && <Notice>{preview.summary}</Notice>}
 
           {preview && (
-            <Stack spacing={1}>
-              <Typography variant="body2">
-                Addable: {preview.addable_symbols.join(', ') || 'None'}
-              </Typography>
-              <Typography variant="body2">
-                Already present: {preview.existing_symbols.join(', ') || 'None'}
-              </Typography>
-              <Typography variant="body2">
-                Invalid: {preview.invalid_symbols.join(', ') || 'None'}
-              </Typography>
-            </Stack>
+            <div className="flex flex-col gap-2 text-sm">
+              <p>Addable: {preview.addable_symbols.join(', ') || 'None'}</p>
+              <p>Already present: {preview.existing_symbols.join(', ') || 'None'}</p>
+              <p>Invalid: {preview.invalid_symbols.join(', ') || 'None'}</p>
+            </div>
           )}
 
           {addMutation.isError && (
-            <Alert severity="error">
+            <Notice tone="error">
               {getErrorMessage(addMutation.error, 'Failed to add symbols.')}
-            </Alert>
+            </Notice>
           )}
-        </Stack>
+        </div>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={() => addMutation.mutate({
-            watchlistId: Number(selectedWatchlistId),
-            addableSymbols: preview.addable_symbols,
-          })}
-          disabled={!canConfirm}
-        >
-          {addMutation.isPending ? 'Adding...' : 'Confirm add'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

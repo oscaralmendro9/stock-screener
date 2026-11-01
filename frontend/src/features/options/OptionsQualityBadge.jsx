@@ -1,30 +1,24 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Badge } from '@/ui/badge';
 
 const QUALITY_META = {
-  available: { label: 'Available', color: 'success' },
-  building_history: { label: 'Building history', color: 'info' },
-  insufficient_quality: { label: 'Limited quality', color: 'warning' },
-  unavailable: { label: 'Unavailable', color: 'default' },
-  failed: { label: 'Unavailable', color: 'error' },
+  available: { label: 'Available', tone: 'accent' },
+  building_history: { label: 'Building history', tone: 'neutral' },
+  insufficient_quality: { label: 'Limited quality', tone: 'warning' },
+  unavailable: { label: 'Unavailable', tone: 'neutral' },
+  failed: { label: 'Unavailable', tone: 'loss' },
 };
 
 const humanize = (value) => String(value || '').replaceAll('_', ' ');
 
+// The reasons ride along as hidden text for screen readers and as a hover title.
 export default function OptionsQualityBadge({ state, reasonCodes = [] }) {
   const meta = QUALITY_META[state] || QUALITY_META.unavailable;
-  const explanation = reasonCodes.length > 0
-    ? reasonCodes.map(humanize).join(', ')
-    : meta.label;
+  const reasons = reasonCodes.map(humanize).join(', ');
 
   return (
-    <Tooltip title={explanation}>
-      <Chip
-        size="small"
-        variant="outlined"
-        color={meta.color}
-        label={meta.label}
-        aria-label={`${meta.label}: ${explanation}`}
-      />
-    </Tooltip>
+    <Badge tone={meta.tone} title={reasons || meta.label} className="whitespace-nowrap">
+      {meta.label}
+      {reasons && <span className="sr-only">: {reasons}</span>}
+    </Badge>
   );
 }

@@ -1,34 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  Box,
-  Chip,
-  CircularProgress,
-  Divider,
-  Link,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+import QueryErrorAlert from '../common/QueryErrorAlert';
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Check, ChevronDown, Plus, X } from 'lucide-react';
 
 import { getStockDecisionDashboard, getStockValidation } from '../../api/stocks';
 import CandlestickChart from '../Charts/CandlestickChart';
-import StockMetricsSidebar from '../Scan/StockMetricsSidebar';
 import AddToWatchlistMenu from '../common/AddToWatchlistMenu';
 import PeerComparisonModal from '../Scan/PeerComparisonModal';
 import MarketThemesList from './MarketThemesList';
@@ -38,106 +15,117 @@ import {
   ValidationRecentEventsTable,
   ValidationSummaryCards,
 } from '../Validation/ValidationPanels';
-import { getGroupRankColor, getStageColor, onPalette } from '../../utils/colorUtils';
 import {
-  formatLargeNumber,
   formatPercent,
   formatRatio,
-  getScoreColor,
 } from '../../utils/formatUtils';
 import { resolveMarketCapDisplay } from '../../utils/marketCapUtils';
 import { useStrategyProfileData } from '../../contexts/StrategyProfileContext';
+import { useRuntime } from '../../contexts/RuntimeContext';
+import { cn } from '@/lib/cn';
+import { Badge } from '@/ui/badge';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+import KeyStatsGrid from '../../features/stock/KeyStatsGrid';
+import StockHeader, { StockTabs } from '../../features/stock/StockHeader';
+import { OptionsChainView } from '../../pages/OptionsChainPage';
 
-const CriteriaList = ({ title, items, emptyText }) => (
-  <Box sx={{ flex: 1 }}>
-    <SectionHeader>{title}</SectionHeader>
-    {items?.length ? (
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0.25 }}>
-        {items.map((item) => (
-          <Box key={`${item.screener_name}:${item.criterion_name}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              {item.criterion_name}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                {item.score.toFixed(1)}/{item.max_score.toFixed(1)}
-              </Typography>
-              <BoolIndicator value={item.passed} />
-            </Box>
-          </Box>
-        ))}
-      </Box>
-    ) : (
-      <Typography variant="caption" color="text.secondary">{emptyText}</Typography>
-    )}
-  </Box>
-);
+const LOOKBACK_OPTIONS = [90, 180, 365];
 
-const MetricRow = ({ label, value, color }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-      {label}
-    </Typography>
-    <Typography variant="body2" fontWeight="medium" sx={{ color: color || 'text.primary', fontSize: '0.8rem' }}>
-      {value}
-    </Typography>
-  </Box>
-);
-
-const SectionHeader = ({ children }) => (
-  <Typography
-    variant="caption"
-    color="text.secondary"
-    sx={{ fontWeight: 'bold', letterSpacing: 0.5, fontSize: '0.65rem', mb: 0.5, display: 'block' }}
-  >
-    {children}
-  </Typography>
-);
-
-const BoolIndicator = ({ value }) => {
-  if (value) return <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />;
-  return <CancelIcon sx={{ fontSize: 14, color: 'text.disabled' }} />;
-};
-
-function MetricBox({ label, value, bgcolor }) {
+// Collapsed by default, like the MUI accordions it replaces. Native
+// <details> keeps the content in the DOM and handles the keyboard itself.
+function Section({ title, badge, children }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box sx={{ borderRadius: 1, px: 1.5, py: 0.5, textAlign: 'center', minWidth: 36, ...onPalette(bgcolor) }}>
-        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-          {value}
-        </Typography>
-      </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-        {label}
-      </Typography>
-    </Box>
+    <details className="group border-b border-border last:border-0">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2 outline-none select-none focus-visible:bg-accent/10 [&::-webkit-details-marker]:hidden">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {badge}
+        <ChevronDown
+          aria-hidden="true"
+          className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform duration-150 ease-out group-open:rotate-180 motion-reduce:transition-none"
+        />
+      </summary>
+      <div className="px-4 pt-1 pb-4">{children}</div>
+    </details>
   );
 }
+
+const SectionHeader = ({ children }) => (
+  <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground">{children}</h3>
+);
+
+const MetricRow = ({ label, value, accent = false }) => (
+  <div className="flex items-center justify-between gap-3 text-xs tabular-nums">
+    <span className="text-muted-foreground">{label}</span>
+    <span className={cn('text-right font-medium', accent && 'text-accent')}>{value}</span>
+  </div>
+);
+
+const BoolIndicator = ({ value }) => (value ? (
+  <Check role="img" aria-label="Passed" className="size-3.5 shrink-0 text-accent" />
+) : (
+  <X role="img" aria-label="Failed" className="size-3.5 shrink-0 text-muted-foreground" />
+));
+
+const CriteriaList = ({ title, items, emptyText }) => (
+  <div className="min-w-0 flex-1">
+    <SectionHeader>{title}</SectionHeader>
+    {items?.length ? (
+      <ul className="grid gap-0.5">
+        {items.map((item) => (
+          <li key={`${item.screener_name}:${item.criterion_name}`} className="flex items-center justify-between gap-3 text-xs tabular-nums">
+            <span className="text-muted-foreground">{item.criterion_name}</span>
+            <span className="flex items-center gap-1">
+              {item.score.toFixed(1)}/{item.max_score.toFixed(1)}
+              <BoolIndicator value={item.passed} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-xs text-muted-foreground">{emptyText}</p>
+    )}
+  </div>
+);
 
 function InfoBox({ label, value }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box sx={{
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1,
-        px: 1.5,
-        py: 0.5,
-        minWidth: 80,
-        maxWidth: 180,
-        textAlign: 'center',
-        bgcolor: 'background.paper',
-      }}>
-        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-          {value || '-'}
-        </Typography>
-      </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-        {label}
-      </Typography>
-    </Box>
+    <div className="min-w-0">
+      <div className="truncate rounded-md border border-border bg-surface-subtle px-3 py-1 text-xs">{value || '-'}</div>
+      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
+    </div>
   );
 }
+
+function Notice({ tone = 'info', children }) {
+  return (
+    <div
+      role={tone === 'error' ? 'alert' : 'status'}
+      className={cn(
+        'tw rounded-md border px-3 py-2 text-sm',
+        tone === 'error' && 'border-loss/40 bg-loss/10',
+        tone === 'warning' && 'border-warning/40 bg-warning/10',
+        tone === 'info' && 'border-border bg-surface-subtle',
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function StockDetailsSkeleton() {
+  return (
+    <div className="tw flex flex-col gap-3 pb-4" role="status" aria-label="Loading stock">
+      <div className="h-16 rounded-lg bg-surface-subtle motion-safe:animate-pulse" />
+      <div className="h-[480px] rounded-lg bg-surface-subtle motion-safe:animate-pulse" />
+      <div className="h-40 rounded-lg bg-surface-subtle motion-safe:animate-pulse" />
+    </div>
+  );
+}
+
+// gain/loss stay reserved for price direction; states use accent or warning.
+const regimeTone = (label) => (label === 'offense' ? 'accent' : label === 'defense' ? 'warning' : 'neutral');
+const earningsTone = (risk) => (risk === 'imminent' || risk === 'caution' ? 'warning' : 'neutral');
 
 function StockDetails() {
   const { ticker: symbol } = useParams();
@@ -149,8 +137,13 @@ function StockDetails() {
   } = useStrategyProfileData();
   const [peerModalOpen, setPeerModalOpen] = useState(false);
   const [validationLookbackDays, setValidationLookbackDays] = useState(365);
+  const { features } = useRuntime();
+  // Overview | Options, kept in the URL (?tab=options) so it can be linked.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'options' ? 'options' : 'overview';
+  const setTab = (next) => setSearchParams(next === 'options' ? { tab: 'options' } : {}, { replace: true });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['stockDecisionDashboard', symbol, requestProfile],
     queryFn: () => getStockDecisionDashboard(symbol, requestProfile),
     enabled: Boolean(symbol && requestProfile),
@@ -167,40 +160,29 @@ function StockDetails() {
     staleTime: 60_000,
   });
 
-  const sidebarFundamentals = useMemo(
-    () => data ? { ...(data.fundamentals || {}), symbol: data.symbol } : {},
-    [data]
-  );
-
   if (isLoading || (isLoadingProfiles && !requestProfile)) {
-    return (
-      <Box display="flex" justifyContent="center" py={6}>
-        <CircularProgress />
-      </Box>
-    );
+    return <StockDetailsSkeleton />;
   }
 
   if (!requestProfile) {
     return (
-      <Alert severity="warning">
+      <Notice tone="warning">
         Strategy profile data is unavailable.
-      </Alert>
+      </Notice>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error">
-        Failed to load stock workspace: {error.message}
-      </Alert>
+      <QueryErrorAlert title={`Failed to load ${symbol}`} error={error} onRetry={refetch} />
     );
   }
 
   if (!data) {
     return (
-      <Alert severity="warning">
+      <Notice tone="warning">
         No stock workspace data is available.
-      </Alert>
+      </Notice>
     );
   }
 
@@ -233,521 +215,384 @@ function StockDetails() {
   const strengthsTitle = activeProfileDetail?.stock_action?.strengths_title || 'Top Strengths';
   const weaknessesTitle = activeProfileDetail?.stock_action?.weaknesses_title || 'Top Weaknesses';
 
-  const adrValue = chart.adr_percent;
-  const epsRating = chart.eps_rating;
   const groupRank = chart.ibd_group_rank;
   const marketGroup = chart.ibd_industry_group;
   const marketThemes = chart.market_themes || [];
   const sector = chart.gics_sector || info.sector;
   const industry = chart.gics_industry || info.industry;
 
+  // Theme links are only missing because Themes is switched off: not a gap
+  // worth flagging on every stock.
+  const degradedReasons = (data.degraded_reasons || []).filter(
+    (reason) => features.themes || reason !== 'missing_theme_links',
+  );
+  const history = data.chart?.price_history || [];
+  const lastClose = history.at(-1)?.close;
+  const prevClose = history.at(-2)?.close;
+  const change1d = lastClose != null && prevClose ? (lastClose / prevClose - 1) * 100 : null;
+
   return (
-    <Box>
-      {/* ─── Header ─── */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 2,
-          py: 1.5,
-          borderBottom: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.default',
-          borderRadius: '4px 4px 0 0',
-          flexWrap: 'wrap',
-          gap: 1,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box>
-            <Typography variant="h5" fontWeight="bold">
-              {data.symbol}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {info.name || 'Unknown company'}
-            </Typography>
-          </Box>
-
-          {groupRank != null && (
-            <MetricBox label="Grp Rnk" value={groupRank} bgcolor={getGroupRankColor(groupRank)} />
-          )}
-          {adrValue != null && (
-            <MetricBox
-              label="ADR"
-              value={`${Number(adrValue).toFixed(1)}%`}
-              bgcolor={Number(adrValue) >= 4 ? 'success.main' : Number(adrValue) >= 2 ? 'warning.main' : 'error.main'}
-            />
-          )}
-          {epsRating != null && (
-            <MetricBox
-              label="EPS Rtg"
-              value={epsRating}
-              bgcolor={epsRating >= 80 ? 'success.main' : epsRating >= 50 ? 'warning.main' : 'error.main'}
-            />
-          )}
-          {(marketGroup || sector || industry) && (
-            <Box sx={{ display: 'flex', gap: 1.5, ml: 1 }}>
-              {marketGroup && <InfoBox label="Group" value={marketGroup} />}
-              {sector && <InfoBox label="Sector" value={sector} />}
-              {industry && <InfoBox label="Industry" value={industry} />}
-            </Box>
-          )}
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {price != null && (
-            <Chip size="small" color="primary" label={`$${Number(price).toFixed(2)}`} />
-          )}
+    <div className="tw flex flex-col gap-3 pb-4">
+      <StockHeader
+        symbol={data.symbol}
+        name={info.name}
+        exchange={chart.exchange}
+        market={chart.market}
+        sector={sector}
+        industry={industry}
+        group={marketGroup}
+        groupRank={groupRank}
+        price={price}
+        change={change1d}
+        asOf={data.as_of_date || history.at(-1)?.date}
+        rating={decision.rating}
+        onViewPeers={() => setPeerModalOpen(true)}
+        watchlistMenu={(
           <AddToWatchlistMenu
             symbols={data.symbol}
-            trigger={<Chip color="primary" clickable label="Add to Watchlist" />}
+            trigger={<Button size="sm"><Plus aria-hidden="true" />Watchlist</Button>}
           />
-          {decision.rating && (
-            <Chip
-              label={decision.rating}
-              sx={{
-                ...onPalette(getScoreColor(decision.composite_score)),
-                fontWeight: 700,
-              }}
-            />
-          )}
-        </Box>
-      </Box>
+        )}
+      />
 
-      {data.degraded_reasons?.length > 0 && (
-        <Alert severity="info" sx={{ borderRadius: 0 }}>
-          Workspace is partially degraded: {data.degraded_reasons.join(', ')}.
-        </Alert>
+      {degradedReasons.length > 0 && (
+        <Notice>
+          Workspace is partially degraded: {degradedReasons.join(', ')}.
+        </Notice>
       )}
 
-      {/* ─── Split Panel: Sidebar + Chart ─── */}
-      <Box sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider', height: 520 }}>
-        <StockMetricsSidebar
-          stockData={(data.chart?.chart_data?.source !== 'unavailable' && data.chart?.chart_data) || null}
-          fundamentals={sidebarFundamentals}
-          onViewPeers={() => setPeerModalOpen(true)}
+      <StockTabs active={tab} onChange={setTab} />
+
+      {tab === 'options' ? (
+        <OptionsChainView symbol={data.symbol} embedded />
+      ) : (
+        <>
+      <Card className="overflow-hidden">
+        <CandlestickChart
+          key={data.symbol}
+          symbol={data.symbol}
+          priceData={history}
+          height={480}
         />
-        <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
-          <CandlestickChart
-            key={data.symbol}
-            symbol={data.symbol}
-            priceData={data.chart?.price_history || []}
-            height={520}
-          />
-        </Box>
-      </Box>
+      </Card>
 
-      {/* ─── Accordion Sections ─── */}
-      <Box sx={{ mt: 1 }}>
+      <KeyStatsGrid data={data} />
 
-        {/* Decision Summary */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Decision Summary
-            </Typography>
-            {decision.composite_score != null && (
-              <Chip
-                size="small"
-                label={`${decision.composite_score.toFixed(1)} · ${decision.screeners_passed}/${decision.screeners_total}`}
-                sx={{ ml: 2, ...onPalette(getScoreColor(decision.composite_score)) }}
-              />
-            )}
-          </AccordionSummary>
-          <AccordionDetails>
-            <SectionHeader>OVERVIEW</SectionHeader>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5, mb: 2 }}>
-              <MetricRow label="Composite" value={decision.composite_score != null ? decision.composite_score.toFixed(1) : '-'} color="primary.main" />
-              <MetricRow label="Screeners" value={`${decision.screeners_passed}/${decision.screeners_total}`} />
-              <MetricRow label="Method" value={decision.composite_method || '-'} />
-              <MetricRow label="Feature Date" value={freshness.feature_as_of_date || '-'} />
-              <MetricRow label="Breadth Date" value={freshness.breadth_date || '-'} />
-              <MetricRow label="Price History" value={freshness.has_price_history ? 'Ready' : 'Missing'} />
-            </Box>
-            <Divider sx={{ my: 1.5 }} />
-            <Box sx={{ display: 'flex', gap: 4 }}>
-              <CriteriaList title={strengthsTitle.toUpperCase()} items={decision.top_strengths} emptyText="No positive criteria." />
-              <CriteriaList title={weaknessesTitle.toUpperCase()} items={decision.top_weaknesses} emptyText="No failing criteria." />
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+      {fundamentals.description && (
+        <Card className="px-4 py-3">
+          <h2 className="mb-1 text-sm font-semibold">About</h2>
+          <p className="max-w-prose text-sm text-pretty text-muted-foreground">{fundamentals.description}</p>
+        </Card>
+      )}
 
-        {/* Screener Breakdown */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Screener Breakdown
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            {data.screener_explanations?.length ? (
-              <Stack spacing={1.5}>
-                {data.screener_explanations.map((screener, idx) => (
-                  <Box key={screener.screener_name}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                        {screener.screener_name.replaceAll('_', ' ')}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={`${screener.score.toFixed(1)} · ${screener.rating}`}
-                        color={screener.passes ? 'success' : 'default'}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                    </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 1.5, rowGap: 0.25 }}>
-                      {screener.criteria.map((criterion) => (
-                        <Box key={criterion.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                            {criterion.name}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                              {criterion.score.toFixed(1)}/{criterion.max_score.toFixed(1)}
-                            </Typography>
-                            <BoolIndicator value={criterion.passed} />
-                          </Box>
-                        </Box>
-                      ))}
-                    </Box>
-                    {idx < data.screener_explanations.length - 1 && (
-                      <Divider sx={{ mt: 1 }} />
-                    )}
-                  </Box>
-                ))}
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Screener explanations are unavailable for this symbol.
-              </Typography>
-            )}
-          </AccordionDetails>
-        </Accordion>
+      {/* ─── Collapsible sections ─── */}
+      <Card className="overflow-hidden">
 
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Market Classification
-            </Typography>
-            {marketGroup && (
-              <Chip size="small" variant="outlined" label={marketGroup} sx={{ ml: 2 }} />
-            )}
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={1.5}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5 }}>
-                <InfoBox label="Group" value={marketGroup || '-'} />
-                <InfoBox label="Sector" value={sector || '-'} />
-                <InfoBox label="Industry" value={industry || '-'} />
-              </Box>
-              <Box>
-                <SectionHeader>MARKET THEMES</SectionHeader>
-                <MarketThemesList themes={marketThemes} variant="wrap" />
-              </Box>
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
+        <Section
+          title="Decision Summary"
+          badge={decision.composite_score != null && (
+            <Badge>{`${decision.composite_score.toFixed(1)} · ${decision.screeners_passed}/${decision.screeners_total}`}</Badge>
+          )}
+        >
+          <SectionHeader>OVERVIEW</SectionHeader>
+          <div className="mb-3 grid gap-x-6 gap-y-1 sm:grid-cols-3">
+            <MetricRow label="Composite" value={decision.composite_score != null ? decision.composite_score.toFixed(1) : '-'} accent />
+            <MetricRow label="Screeners" value={`${decision.screeners_passed}/${decision.screeners_total}`} />
+            <MetricRow label="Method" value={decision.composite_method || '-'} />
+            <MetricRow label="Feature Date" value={freshness.feature_as_of_date || '-'} />
+            <MetricRow label="Breadth Date" value={freshness.breadth_date || '-'} />
+            <MetricRow label="Price History" value={freshness.has_price_history ? 'Ready' : 'Missing'} />
+          </div>
+          <div className="flex flex-col gap-4 border-t border-border pt-3 sm:flex-row sm:gap-8">
+            <CriteriaList title={strengthsTitle.toUpperCase()} items={decision.top_strengths} emptyText="No positive criteria." />
+            <CriteriaList title={weaknessesTitle.toUpperCase()} items={decision.top_weaknesses} emptyText="No failing criteria." />
+          </div>
+        </Section>
 
-        {/* Industry Peers */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Industry Peers
-            </Typography>
-            {data.peers?.length > 0 && (
-              <Chip size="small" variant="outlined" label={`${data.peers.length}`} sx={{ ml: 2 }} />
-            )}
-          </AccordionSummary>
-          <AccordionDetails>
-            {data.peers?.length ? (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Symbol</TableCell>
-                      <TableCell>Company</TableCell>
-                      <TableCell align="right">Comp</TableCell>
-                      <TableCell align="right">RS</TableCell>
-                      <TableCell align="right">Stage</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.peers.slice(0, 12).map((peer) => (
-                      <TableRow key={peer.symbol}>
-                        <TableCell>
-                          <Link component={RouterLink} to={`/stocks/${encodeURIComponent(peer.symbol)}`} underline="hover">
-                            {peer.symbol}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{peer.company_name || '-'}</TableCell>
-                        <TableCell align="right">{peer.composite_score?.toFixed(1) || '-'}</TableCell>
-                        <TableCell align="right">{peer.rs_rating?.toFixed(0) || '-'}</TableCell>
-                        <TableCell align="right">
-                          {peer.stage != null ? (
-                            <Chip
-                              label={`S${peer.stage}`}
-                              size="small"
-                              sx={{
-                                ...onPalette(getStageColor(peer.stage)),
-                                fontSize: '0.65rem',
-                                height: 18,
-                                '& .MuiChip-label': { px: 0.75 },
-                              }}
-                            />
-                          ) : '-'}
-                        </TableCell>
-                      </TableRow>
+        <Section title="Screener Breakdown">
+          {data.screener_explanations?.length ? (
+            <div className="flex flex-col divide-y divide-border">
+              {data.screener_explanations.map((screener) => (
+                <div key={screener.screener_name} className="py-2 first:pt-0 last:pb-0">
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <h3 className="text-[11px] font-semibold tracking-wide uppercase">
+                      {screener.screener_name.replaceAll('_', ' ')}
+                    </h3>
+                    <Badge tone={screener.passes ? 'accent' : 'neutral'}>
+                      {`${screener.score.toFixed(1)} · ${screener.rating}`}
+                    </Badge>
+                  </div>
+                  <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {screener.criteria.map((criterion) => (
+                      <li key={criterion.name} className="flex items-center justify-between gap-3 text-xs tabular-nums">
+                        <span className="text-muted-foreground">{criterion.name}</span>
+                        <span className="flex items-center gap-1">
+                          {criterion.score.toFixed(1)}/{criterion.max_score.toFixed(1)}
+                          <BoolIndicator value={criterion.passed} />
+                        </span>
+                      </li>
                     ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                No peer data is available from the latest published feature run.
-              </Typography>
-            )}
-          </AccordionDetails>
-        </Accordion>
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Screener explanations are unavailable for this symbol.
+            </p>
+          )}
+        </Section>
 
-        {/* Related Themes */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Related Themes
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            {data.themes?.length ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5 }}>
-                {data.themes.map((theme) => (
-                  <Box key={theme.theme_id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}>
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
-                      <Chip size="small" color="secondary" label={theme.display_name} sx={{ fontSize: '0.7rem', height: 20 }} />
-                      {theme.status && <Chip size="small" variant="outlined" label={theme.status} sx={{ fontSize: '0.65rem', height: 18 }} />}
-                    </Stack>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.25 }}>
-                      <MetricRow label="Momentum" value={formatRatio(theme.momentum_score)} />
-                      <MetricRow label="Velocity" value={`${formatRatio(theme.mention_velocity)}x`} />
-                      <MetricRow label="1M Basket" value={formatPercent(theme.basket_return_1m)} />
-                      {theme.lifecycle_state && <MetricRow label="Lifecycle" value={theme.lifecycle_state} />}
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                This symbol is not currently linked to an active theme cluster.
-              </Typography>
-            )}
-          </AccordionDetails>
-        </Accordion>
+        <Section
+          title="Market Classification"
+          badge={marketGroup && <Badge className="max-w-48 truncate">{marketGroup}</Badge>}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoBox label="Group" value={marketGroup || '-'} />
+              <InfoBox label="Sector" value={sector || '-'} />
+              <InfoBox label="Industry" value={industry || '-'} />
+            </div>
+            <div>
+              <SectionHeader>MARKET THEMES</SectionHeader>
+              <MarketThemesList themes={marketThemes} variant="wrap" />
+            </div>
+          </div>
+        </Section>
 
-        {/* Market Regime & Risk */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Market Regime & Risk Context
-            </Typography>
-            {regime && (
-              <Chip
-                size="small"
-                label={regime.label}
-                color={regime.label === 'offense' ? 'success' : regime.label === 'defense' ? 'warning' : 'default'}
-                sx={{ ml: 2, height: 20, fontSize: '0.7rem' }}
-              />
-            )}
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 1.5, rowGap: 0.5 }}>
-              {regime ? (
-                <>
-                  <MetricRow label="Stance" value={regime.label} />
-                  <MetricRow label="5D Ratio" value={formatRatio(regime.ratio_5day)} />
-                  <MetricRow label="10D Ratio" value={formatRatio(regime.ratio_10day)} />
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ gridColumn: '1 / -1' }}>
-                  Market regime context is unavailable for this symbol.
-                </Typography>
-              )}
-              <MetricRow
-                label="Market Cap"
-                value={resolveMarketCapDisplay(fundamentals, info).formattedValue}
-              />
-              <MetricRow label="EPS Q/Q" value={formatPercent(fundamentals.eps_growth_quarterly ?? chart.eps_growth_qq)} />
-              <MetricRow label="Revenue Growth" value={formatPercent(fundamentals.revenue_growth ?? chart.sales_growth_qq)} />
-              <MetricRow
-                label="52W Range"
-                value={technicals.low_52w != null && technicals.high_52w != null
-                  ? `$${Number(technicals.low_52w).toFixed(0)}-$${Number(technicals.high_52w).toFixed(0)}`
-                  : '-'}
-              />
-            </Box>
-            {regime?.summary && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {regime.summary}
-              </Typography>
-            )}
-          </AccordionDetails>
-        </Accordion>
-
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Event Risk & Action Plan
-            </Typography>
-            <Chip
-              size="small"
-              sx={{ ml: 2, height: 20, fontSize: '0.7rem' }}
-              color={eventRisk.earnings_window_risk === 'imminent' ? 'error' : eventRisk.earnings_window_risk === 'caution' ? 'warning' : 'default'}
-              label={eventRisk.earnings_window_risk || 'safe'}
-            />
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={1.5}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 1.5, rowGap: 0.5 }}>
-                <MetricRow label="Next Earnings" value={eventRisk.next_earnings_date || '-'} />
-                <MetricRow label="Days Until" value={eventRisk.days_until_earnings ?? '-'} />
-                <MetricRow label="Window Risk" value={eventRisk.earnings_window_risk || '-'} />
-                <MetricRow label="Beat Count (4)" value={eventRisk.beat_count_last_4 ?? '-'} />
-                <MetricRow label="Miss Count (4)" value={eventRisk.miss_count_last_4 ?? '-'} />
-                <MetricRow label="Recent Earnings" value={eventRisk.recent_earnings_count ?? '-'} />
-                <MetricRow label="Avg Gap" value={formatPercent(eventRisk.avg_post_earnings_gap_pct)} />
-                <MetricRow label="Avg 5S Return" value={formatPercent(eventRisk.avg_post_earnings_5s_return_pct)} />
-                <MetricRow label="Inst Ownership" value={formatPercent(eventRisk.institutional_ownership_current)} />
-                <MetricRow label="Inst Δ 90D" value={formatPercent(eventRisk.institutional_ownership_delta_90d)} />
-                <MetricRow label="Sizing" value={regimeActions.sizing_guidance} />
-                <MetricRow label="Avoid New Entries" value={regimeActions.avoid_new_entries ? 'Yes' : 'No'} />
-              </Box>
-
-              <Box>
-                <SectionHeader>ACTION PLAN</SectionHeader>
-                <Typography variant="body2">{regimeActions.summary}</Typography>
-              </Box>
-
-              <Box>
-                <SectionHeader>PREFERRED SETUPS</SectionHeader>
-                {regimeActions.preferred_setups?.length ? (
-                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                    {regimeActions.preferred_setups.map((setup, index) => (
-                      <Chip key={`${setup}-${index}`} label={setup} size="small" variant="outlined" />
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    No setup guidance is available.
-                  </Typography>
-                )}
-              </Box>
-
-              <Box>
-                <SectionHeader>CAUTION FLAGS</SectionHeader>
-                {regimeActions.caution_flags?.length ? (
-                  <Stack spacing={0.5}>
-                    {regimeActions.caution_flags.map((flag, index) => (
-                      <Typography key={`${flag}-${index}`} variant="caption" color="text.secondary">
-                        {flag}
-                      </Typography>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    No active caution flags.
-                  </Typography>
-                )}
-              </Box>
-
-              <Box>
-                <SectionHeader>EVENT NOTES</SectionHeader>
-                {eventRisk.notes?.length ? (
-                  <Stack spacing={0.5}>
-                    {eventRisk.notes.map((note, index) => (
-                      <Typography key={`${note}-${index}`} variant="caption" color="text.secondary">
-                        {note}
-                      </Typography>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    No additional event-risk notes.
-                  </Typography>
-                )}
-              </Box>
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Historical Validation
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={1.5}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                  Lookback
-                </Typography>
-                <ToggleButtonGroup
-                  exclusive
-                  size="small"
-                  value={validationLookbackDays}
-                  onChange={(_, value) => value && setValidationLookbackDays(value)}
-                >
-                  <ToggleButton value={90}>90D</ToggleButton>
-                  <ToggleButton value={180}>180D</ToggleButton>
-                  <ToggleButton value={365}>365D</ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-
-              {isValidationLoading && (
-                <Box display="flex" justifyContent="center" py={2}>
-                  <CircularProgress size={24} />
-                </Box>
-              )}
-
-              {validationError && (
-                <Alert severity="error">
-                  Failed to load historical validation: {validationError.message}
-                </Alert>
-              )}
-
-              {validationData && (
-                <Stack spacing={2}>
-                  <ValidationDegradedAlert degradedReasons={validationData.degraded_reasons} />
-                  {(validationData.source_breakdown || []).map((section) => (
-                    <Box key={section.source_kind} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                        {section.source_kind === 'scan_pick' ? 'Scan Picks' : 'Theme Alerts'}
-                      </Typography>
-                      <Stack spacing={1.5}>
-                        <ValidationDegradedAlert degradedReasons={section.degraded_reasons} />
-                        <ValidationSummaryCards horizons={section.horizons} />
-                      </Stack>
-                    </Box>
+        <Section
+          title="Industry Peers"
+          badge={data.peers?.length > 0 && <Badge>{data.peers.length}</Badge>}
+        >
+          {data.peers?.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead className="border-b border-border text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-2 py-1.5 text-left font-medium">Symbol</th>
+                    <th scope="col" className="px-2 py-1.5 text-left font-medium">Company</th>
+                    <th scope="col" className="px-2 py-1.5 text-right font-medium">Comp</th>
+                    <th scope="col" className="px-2 py-1.5 text-right font-medium">RS</th>
+                    <th scope="col" className="px-2 py-1.5 text-right font-medium">Stage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.peers.slice(0, 12).map((peer) => (
+                    <tr key={peer.symbol} className="border-b border-border/60 last:border-0">
+                      <td className="px-2 py-1 font-semibold">
+                        <RouterLink to={`/stocks/${encodeURIComponent(peer.symbol)}`} className="text-accent hover:underline">
+                          {peer.symbol}
+                        </RouterLink>
+                      </td>
+                      <td className="max-w-64 truncate px-2 py-1">{peer.company_name || '-'}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{peer.composite_score?.toFixed(1) || '-'}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{peer.rs_rating?.toFixed(0) || '-'}</td>
+                      <td className="px-2 py-1 text-right">
+                        {peer.stage != null ? <Badge>{`S${peer.stage}`}</Badge> : '-'}
+                      </td>
+                    </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No peer data is available from the latest published feature run.
+            </p>
+          )}
+        </Section>
 
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                      Recent Events
-                    </Typography>
-                    <ValidationRecentEventsTable events={validationData.recent_events} showSourceKind />
-                  </Box>
+        <Section title="Related Themes">
+          {data.themes?.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.themes.map((theme) => (
+                <div key={theme.theme_id} className="rounded-md border border-border p-2">
+                  <div className="mb-1 flex flex-wrap items-center gap-1">
+                    <Badge tone="accent">{theme.display_name}</Badge>
+                    {theme.status && <Badge>{theme.status}</Badge>}
+                  </div>
+                  <div className="grid gap-0.5">
+                    <MetricRow label="Momentum" value={formatRatio(theme.momentum_score)} />
+                    <MetricRow label="Velocity" value={`${formatRatio(theme.mention_velocity)}x`} />
+                    <MetricRow label="1M Basket" value={formatPercent(theme.basket_return_1m)} />
+                    {theme.lifecycle_state && <MetricRow label="Lifecycle" value={theme.lifecycle_state} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              This symbol is not currently linked to an active theme cluster.
+            </p>
+          )}
+        </Section>
 
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                      Failure Clusters
-                    </Typography>
-                    <ValidationFailureClustersTable clusters={validationData.failure_clusters} />
-                  </Box>
-                </Stack>
+        <Section
+          title="Market Regime & Risk Context"
+          badge={regime && <Badge tone={regimeTone(regime.label)}>{regime.label}</Badge>}
+        >
+          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
+            {regime ? (
+              <>
+                <MetricRow label="Stance" value={regime.label} />
+                <MetricRow label="5D Ratio" value={formatRatio(regime.ratio_5day)} />
+                <MetricRow label="10D Ratio" value={formatRatio(regime.ratio_10day)} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground sm:col-span-3">
+                Market regime context is unavailable for this symbol.
+              </p>
+            )}
+            <MetricRow
+              label="Market Cap"
+              value={resolveMarketCapDisplay(fundamentals, info).formattedValue}
+            />
+            <MetricRow label="EPS Q/Q" value={formatPercent(fundamentals.eps_growth_quarterly ?? chart.eps_growth_qq)} />
+            <MetricRow label="Revenue Growth" value={formatPercent(fundamentals.revenue_growth ?? chart.sales_growth_qq)} />
+            <MetricRow
+              label="52W Range"
+              value={technicals.low_52w != null && technicals.high_52w != null
+                ? `$${Number(technicals.low_52w).toFixed(0)}-$${Number(technicals.high_52w).toFixed(0)}`
+                : '-'}
+            />
+          </div>
+          {regime?.summary && (
+            <p className="mt-2 text-xs text-muted-foreground">{regime.summary}</p>
+          )}
+        </Section>
+
+        <Section
+          title="Event Risk & Action Plan"
+          badge={(
+            <Badge tone={earningsTone(eventRisk.earnings_window_risk)}>
+              {eventRisk.earnings_window_risk || 'safe'}
+            </Badge>
+          )}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
+              <MetricRow label="Next Earnings" value={eventRisk.next_earnings_date || '-'} />
+              <MetricRow label="Days Until" value={eventRisk.days_until_earnings ?? '-'} />
+              <MetricRow label="Window Risk" value={eventRisk.earnings_window_risk || '-'} />
+              <MetricRow label="Beat Count (4)" value={eventRisk.beat_count_last_4 ?? '-'} />
+              <MetricRow label="Miss Count (4)" value={eventRisk.miss_count_last_4 ?? '-'} />
+              <MetricRow label="Recent Earnings" value={eventRisk.recent_earnings_count ?? '-'} />
+              <MetricRow label="Avg Gap" value={formatPercent(eventRisk.avg_post_earnings_gap_pct)} />
+              <MetricRow label="Avg 5S Return" value={formatPercent(eventRisk.avg_post_earnings_5s_return_pct)} />
+              <MetricRow label="Inst Ownership" value={formatPercent(eventRisk.institutional_ownership_current)} />
+              <MetricRow label="Inst Δ 90D" value={formatPercent(eventRisk.institutional_ownership_delta_90d)} />
+              <MetricRow label="Sizing" value={regimeActions.sizing_guidance} />
+              <MetricRow label="Avoid New Entries" value={regimeActions.avoid_new_entries ? 'Yes' : 'No'} />
+            </div>
+
+            <div>
+              <SectionHeader>ACTION PLAN</SectionHeader>
+              <p className="text-sm">{regimeActions.summary}</p>
+            </div>
+
+            <div>
+              <SectionHeader>PREFERRED SETUPS</SectionHeader>
+              {regimeActions.preferred_setups?.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {regimeActions.preferred_setups.map((setup, index) => (
+                    <Badge key={`${setup}-${index}`}>{setup}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No setup guidance is available.</p>
               )}
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-      </Box>
+            </div>
+
+            <div>
+              <SectionHeader>CAUTION FLAGS</SectionHeader>
+              {regimeActions.caution_flags?.length ? (
+                <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                  {regimeActions.caution_flags.map((flag, index) => (
+                    <li key={`${flag}-${index}`}>{flag}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">No active caution flags.</p>
+              )}
+            </div>
+
+            <div>
+              <SectionHeader>EVENT NOTES</SectionHeader>
+              {eventRisk.notes?.length ? (
+                <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                  {eventRisk.notes.map((note, index) => (
+                    <li key={`${note}-${index}`}>{note}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">No additional event-risk notes.</p>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Historical Validation">
+          <div className="flex flex-col gap-3">
+            <div role="group" aria-label="Lookback" className="inline-flex w-fit overflow-hidden rounded-md border border-border">
+              {LOOKBACK_OPTIONS.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  aria-pressed={validationLookbackDays === days}
+                  onClick={() => setValidationLookbackDays(days)}
+                  className={cn(
+                    'min-h-8 px-3 text-xs font-medium tabular-nums transition-colors duration-150 ease-out not-first:border-l not-first:border-border focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                    validationLookbackDays === days
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-surface-subtle hover:text-foreground',
+                  )}
+                >
+                  {`${days}D`}
+                </button>
+              ))}
+            </div>
+
+            {isValidationLoading && (
+              <div role="status" aria-label="Loading validation" className="h-24 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+            )}
+
+            {validationError && (
+              <Notice tone="error">
+                Failed to load historical validation: {validationError.message}
+              </Notice>
+            )}
+
+            {validationData && (
+              <div className="flex flex-col gap-4">
+                <ValidationDegradedAlert degradedReasons={validationData.degraded_reasons} />
+                {(validationData.source_breakdown || []).map((section) => (
+                  <div key={section.source_kind} className="rounded-md border border-border p-3">
+                    <h3 className="mb-2 text-sm font-semibold">
+                      {section.source_kind === 'scan_pick' ? 'Scan Picks' : 'Theme Alerts'}
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      <ValidationDegradedAlert degradedReasons={section.degraded_reasons} />
+                      <ValidationSummaryCards horizons={section.horizons} />
+                    </div>
+                  </div>
+                ))}
+
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">Recent Events</h3>
+                  <ValidationRecentEventsTable events={validationData.recent_events} showSourceKind />
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">Failure Clusters</h3>
+                  <ValidationFailureClustersTable clusters={validationData.failure_clusters} />
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+      </Card>
+        </>
+      )}
 
       <PeerComparisonModal
         open={peerModalOpen}
@@ -758,7 +603,7 @@ function StockDetails() {
           navigate(`/stocks/${encodeURIComponent(sym)}`);
         }}
       />
-    </Box>
+    </div>
   );
 }
 

@@ -1,4 +1,3 @@
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -37,7 +36,7 @@ const detail = {
 };
 
 const renderModal = (props = {}) => render(
-  <ThemeProvider theme={createTheme()}>
+  <>
     <StaticGroupDetailModal
       group="Semiconductors"
       detail={detail}
@@ -45,7 +44,7 @@ const renderModal = (props = {}) => render(
       onClose={vi.fn()}
       {...props}
     />
-  </ThemeProvider>
+  </>
 );
 
 describe('StaticGroupDetailModal', () => {
@@ -64,12 +63,8 @@ describe('StaticGroupDetailModal', () => {
     renderModal();
 
     const dialogPaper = screen.getByRole('dialog');
-    // Asserting the actual inline style (set via PaperProps.style) so the
-    // contract regresses if the width is ever changed. Paper margin is
-    // forced to 0 (via sx) so 95vw + margin can never exceed 100vw on
-    // narrow viewports.
+    // Asserting the actual inline style so the contract regresses if the
+    // width is ever changed: 95vw can never exceed a narrow viewport.
     expect(dialogPaper).toHaveStyle({ width: '95vw', maxWidth: '95vw' });
-    // maxWidth={false} on Dialog must remain so MUI doesn't cap the width.
-    expect(dialogPaper.className).toMatch(/MuiDialog-paperWidthFalse/);
   });
 });

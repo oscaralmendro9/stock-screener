@@ -106,6 +106,17 @@ export const getScanResults = async (scanId, params = {}) => {
   return response.data;
 };
 
+/**
+ * Largest names of a scan by USD market cap, trimmed to the six fields a
+ * market map draws (symbol, name, sector, industry, cap, 1D change).
+ * @param {string} scanId
+ * @param {{limit?: number, min_market_cap_usd?: number}} [params]
+ */
+export const getScanHeatmap = async (scanId, params = {}) => {
+  const response = await apiClient.get(`/v1/scans/${scanId}/heatmap`, { params });
+  return response.data;
+};
+
 /** Query scan results with the versioned grouped-filter contract. */
 export const queryScanResults = async (scanId, request, { signal } = {}) => {
   const response = await apiClient.post(`/v1/scans/${scanId}/results/query`, request, { signal });

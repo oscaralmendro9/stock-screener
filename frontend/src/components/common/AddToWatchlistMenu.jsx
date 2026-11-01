@@ -6,29 +6,18 @@
  *
  * Props:
  * - symbols: string | string[] - Symbol(s) to add
- * - trigger: ReactNode - Optional custom trigger element (default: PlaylistAddIcon button)
+ * - trigger: ReactNode - Optional custom trigger element (default: icon button)
  * - onSuccess: () => void - Callback after successful add
  * - size: 'small' | 'medium' - Button size
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  TextField,
-  Box,
-  Typography,
-  CircularProgress,
-  Tooltip,
-  Alert,
-} from '@mui/material';
-import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
-import AddIcon from '@mui/icons-material/Add';
-import CheckIcon from '@mui/icons-material/Check';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { Check, ListPlus, Plus } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Notice } from '@/ui/notice';
+
 import {
   getWatchlists,
   getWatchlistMemberships,
@@ -39,13 +28,25 @@ import {
 import { invalidateWatchlistItems } from '../../api/userWatchlistQueries';
 import { getErrorMessage } from '../../utils/errorMessage';
 
+const ITEM = 'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm outline-none hover:bg-surface-subtle focus-visible:bg-surface-subtle aria-disabled:cursor-default aria-disabled:opacity-60 aria-disabled:hover:bg-transparent';
+
+// Arrow keys move between menu items, as in a native menu.
+const moveFocus = (event) => {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+  const items = [...event.currentTarget.querySelectorAll('[role="menuitem"]')];
+  if (items.length === 0) return;
+  event.preventDefault();
+  const index = items.indexOf(document.activeElement);
+  const step = event.key === 'ArrowDown' ? 1 : -1;
+  items[(index + step + items.length) % items.length].focus();
+};
+
 function AddToWatchlistMenu({ symbols, trigger, onSuccess, size = 'small' }) {
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [open, setOpen] = useState(false);
   const [newWatchlistName, setNewWatchlistName] = useState('');
   const [showNewInput, setShowNewInput] = useState(false);
+  const anchorRef = useRef(null);
   const queryClient = useQueryClient();
-
-  const open = Boolean(anchorEl);
 
   // Normalize symbols to array
   const symbolList = Array.isArray(symbols) ? symbols : [symbols];
@@ -126,19 +127,23 @@ function AddToWatchlistMenu({ symbols, trigger, onSuccess, size = 'small' }) {
     },
   });
 
+  const handleClose = () => {
+    setOpen(false);
+    setShowNewInput(false);
+    setNewWatchlistName('');
+  };
+
   const handleClick = (event) => {
     event.stopPropagation();
+    if (open) {
+      handleClose();
+      return;
+    }
     queryClient.invalidateQueries({
       queryKey: membershipQueryKey,
       refetchType: 'none',
     });
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-    setShowNewInput(false);
-    setNewWatchlistName('');
+    setOpen(true);
   };
 
   const handleAddToWatchlist = async (watchlistId) => {
@@ -170,117 +175,131 @@ function AddToWatchlistMenu({ symbols, trigger, onSuccess, size = 'small' }) {
     || createMutation.error;
 
   return (
-    <>
-      {trigger ? (
-        <Box onClick={handleClick}>{trigger}</Box>
-      ) : (
-        <Tooltip title="Add to watchlist">
-          <IconButton
-            size={size}
+    <PopoverPrimitive.Root open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
+      <PopoverPrimitive.Anchor asChild>
+        {trigger ? (
+          <span ref={anchorRef} className="inline-flex" onClick={handleClick}>{trigger}</span>
+        ) : (
+          <button
+            ref={anchorRef}
+            type="button"
+            aria-label="Add to watchlist"
+            title="Add to watchlist"
+            aria-haspopup="menu"
+            aria-expanded={open}
             onClick={handleClick}
-            sx={{ p: size === 'small' ? 0.25 : undefined }}
+            className={cn(
+              'tw inline-grid shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+              size === 'small' ? 'size-7' : 'size-9',
+            )}
           >
-            <PlaylistAddIcon fontSize={size} />
-          </IconButton>
-        </Tooltip>
-      )}
+            <ListPlus aria-hidden="true" className={size === 'small' ? 'size-4' : 'size-5'} />
+          </button>
+        )}
+      </PopoverPrimitive.Anchor>
 
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        onClick={(e) => e.stopPropagation()}
-        PaperProps={{
-          sx: { minWidth: 200, maxHeight: 400 },
+      {/* No portal: the menu also opens inside MUI modals, whose focus trap
+          would pull focus back out of a portalled popover. Radix positions it
+          with `position: fixed`, so table overflow does not clip it. */}
+      <PopoverPrimitive.Content
+        role="menu"
+        align="end"
+        sideOffset={6}
+        collisionPadding={8}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={moveFocus}
+        onInteractOutside={(event) => {
+          // The trigger toggles on its own click.
+          if (anchorRef.current?.contains(event.target)) event.preventDefault();
         }}
+        className="tw z-toast flex max-h-[400px] min-w-52 flex-col overflow-y-auto rounded-md border border-border bg-surface p-1 text-foreground shadow-lg outline-none"
       >
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            Add {symbolList.length > 1 ? `${symbolList.length} stocks` : symbolList[0]} to:
-          </Typography>
-        </Box>
-
-        <Divider />
+        <p className="px-2 py-1.5 text-xs text-muted-foreground">
+          Add {symbolList.length > 1 ? `${symbolList.length} stocks` : symbolList[0]} to:
+        </p>
+        <div className="my-1 h-px bg-border" />
 
         {visibleError && (
-          <Alert severity="error" sx={{ mx: 1, my: 1 }}>
+          <Notice tone="error" className="m-1 text-xs">
             {getErrorMessage(visibleError, 'Unable to update watchlist')}
-          </Alert>
+          </Notice>
         )}
 
         {isLoading ? (
-          <Box display="flex" justifyContent="center" py={2}>
-            <CircularProgress size={24} />
-          </Box>
+          <div role="progressbar" aria-label="Loading watchlists" className="flex justify-center py-3">
+            <span aria-hidden="true" className="size-5 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+          </div>
         ) : (
           <>
             {watchlists.map((watchlist) => {
               const alreadyAdded = normalizedSymbols.every(
                 (symbol) => memberships[symbol]?.includes(watchlist.id),
               );
+              const disabled = isPending || Boolean(membershipError) || alreadyAdded;
               return (
-                <MenuItem
+                <button
                   key={watchlist.id}
+                  type="button"
+                  role="menuitem"
+                  aria-label={alreadyAdded ? `${watchlist.name} Already added` : watchlist.name}
+                  aria-disabled={disabled || undefined}
                   onClick={() => {
-                    if (!alreadyAdded) handleAddToWatchlist(watchlist.id);
+                    if (!disabled) handleAddToWatchlist(watchlist.id);
                   }}
-                  disabled={isPending || Boolean(membershipError) || alreadyAdded}
+                  className={ITEM}
                 >
-                  <ListItemText
-                    primary={watchlist.name}
-                    secondary={alreadyAdded ? 'Already added' : undefined}
-                  />
-                  {alreadyAdded && (
-                    <ListItemIcon sx={{ minWidth: 'auto', ml: 1 }}>
-                      <CheckIcon fontSize="small" color="success" />
-                    </ListItemIcon>
-                  )}
-                </MenuItem>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{watchlist.name}</span>
+                    {alreadyAdded && <span className="block text-xs text-muted-foreground">Already added</span>}
+                  </span>
+                  {alreadyAdded && <Check aria-hidden="true" className="size-4 shrink-0 text-accent" />}
+                </button>
               );
             })}
 
             {watchlists.length === 0 && (
-              <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  No watchlists yet
-                </Typography>
-              </Box>
+              <p className="px-2 py-1.5 text-sm text-muted-foreground">No watchlists yet</p>
             )}
           </>
         )}
 
-        <Divider />
+        <div className="my-1 h-px bg-border" />
 
         {showNewInput ? (
-          <Box sx={{ px: 1.5, py: 1, display: 'flex', gap: 0.5 }}>
-            <TextField
-              size="small"
+          <div className="flex gap-1 p-1">
+            <input
+              type="text"
+              aria-label="New watchlist name"
               placeholder="Watchlist name"
               value={newWatchlistName}
               onChange={(e) => setNewWatchlistName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleCreateAndAdd()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCreateAndAdd();
+                }
+              }}
               autoFocus
-              sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
+              className="h-9 min-w-0 flex-1 rounded-md border border-border bg-surface px-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-8"
             />
-            <IconButton
-              size="small"
+            <button
+              type="button"
+              aria-label="Create watchlist and add"
               onClick={handleCreateAndAdd}
               disabled={!newWatchlistName.trim() || isPending}
-              color="primary"
+              className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-md text-accent outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 md:size-8"
             >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Box>
+              <Plus aria-hidden="true" className="size-4" />
+            </button>
+          </div>
         ) : (
-          <MenuItem onClick={() => setShowNewInput(true)}>
-            <ListItemIcon>
-              <AddIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Create new watchlist" />
-          </MenuItem>
+          <button type="button" role="menuitem" onClick={() => setShowNewInput(true)} className={ITEM}>
+            <Plus aria-hidden="true" className="size-4 text-muted-foreground" />
+            Create new watchlist
+          </button>
         )}
-      </Menu>
-    </>
+      </PopoverPrimitive.Content>
+    </PopoverPrimitive.Root>
   );
 }
 

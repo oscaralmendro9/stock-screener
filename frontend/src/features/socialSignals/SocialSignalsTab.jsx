@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert, AlertTitle, Box, Button, CircularProgress, Paper, Stack, TextField,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 
 import {
   getSocialContext, getSocialEvidence, getSocialQueue, getSocialUnresolved,
@@ -78,67 +76,72 @@ export default function SocialSignalsTab() {
   };
 
   return (
-    <Box sx={{ height: '100%', overflow: 'auto', p: 1 }}>
-      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" gap={1}>
-          <Box>
-            <Typography variant="h6">Social Signal Queue</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <div className="tw h-full overflow-auto p-2 text-foreground">
+      <section className="mb-3 rounded-lg border border-border bg-surface p-3">
+        <div className="flex flex-col justify-between gap-2 lg:flex-row">
+          <div>
+            <h2 className="text-lg font-semibold">Social Signal Queue</h2>
+            <p className="text-sm text-muted-foreground">
               X-list attention ranked with frozen setup, relative-strength, group, Theme, and Market confirmation.
-            </Typography>
-          </Box>
-          <Stack direction="row" gap={0.5} alignItems="center" flexWrap="wrap">
-            {['1d', '7d', '14d'].map((value) => <Button key={value}
-              variant={window === value ? 'contained' : 'outlined'}
-              onClick={() => selectControl(setWindow, value)}>{value.toUpperCase()}</Button>)}
-            <Button variant={view === 'actionable' ? 'contained' : 'outlined'}
-              onClick={() => selectControl(setView, 'actionable')}>Actionable</Button>
-            <Button variant={view === 'all' ? 'contained' : 'outlined'}
-              onClick={() => selectControl(setView, 'all')}>All Signals</Button>
-            <Button variant={rankMode === 'blended' ? 'contained' : 'outlined'}
-              onClick={() => selectControl(setRankMode, 'blended')}>Blended</Button>
-            <Button variant={rankMode === 'pure_social' ? 'contained' : 'outlined'}
-              onClick={() => selectControl(setRankMode, 'pure_social')}>Pure Social</Button>
-          </Stack>
-        </Stack>
-        <Stack direction="row" gap={1} sx={{ mt: 1.25 }} flexWrap="wrap">
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            {['1d', '7d', '14d'].map((value) => (
+              <Toggle key={value} on={window === value} onClick={() => selectControl(setWindow, value)}>{value.toUpperCase()}</Toggle>
+            ))}
+            <Toggle on={view === 'actionable'} onClick={() => selectControl(setView, 'actionable')}>Actionable</Toggle>
+            <Toggle on={view === 'all'} onClick={() => selectControl(setView, 'all')}>All Signals</Toggle>
+            <Toggle on={rankMode === 'blended'} onClick={() => selectControl(setRankMode, 'blended')}>Blended</Toggle>
+            <Toggle on={rankMode === 'pure_social'} onClick={() => selectControl(setRankMode, 'pure_social')}>Pure Social</Toggle>
+          </div>
+        </div>
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {FILTERS.map(([key, label]) => (
-            <TextField key={key} size="small" label={label} value={filters[key] || ''}
-              onChange={(event) => {
-                setFilters((current) => ({ ...current, [key]: event.target.value }));
-                setPage(1);
-              }}
-              sx={{ width: 135 }} />
+            <label key={key} className="flex w-[135px] flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+              <input
+                value={filters[key] || ''}
+                onChange={(event) => {
+                  setFilters((current) => ({ ...current, [key]: event.target.value }));
+                  setPage(1);
+                }}
+                className="h-11 rounded-md border border-border bg-surface px-2 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8"
+              />
+            </label>
           ))}
-        </Stack>
-      </Paper>
+        </div>
+      </section>
 
-      {!marketSupported ? <Alert severity="info">
-        {SOCIAL_SIGNAL_MARKETS_COPY}
-      </Alert> : null}
-      {marketSupported && queueQuery.isLoading ? <Box textAlign="center" py={8}><CircularProgress aria-label="Loading Social Signals" /></Box> : null}
-      {queueQuery.isError ? <Alert severity="error">
-        {queueQuery.error?.response?.status === 401 ? 'Your session expired. Sign in again.' : 'Social Signals could not be loaded.'}
-      </Alert> : null}
+      {!marketSupported ? <Notice>{SOCIAL_SIGNAL_MARKETS_COPY}</Notice> : null}
+      {marketSupported && queueQuery.isLoading ? (
+        <div className="py-16 text-center">
+          <span role="progressbar" aria-label="Loading Social Signals" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+        </div>
+      ) : null}
+      {queueQuery.isError ? (
+        <Notice tone="error">
+          {queueQuery.error?.response?.status === 401 ? 'Your session expired. Sign in again.' : 'Social Signals could not be loaded.'}
+        </Notice>
+      ) : null}
       {queueQuery.data?.available === false ? (
         queueQuery.data.latest_attempt
           ? <LatestAttemptPanel attempt={queueQuery.data.latest_attempt}
               onOpenOperations={() => navigate('/operations#sources')} />
-          : <Alert severity="info">
+          : <Notice>
               {unavailableCopy[queueQuery.data.reason_code] || 'Social Signals are temporarily unavailable.'}
-            </Alert>
+            </Notice>
       ) : null}
       {queueQuery.data?.available ? (
         <>
-          <Stack direction="row" gap={1} alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="caption">{queueQuery.data.total} published candidates</Typography>
-            <Typography variant="caption" color={queueQuery.data.stale ? 'warning.main' : 'success.main'}>
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="tabular-nums">{queueQuery.data.total} published candidates</span>
+            <span className={queueQuery.data.stale ? 'text-warning' : 'text-gain'}>
               {socialFreshnessLabel(queueQuery.data)}
-            </Typography>
-            <Typography variant="caption">Formula {queueQuery.data.items?.[0]?.formula_version || '—'}</Typography>
-            <Button size="small" disabled={!visibleSymbols.length} onClick={scanVisible}>Send visible to Scan</Button>
-          </Stack>
-          {!rows.length ? <Alert severity="info">No signals match these controls.</Alert> : null}
+            </span>
+            <span>Formula {queueQuery.data.items?.[0]?.formula_version || '—'}</span>
+            <Button variant="ghost" size="sm" disabled={!visibleSymbols.length} onClick={scanVisible}>Send visible to Scan</Button>
+          </div>
+          {!rows.length ? <Notice className="mb-2">No signals match these controls.</Notice> : null}
           <SocialSignalsTable items={rows} window={window} onSelect={setSelected} />
           {view === 'all' ? <>
             <SocialSignalsTable title="Context" items={contextQuery.data?.items || EMPTY}
@@ -150,12 +153,12 @@ export default function SocialSignalsTab() {
             <SectionPager page={unresolvedPage} total={unresolvedQuery.data?.total || 0}
               onPage={setUnresolvedPage} label="Needs resolution" />
           </> : null}
-          <Stack direction="row" justifyContent="flex-end" gap={1}>
-            <Button disabled={page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-            <Typography variant="caption" sx={{ alignSelf: 'center' }}>Page {page}</Typography>
-            <Button disabled={page * 50 >= queueQuery.data.total}
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
+            <span className="text-[11px] tabular-nums">Page {page}</span>
+            <Button variant="ghost" size="sm" disabled={page * 50 >= queueQuery.data.total}
               onClick={() => setPage((value) => value + 1)}>Next</Button>
-          </Stack>
+          </div>
         </>
       ) : null}
       <SocialEvidenceDrawer open={Boolean(selected)} onClose={() => setSelected(null)}
@@ -166,7 +169,15 @@ export default function SocialSignalsTab() {
         initialSymbol={selected?.canonical_symbol} scanId={null}
         navigationSymbolsOverride={visibleSymbols}
         currentPageResults={rows.map((row) => ({ ...row, symbol: row.canonical_symbol }))} />
-    </Box>
+    </div>
+  );
+}
+
+function Toggle({ on, onClick, children }) {
+  return (
+    <Button variant={on ? 'primary' : 'secondary'} size="sm" aria-pressed={on} onClick={onClick}>
+      {children}
+    </Button>
   );
 }
 
@@ -192,12 +203,10 @@ function LatestAttemptPanel({ attempt, onOpenOperations }) {
       ? 'Posts collected; analysis is in progress'
       : 'First collection is in progress';
   return (
-    <Alert severity={collectionFailed || analysisFailed ? 'error' : 'info'} sx={{ mb: 1.5 }}>
-      <AlertTitle>{title}</AlertTitle>
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        Started {new Date(attempt.started_at).toLocaleString()}
-      </Typography>
-      <Stack gap={0.75}>
+    <Notice tone={collectionFailed || analysisFailed ? 'error' : 'info'} className="mb-3 items-start">
+      <p className="font-semibold">{title}</p>
+      <p className="mb-2 text-sm">Started {new Date(attempt.started_at).toLocaleString()}</p>
+      <div className="flex flex-col gap-1.5">
         {(attempt.sources || []).map((source) => {
           const collected = source.read_status === 'success';
           const status = collected ? 'Collected' : source.read_status === 'failed' ? 'Failed' : 'Waiting';
@@ -208,38 +217,35 @@ function LatestAttemptPanel({ attempt, onOpenOperations }) {
             .filter((reason) => reason !== 'bounded_provider_read')
             .map((reason) => attemptReasonCopy[reason] || reason.replaceAll('_', ' '));
           return (
-            <Box key={source.name} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}>
-              <Typography variant="subtitle2">{source.name}</Typography>
-              <Typography variant="body2">{status} · {count} posts</Typography>
-              {limited ? <Typography variant="caption" color="warning.main">Limited history</Typography> : null}
-              {reasons.map((reason) => <Typography key={reason} variant="caption" display="block"
-                color={source.read_status === 'failed' ? 'error.main' : 'text.secondary'}>{reason}</Typography>)}
-            </Box>
+            <div key={source.name} className="rounded-md border border-border p-2">
+              <p className="text-sm font-semibold">{source.name}</p>
+              <p className="text-sm tabular-nums">{status} · {count} posts</p>
+              {limited ? <p className="text-[11px] text-warning">Limited history</p> : null}
+              {reasons.map((reason) => (
+                <p key={reason} className={source.read_status === 'failed' ? 'text-[11px] text-loss' : 'text-[11px] text-muted-foreground'}>{reason}</p>
+              ))}
+            </div>
           );
         })}
-      </Stack>
-      {collectionFailed ? <Typography variant="body2" sx={{ mt: 1 }}>
-        Analysis did not start because no enabled list collected successfully.
-      </Typography> : null}
-      {analysisFailed ? <Typography variant="body2" sx={{ mt: 1 }}>
-        Collected posts were not published because analysis failed. Review and retry failed work in Operations.
-      </Typography> : null}
-      <Button size="small" sx={{ mt: 1 }} onClick={onOpenOperations}>Open Operations</Button>
-    </Alert>
+      </div>
+      {collectionFailed ? <p className="mt-2 text-sm">Analysis did not start because no enabled list collected successfully.</p> : null}
+      {analysisFailed ? <p className="mt-2 text-sm">Collected posts were not published because analysis failed. Review and retry failed work in Operations.</p> : null}
+      <Button variant="secondary" size="sm" className="mt-2" onClick={onOpenOperations}>Open Operations</Button>
+    </Notice>
   );
 }
 
 function SectionPager({ page, total, onPage, label }) {
   if (total <= 50 && page === 1) return null;
   return (
-    <Stack direction="row" justifyContent="flex-end" gap={1} sx={{ mt: -1, mb: 2 }}>
-      <Button size="small" disabled={page === 1} onClick={() => onPage(page - 1)}>
+    <div className="-mt-2 mb-4 flex items-center justify-end gap-2">
+      <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => onPage(page - 1)}>
         Previous {label}
       </Button>
-      <Typography variant="caption" sx={{ alignSelf: 'center' }}>Page {page}</Typography>
-      <Button size="small" disabled={page * 50 >= total} onClick={() => onPage(page + 1)}>
+      <span className="text-[11px] tabular-nums">Page {page}</span>
+      <Button variant="ghost" size="sm" disabled={page * 50 >= total} onClick={() => onPage(page + 1)}>
         Next {label}
       </Button>
-    </Stack>
+    </div>
   );
 }

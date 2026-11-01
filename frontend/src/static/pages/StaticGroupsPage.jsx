@@ -1,20 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Skeleton,
-  Grid,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Typography,
-} from '@mui/material';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import {
   useStaticManifest,
   fetchStaticJson,
@@ -28,9 +14,9 @@ import { useStaticChartIndex } from '../chartClient';
 import StaticGroupDetailModal from '../StaticGroupDetailModal';
 import RRGChart from '../../components/Charts/RRGChart';
 import GroupViewTabs from '../../features/groups/GroupViewTabs';
+import RankChange from '../../features/groups/RankChange';
 import { DEFAULT_MATRIX_PREFERENCES } from '../../features/groups/matrix/groupMatrixModel';
 import { useRRGScopeSelection } from '../../components/Charts/useRRGScopeSelection';
-import RankChangeCell from '../../components/shared/RankChangeCell';
 import TickerCell from '../../components/common/TickerCell';
 import { useStaticMarket } from '../StaticMarketContext';
 import {
@@ -38,109 +24,100 @@ import {
   formatGroupRs,
 } from '../../features/groups/groupRankingFields';
 import { sortGroupRankings } from '../../features/groups/groupRankingSort';
-import { groupRsCellSx, groupRsTone } from '../../features/groups/groupRsVisualEncoding';
+import { GROUP_RS_TINT_CLASS, groupRsTone } from '../../features/groups/groupRsVisualEncoding';
 import { PageSkeleton, TableSkeleton } from '../../components/common/LoadingSkeletons';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
 const GroupMatrixPanel = lazy(() => import('../../features/groups/matrix/GroupMatrixPanel'));
 
+const ALIGN = { left: 'text-left', right: 'text-right', center: 'text-center' };
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold whitespace-nowrap text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
+
 function SortableTableCell({ field, label, description, align = 'left', orderBy, order, onSort }) {
+  const active = orderBy === field;
+  const Arrow = active && order === 'desc' ? ArrowDown : ArrowUp;
   return (
-    <TableCell align={align}>
-      <TableSortLabel
-        active={orderBy === field}
-        direction={orderBy === field ? order : 'asc'}
+    <th scope="col" aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : undefined} className={cn(TH, ALIGN[align])}>
+      <button
+        type="button"
         onClick={() => onSort(field)}
         title={description}
+        className={cn('group inline-flex cursor-pointer items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring', active && 'text-foreground')}
       >
         {label}
-      </TableSortLabel>
-    </TableCell>
+        <Arrow aria-hidden="true" className={cn('size-3', active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40')} />
+      </button>
+    </th>
   );
 }
 
 function StaticRankingCell({ row, column }) {
-  const align = column.staticAlign || column.align;
+  const align = ALIGN[column.staticAlign || column.align] || 'text-left';
 
   if (column.kind === 'rank') {
-    return (
-      <TableCell align={align} sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-        {row.rank}
-      </TableCell>
-    );
+    return <td className={cn(TD, align, 'font-semibold tabular-nums')}>{row.rank}</td>;
   }
 
   if (column.kind === 'group') {
-    return <TableCell>{row.industry_group}</TableCell>;
+    return <td className={TD}>{row.industry_group}</td>;
   }
 
   if (column.kind === 'rs') {
     const value = row[column.field];
+    const tone = groupRsTone(value);
     return (
-      <TableCell
-        align={align}
-        data-rs-tone={groupRsTone(value)}
-        sx={{ fontFamily: 'monospace', ...groupRsCellSx(value) }}
-      >
+      <td data-rs-tone={tone} className={cn(TD, align, 'tabular-nums', GROUP_RS_TINT_CLASS[tone])}>
         {formatGroupRs(value)}
-      </TableCell>
+      </td>
     );
   }
 
   if (column.kind === 'integer') {
-    return (
-      <TableCell align={align} sx={{ fontFamily: 'monospace' }}>
-        {row[column.field]}
-      </TableCell>
-    );
+    return <td className={cn(TD, align, 'tabular-nums')}>{row[column.field]}</td>;
   }
 
   if (column.kind === 'rankChange') {
     return (
-      <TableCell align={align}>
-        <RankChangeCell value={row[column.field]} />
-      </TableCell>
+      <td className={cn(TD, align)}>
+        <RankChange value={row[column.field]} />
+      </td>
     );
   }
 
   return (
-    <TableCell align={align} sx={{ fontSize: '12px' }}>
-      <TickerCell
-        symbol={row.top_symbol}
-        companyName={row.top_symbol_name}
-      />
-    </TableCell>
+    <td className={cn(TD, align, 'text-xs')}>
+      <TickerCell symbol={row.top_symbol} companyName={row.top_symbol_name} />
+    </td>
   );
 }
 
 function MoversCard({ title, rows }) {
   return (
-    <Paper elevation={0} sx={{ p: 1.5, height: '100%', border: '1px solid', borderColor: 'divider' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
-        {title}
-      </Typography>
-      <TableContainer>
-        <Table size="small" sx={{ minWidth: 360 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>Group</TableCell>
-              <TableCell align="right">Rank</TableCell>
-              <TableCell align="right">Change</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+    <section className="h-full rounded-lg border border-border p-3">
+      <h2 className="mb-1 text-[13px] font-semibold tracking-wide uppercase">{title}</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[360px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr>
+              <th scope="col" className={cn(TH, 'text-left')}>Group</th>
+              <th scope="col" className={cn(TH, 'text-right')}>Rank</th>
+              <th scope="col" className={cn(TH, 'text-right')}>Change</th>
+            </tr>
+          </thead>
+          <tbody>
             {(rows || []).slice(0, 5).map((row) => (
-              <TableRow key={`${title}-${row.industry_group}`}>
-                <TableCell>{row.industry_group}</TableCell>
-                <TableCell align="right">{row.rank}</TableCell>
-                <TableCell align="right">
-                  <RankChangeCell value={row.rank_change_1w} />
-                </TableCell>
-              </TableRow>
+              <tr key={`${title}-${row.industry_group}`}>
+                <td className={TD}>{row.industry_group}</td>
+                <td className={cn(TD, 'text-right tabular-nums')}>{row.rank}</td>
+                <td className={cn(TD, 'text-right')}><RankChange value={row.rank_change_1w} /></td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -160,23 +137,17 @@ function GroupsTableView({ movers, moversPeriod, rankings, onSelectGroup }) {
 
   return (
     <>
-      <Grid container spacing={1.5} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={6}>
-          <MoversCard title={`Top Gainers (${moversPeriod.toUpperCase()})`} rows={movers.gainers} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <MoversCard title={`Top Losers (${moversPeriod.toUpperCase()})`} rows={movers.losers} />
-        </Grid>
-      </Grid>
+      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <MoversCard title={`Top Gainers (${moversPeriod.toUpperCase()})`} rows={movers.gainers} />
+        <MoversCard title={`Top Losers (${moversPeriod.toUpperCase()})`} rows={movers.losers} />
+      </div>
 
-      <Paper elevation={0} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
-          Current Rankings
-        </Typography>
-        <TableContainer>
-          <Table size="small" sx={{ minWidth: 1040 }}>
-            <TableHead>
-              <TableRow>
+      <section className="rounded-lg border border-border p-3">
+        <h2 className="mb-1 text-[13px] font-semibold tracking-wide uppercase">Current Rankings</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1040px] border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
                 {STATIC_GROUP_RANKING_COLUMNS.map((column) => (
                   <SortableTableCell
                     key={column.field}
@@ -189,36 +160,33 @@ function GroupsTableView({ movers, moversPeriod, rankings, onSelectGroup }) {
                     onSort={handleSort}
                   />
                 ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
+              </tr>
+            </thead>
+            <tbody>
               {sortedRankings.map((row) => (
-                <TableRow
+                <tr
                   key={row.industry_group}
-                  hover
                   onClick={() => onSelectGroup(row.industry_group)}
                   tabIndex={0}
+                  aria-label={`Open ${row.industry_group} detail`}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       onSelectGroup(row.industry_group);
                     }
                   }}
-                  sx={{ cursor: 'pointer' }}
+                  className="cursor-pointer outline-none hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 >
                   {STATIC_GROUP_RANKING_COLUMNS.map((column) => (
-                    <StaticRankingCell
-                      key={column.field}
-                      row={row}
-                      column={column}
-                    />
+                    <StaticRankingCell key={column.field} row={row} column={column} />
                   ))}
-                </TableRow>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </>
   );
 }
@@ -266,7 +234,7 @@ function StaticGroupsPage() {
   }
 
   if (manifestQuery.isError) {
-    return <Alert severity="error">Failed to load group rankings.</Alert>;
+    return <Notice tone="error" className="tw">Failed to load group rankings.</Notice>;
   }
 
   const payload = groupsQuery.data?.payload || {};
@@ -276,16 +244,16 @@ function StaticGroupsPage() {
   const groupDetails = payload.group_details || {};
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}>
+    <div className="tw text-foreground">
+      <h1 className="mb-1 text-2xl font-bold tracking-tight">
         {marketEntry.display_name} Group Rankings
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '12px' }}>
+      </h1>
+      <p className="mb-4 text-xs text-muted-foreground">
         Latest ranking date:{' '}
         {groupsQuery.isLoading
-          ? <Skeleton variant="text" width={80} sx={{ display: 'inline-block', verticalAlign: 'middle' }} />
+          ? <span aria-hidden="true" className="inline-block h-3 w-20 rounded-sm bg-surface-subtle align-middle motion-safe:animate-pulse" />
           : `${payload.rankings?.date || '-'}.`}
-      </Typography>
+      </p>
 
       <GroupViewTabs
           view={view}
@@ -295,10 +263,10 @@ function StaticGroupsPage() {
           rrgAvailable={rrgAvailable}
           matrixAvailable={matrixAvailable}
           availableScopes={availableRrgScopes}
-          sx={{ mb: 2 }}
+          className="mb-4"
         />
 
-      <Box role="tabpanel" id={`group-panel-${view}`} aria-labelledby={`group-tab-${view}`}>
+      <div role="tabpanel" id={`group-panel-${view}`} aria-labelledby={`group-tab-${view}`}>
       {view === 'matrix' ? (
         <Suspense fallback={<TableSkeleton label="Loading group matrix" />}>
           <GroupMatrixPanel key={selectedMarket} data={matrixQuery.data} isLoading={matrixQuery.isLoading}
@@ -313,8 +281,8 @@ function StaticGroupsPage() {
           onSelectGroup={(name) => rrgScope === 'groups' && setSelectedGroup(name)}
         />
       ) : groupsQuery.isLoading ? <TableSkeleton label="Loading group rankings" rows={12} columns={8} />
-        : groupsQuery.isError ? <Alert severity="error">Failed to load group rankings.</Alert>
-        : !groupsQuery.data?.available ? <Alert severity="info">{groupsQuery.data?.message || 'No group rankings are available.'}</Alert>
+        : groupsQuery.isError ? <Notice tone="error">Failed to load group rankings.</Notice>
+        : !groupsQuery.data?.available ? <Notice>{groupsQuery.data?.message || 'No group rankings are available.'}</Notice>
         : (
         <GroupsTableView
           movers={movers}
@@ -324,7 +292,7 @@ function StaticGroupsPage() {
         />
       )}
 
-      </Box>
+      </div>
 
       <StaticGroupDetailModal
         group={selectedGroup}
@@ -333,7 +301,7 @@ function StaticGroupsPage() {
         open={!!selectedGroup}
         onClose={() => setSelectedGroup(null)}
       />
-    </Box>
+    </div>
   );
 }
 

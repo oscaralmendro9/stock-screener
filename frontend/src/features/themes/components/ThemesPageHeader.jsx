@@ -1,25 +1,25 @@
-import {
-  Badge,
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import ArticleIcon from '@mui/icons-material/Article';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Replay30Icon from '@mui/icons-material/Replay30';
-import SettingsIcon from '@mui/icons-material/Settings';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
-import WhatshotIcon from '@mui/icons-material/Whatshot';
+import { ArrowLeftRight, Bot, FileText, Flame, Landmark, MoveRight, Play, RefreshCw, RotateCcw, Settings } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { cn } from '@/lib/cn';
+import { Spinner } from '../themeUi';
 
+const SEGMENT = 'inline-flex h-11 cursor-pointer items-center gap-1 px-3 text-xs font-medium outline-none first:rounded-l-md last:rounded-r-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:h-8';
+const ICON = 'relative grid size-11 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 md:size-8';
+
+function CountBadge({ count, tone = 'neutral' }) {
+  if (!count) return null;
+  return (
+    <span className={cn(
+      'absolute -top-1.5 -right-1.5 min-w-4 rounded-full px-1 text-center text-[11px] leading-4 font-semibold tabular-nums',
+      tone === 'loss' ? 'bg-loss text-loss-foreground' : 'bg-warning text-surface',
+    )}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+// onPipelineChange keeps the (event, value) signature the container uses.
 export default function ThemesPageHeader({
   selectedPipeline,
   onPipelineChange,
@@ -33,107 +33,72 @@ export default function ThemesPageHeader({
   onRunPipeline,
   onRefresh,
 }) {
+  const runLabel = isPipelineRunning
+    ? 'Pipeline running...'
+    : failedCount > 0
+      ? `Run Pipeline (${failedCount} pending retry)`
+      : 'Run Pipeline';
   return (
-    <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <Box>
-        <Box display="flex" alignItems="center" gap={2}>
-          <Typography variant="h4">
-            <WhatshotIcon sx={{ mr: 1, verticalAlign: 'middle', color: 'error.main' }} />
+    <div className="tw mb-8 flex flex-wrap items-start justify-between gap-4 text-foreground">
+      <div>
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="flex items-center gap-2 text-3xl font-semibold">
+            <Flame aria-hidden="true" className="size-7 text-muted-foreground" />
             Theme Discovery
-          </Typography>
-          <ToggleButtonGroup
-            value={selectedPipeline}
-            exclusive
-            onChange={onPipelineChange}
-            size="small"
-            sx={{ height: 32 }}
-          >
-            <ToggleButton value="technical" sx={{ px: 2 }}>
-              <TrendingFlatIcon sx={{ mr: 0.5, fontSize: 18 }} />
-              Technical
-            </ToggleButton>
-            <ToggleButton value="fundamental" sx={{ px: 2 }}>
-              <AccountBalanceIcon sx={{ mr: 0.5, fontSize: 18 }} />
-              Fundamental
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          </h1>
+          <div role="group" aria-label="Pipeline" className="flex rounded-md border border-border">
+            {[['technical', 'Technical', MoveRight], ['fundamental', 'Fundamental', Landmark]].map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={selectedPipeline === value}
+                onClick={() => onPipelineChange(null, value)}
+                className={cn(SEGMENT, selectedPipeline === value ? 'bg-surface-subtle text-foreground' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <Icon aria-hidden="true" className="size-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
           {selectedPipeline === 'technical'
             ? 'Price action, momentum, RS, chart patterns, breakouts'
             : 'Earnings, valuation, macro themes, analyst coverage'}
-        </Typography>
-      </Box>
-      <Box display="flex" gap={1} alignItems="center">
-        <Badge badgeContent={pendingReviewCount} color="warning" max={99}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<CompareArrowsIcon />}
-            onClick={onOpenReview}
-            sx={{ fontSize: '0.65rem', py: 0.15, px: 0.5, '& .MuiSvgIcon-root': { fontSize: '0.85rem' } }}
-          >
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="relative">
+          <Button variant="secondary" size="sm" onClick={onOpenReview}>
+            <ArrowLeftRight aria-hidden="true" />
             Review
           </Button>
-        </Badge>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<ArticleIcon />}
-          onClick={onOpenArticles}
-          sx={{ fontSize: '0.65rem', py: 0.15, px: 0.5, '& .MuiSvgIcon-root': { fontSize: '0.85rem' } }}
-        >
+          <CountBadge count={pendingReviewCount} />
+        </span>
+        <Button variant="secondary" size="sm" onClick={onOpenArticles}>
+          <FileText aria-hidden="true" />
           Articles
         </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<SettingsIcon />}
-          onClick={onOpenSettings}
-          sx={{ fontSize: '0.65rem', py: 0.15, px: 0.5, '& .MuiSvgIcon-root': { fontSize: '0.85rem' } }}
-        >
+        <Button variant="secondary" size="sm" onClick={onOpenSettings}>
+          <Settings aria-hidden="true" />
           Settings
         </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<SmartToyIcon />}
-          onClick={onOpenModelSettings}
-          sx={{ fontSize: '0.65rem', py: 0.15, px: 0.5, '& .MuiSvgIcon-root': { fontSize: '0.85rem' } }}
-        >
+        <Button variant="secondary" size="sm" onClick={onOpenModelSettings}>
+          <Bot aria-hidden="true" />
           LLM
         </Button>
-        <Box sx={{ borderLeft: 1, borderColor: 'divider', height: 24, mx: 0.5 }} />
-        <Tooltip
-          title={
-            isPipelineRunning
-              ? 'Pipeline running...'
-              : failedCount > 0
-                ? `Run Pipeline (${failedCount} pending retry)`
-                : 'Run Pipeline'
-          }
-        >
-          <Badge badgeContent={failedCount} color="error" max={999} invisible={!failedCount}>
-            <span>
-              <IconButton size="small" onClick={() => onRunPipeline()} disabled={isPipelineRunning} color="primary">
-                {isPipelineRunning ? <CircularProgress size={18} /> : <PlayArrowIcon fontSize="small" />}
-              </IconButton>
-            </span>
-          </Badge>
-        </Tooltip>
-        <Tooltip title="Backfill 30d">
-          <span>
-            <IconButton size="small" onClick={() => onRunPipeline(30)} disabled={isPipelineRunning}>
-              <Replay30Icon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title="Refresh">
-          <IconButton size="small" onClick={onRefresh}>
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
-    </Box>
+        <span aria-hidden="true" className="mx-1 h-6 border-l border-border" />
+        <button type="button" aria-label={runLabel} title={runLabel} onClick={() => onRunPipeline()} disabled={isPipelineRunning} className={cn(ICON, 'text-accent')}>
+          {isPipelineRunning ? <Spinner label="Pipeline running" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
+          <CountBadge count={failedCount} tone="loss" />
+        </button>
+        <button type="button" aria-label="Backfill 30d" title="Backfill 30d" onClick={() => onRunPipeline(30)} disabled={isPipelineRunning} className={ICON}>
+          <RotateCcw aria-hidden="true" className="size-4" />
+        </button>
+        <button type="button" aria-label="Refresh" title="Refresh" onClick={onRefresh} className={ICON}>
+          <RefreshCw aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </div>
   );
 }

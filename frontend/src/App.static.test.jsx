@@ -395,7 +395,7 @@ describe('App static mode', () => {
     await renderStaticAppAtHash('#/groups');
 
     expect(await screen.findByRole('heading', { name: 'Hong Kong Group Rankings' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveTextContent('Hong Kong');
+    expect(screen.getByRole('combobox', { name: 'Static market selector' })).toHaveValue('HK');
     expect(screen.queryByRole('link', { name: 'Options' })).not.toBeInTheDocument();
   }, 10000);
 });

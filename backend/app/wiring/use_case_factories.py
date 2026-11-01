@@ -254,6 +254,75 @@ def get_cot_queries(session: Session):
     return CotQueryService(SqlCotRepository(session), SqlCotPriceReader(session))
 
 
+def _cot_positioning_by_slug(session: Session):
+    """COT focal positioning keyed by instrument slug; empty when unpublished."""
+    from app.use_cases.cot.queries import (
+        CotInstrumentUnavailable,
+        CotPublicationUnavailable,
+    )
+    from app.use_cases.futures.dashboard import CotPositioning
+
+    try:
+        snapshot = get_cot_queries(session).snapshot()
+    except (CotPublicationUnavailable, CotInstrumentUnavailable):
+        return {}
+    return {
+        row.slug: CotPositioning(
+            slug=row.slug,
+            participant_label=row.focal_label,
+            report_date=row.report_date,
+            net=row.net,
+            net_pct_open_interest=row.net_pct_open_interest,
+            percentile_3y=row.percentile_3y,
+        )
+        for row in snapshot.rows
+    }
+
+
+def get_futures_dashboard_query(session: Session):
+    from app.infra.query.futures_prices import CachedFuturesBarsReader
+    from app.use_cases.futures.dashboard import FuturesDashboardQuery
+
+    runtime = resolve_runtime_services()
+    return FuturesDashboardQuery(
+        CachedFuturesBarsReader(runtime.cache_bundle().price),
+        cot_positioning=lambda: _cot_positioning_by_slug(session),
+    )
+
+
+def get_refresh_futures_use_case():
+    from app.use_cases.futures.refresh import RefreshFuturesPrices
+
+    runtime = resolve_runtime_services()
+    return RefreshFuturesPrices(runtime.cache_bundle().price)
+
+
+_on_demand_options_chain = None
+
+
+def get_on_demand_options_chain():
+    """Process-scoped, so its short-lived chain cache is shared by requests."""
+    global _on_demand_options_chain
+    if _on_demand_options_chain is None:
+        from app.config import settings
+        from app.infra.providers.yahoo_options import YahooOptionsProvider
+        from app.infra.query.futures_prices import cached_closes
+        from app.use_cases.options_analytics.on_demand import OnDemandOptionsChain
+
+        runtime = resolve_runtime_services()
+        requests_per_second = max(float(settings.yfinance_rate_limit), 0.01)
+        provider = YahooOptionsProvider(
+            rate_limiter=lambda: runtime.rate_limiter().wait(
+                "yfinance:options", min_interval_s=1.0 / requests_per_second
+            ),
+        )
+        _on_demand_options_chain = OnDemandOptionsChain(
+            provider,
+            lambda symbol: cached_closes(runtime.cache_bundle().price, symbol),
+        )
+    return _on_demand_options_chain
+
+
 def _social_provider_factories(sessions, *, official_client=None, cooldown_gate=None):
     import httpx
     from app.config import settings

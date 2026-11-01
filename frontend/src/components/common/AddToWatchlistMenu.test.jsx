@@ -190,7 +190,7 @@ describe('AddToWatchlistMenu', () => {
     expect(await screen.findByRole('menuitem', { name: 'Portfolio' })).toBeEnabled();
     expect(api.getWatchlistMemberships).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(document.querySelector('.MuiBackdrop-root'));
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
     let resolveRefresh;
     const refreshPromise = new Promise((resolve) => {

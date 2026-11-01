@@ -1,30 +1,27 @@
-import { memo } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  CircularProgress,
-  Collapse,
-  FormControl,
-  FormControlLabel,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  TextField,
-  Tooltip,
-} from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import StopIcon from '@mui/icons-material/Stop';
+import { memo, useEffect, useId, useRef, useState } from 'react';
+import { ChevronUp, Play, Plus, RefreshCw, Square, X } from 'lucide-react';
 import ScanProgress from '../../../components/Scan/ScanProgress';
 import { formatScanDropdownLabel } from '../../../utils/scanLabel';
 import { SCREENER_OPTIONS, WATCHLIST_MARKET } from '../constants';
 import { selectRuntimeUniverseOption } from '../runtimeUniverseSelections';
 import { getSelectionCount } from '../universeSelection';
+import { Button } from '@/ui/button';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
+
+const CUSTOM_FILTER_FIELDS = [
+  { key: 'price_min', label: 'Min Price' },
+  { key: 'price_max', label: 'Max Price' },
+  { key: 'rs_rating_min', label: 'Min RS', min: 0, max: 100 },
+  { key: 'volume_min', label: 'Min Vol' },
+  { key: 'eps_growth_min', label: 'Min EPS %' },
+  { key: 'sales_growth_min', label: 'Min Sales %' },
+];
+
+function Spinner() {
+  return <span aria-hidden="true" className="inline-block size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />;
+}
 
 function stockCountLabel(universeMarket, universeScope, universeStats, statsLoading, selectedScopeOption) {
   if (!universeMarket) {
@@ -106,6 +103,24 @@ function ScanControlBar({
   onUseLastPublished,
 }) {
   const controlsDisabled = createScanPending || scanStatus === 'running';
+  // The screener shows a finished scan; setting up a new one is occasional,
+  // so its controls sit behind "New scan". They open on their own when
+  // nothing is loaded yet (or "New Scan" is picked) and for a social
+  // selection, which arrives here to be scanned.
+  const newScanPanelId = useId();
+  const mustSetUp = !currentScanId || customSymbols.length > 0;
+  const [newScanOpen, setNewScanOpen] = useState(mustSetUp);
+  // Until the user toggles it, the panel follows the page: the first render
+  // has no scan yet (open), then the loaded scan closes it again.
+  const userToggled = useRef(false);
+  useEffect(() => {
+    if (mustSetUp) setNewScanOpen(true);
+    else if (!userToggled.current) setNewScanOpen(false);
+  }, [mustSetUp]);
+  const toggleNewScan = () => {
+    userToggled.current = true;
+    setNewScanOpen((open) => !open);
+  };
   const universeMarkets = universeSelections?.markets ?? [];
   const {
     marketOption: selectedMarketOption,
@@ -153,329 +168,282 @@ function ScanControlBar({
   const staleMarket = staleRefreshMarket(createScanError, refreshableMarket);
   const displayedWarnings = scanWarnings.filter((warning) => warning?.message);
 
+
   return (
-    <Paper elevation={1} sx={{ p: 1.5, mb: 2 }}>
-      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+    <section aria-label="Scan controls" className="tw mb-4 rounded-lg border border-border bg-surface p-3 text-foreground">
+      <div className="flex flex-wrap items-end gap-3">
         {hasCustomSymbols ? (
-          <Chip
-            color="primary"
-            label={`Social selection: ${customSymbols.length} symbols`}
-            onDelete={onClearCustomSymbols}
-          />
+          <span className="inline-flex h-8 items-center gap-1 self-end rounded-full border border-accent/40 bg-accent/10 pr-1 pl-3 text-xs font-medium">
+            {`Social selection: ${customSymbols.length} symbols`}
+            {onClearCustomSymbols ? (
+              <button
+                type="button"
+                aria-label="Clear social selection"
+                onClick={onClearCustomSymbols}
+                className="grid size-6 cursor-pointer place-items-center rounded-full text-muted-foreground outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            ) : null}
+          </span>
         ) : null}
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="prev-scan-label">Previous Scans</InputLabel>
-          <Select
-            labelId="prev-scan-label"
-            value={currentScanId || ''}
-            label="Previous Scans"
-            onChange={(event) => onLoadScan(event.target.value)}
-          >
-            <MenuItem value="">
-              <em>New Scan</em>
-            </MenuItem>
-            {scanHistory?.scans?.map((scan) => (
-              <MenuItem key={scan.scan_id} value={scan.scan_id}>
-                {formatScanDropdownLabel(scan)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Box sx={{ borderLeft: 1, borderColor: 'divider', height: 32, mx: 0.5 }} />
-
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel id="universe-market-label">Market</InputLabel>
-          <Select
-            labelId="universe-market-label"
-            value={universeMarket ?? ''}
-            label="Market"
-            onChange={(event) => onUniverseMarketChange(event.target.value || null)}
-            disabled={controlsDisabled}
-          >
-            {universeMarkets.map((option) => {
-              const count = option.value === 'TEST'
-                ? null
-                : getSelectionCount(option.value, 'market', universeStats);
-              return (
-                <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
-                  {optionStatusLabel(option, count)}
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
-
-        {needsScope && (
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel id="universe-scope-label">{scopeLabel}</InputLabel>
-            <Select
-              labelId="universe-scope-label"
-              value={universeScope ?? ''}
-              label={scopeLabel}
-              onChange={(event) => onUniverseScopeChange(event.target.value || null)}
-              disabled={controlsDisabled}
-            >
-              {scopeOptions.map((option) => {
-                const count = getSelectionCount(
-                  universeMarket,
-                  option.value,
-                  universeStats,
-                  option.universe_def
-                );
-                return (
-                  <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
-                    {optionStatusLabel(option, count)}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Box sx={{ fontSize: '11px', color: 'text.secondary', mr: 0.5 }}>Strategies:</Box>
-          {SCREENER_OPTIONS.map((screener) => (
-            <Chip
-              key={screener.id}
-              label={screener.label}
-              size="small"
-              variant={selectedScreeners.includes(screener.id) ? 'filled' : 'outlined'}
-              color={selectedScreeners.includes(screener.id) ? 'primary' : 'default'}
-              onClick={() => onScreenerToggle(screener.id)}
-              disabled={controlsDisabled}
-              sx={{ height: 24, fontSize: '10px' }}
-            />
+        <NativeSelect
+          label="Previous Scans"
+          value={currentScanId || ''}
+          onChange={(value) => onLoadScan(value)}
+          className="w-56 max-w-full"
+        >
+          <option value="">New Scan</option>
+          {scanHistory?.scans?.map((scan) => (
+            <option key={scan.scan_id} value={scan.scan_id}>
+              {formatScanDropdownLabel(scan)}
+            </option>
           ))}
-        </Box>
+        </NativeSelect>
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={includeVcp}
-              onChange={(event) => onIncludeVcpChange(event.target.checked)}
-              disabled={controlsDisabled}
-              size="small"
+        {currentScanId && statusData && (
+          <span className="flex h-11 items-center md:h-8">
+            <ScanProgress
+              status={statusData.status}
+              progress={statusData.progress}
+              totalStocks={statusData.total_stocks}
+              completedStocks={statusData.completed_stocks}
+              passedStocks={statusData.passed_stocks}
+              etaSeconds={statusData.eta_seconds}
             />
-          }
-          label={<Box sx={{ fontSize: '11px' }}>VCP</Box>}
-          sx={{ mr: 0 }}
-        />
-
-        {selectedScreeners.length > 1 && (
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel id="composite-method-label">Method</InputLabel>
-            <Select
-              labelId="composite-method-label"
-              value={compositeMethod}
-              label="Method"
-              onChange={(event) => onCompositeMethodChange(event.target.value)}
-              disabled={controlsDisabled}
-            >
-              <MenuItem value="weighted_average">Avg</MenuItem>
-              <MenuItem value="maximum">Max</MenuItem>
-              <MenuItem value="minimum">Min</MenuItem>
-            </Select>
-          </FormControl>
+          </span>
         )}
 
-        <Box sx={{ flexGrow: 1 }} />
-
-        <Box sx={{ fontSize: '11px', color: 'text.secondary' }}>
-          {stockCountLabel(universeMarket, universeScope, universeStats, statsLoading, selectedScopeOption)}
-        </Box>
-
-        {scanStatus === 'running' ? (
+        {scanStatus === 'running' && (
           <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={cancelScanPending ? <CircularProgress size={14} /> : <StopIcon />}
+            variant="secondary"
+            size="sm"
+            className="text-loss"
             onClick={onCancelScan}
             disabled={cancelScanPending}
           >
+            {cancelScanPending ? <Spinner /> : <Square aria-hidden="true" />}
             Cancel
           </Button>
-        ) : (
-          refreshConflict ? (
-            <Tooltip title={refreshConflict.message} describeChild>
-              <span
-                tabIndex={0}
-                aria-label={refreshConflict.message}
-                style={{ display: 'inline-flex' }}
-              >
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={createScanPending ? <CircularProgress size={14} /> : <PlayArrowIcon />}
-                  onClick={onStartScan}
-                  disabled={startDisabled}
-                >
-                  Scan
-                </Button>
-              </span>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={createScanPending ? <CircularProgress size={14} /> : <PlayArrowIcon />}
-              onClick={onStartScan}
-              disabled={startDisabled}
-            >
-              Scan
-            </Button>
-          )
         )}
+
+        <span className="grow" />
 
         {lastPublishedAvailable && onUseLastPublished && (
-          <Tooltip
+          <Button
+            variant="secondary"
+            size="sm"
             title="Load a completed scan from the last published snapshot instead of computing one now."
-            describeChild
+            onClick={onUseLastPublished}
+            disabled={lastPublishedDisabled}
           >
-            <span tabIndex={lastPublishedDisabled ? 0 : undefined} style={{ display: 'inline-flex' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={onUseLastPublished}
-                disabled={lastPublishedDisabled}
+            Use last published data
+          </Button>
+        )}
+
+        <Button
+          variant={newScanOpen ? 'ghost' : 'secondary'}
+          size="sm"
+          aria-expanded={newScanOpen}
+          aria-controls={newScanPanelId}
+          onClick={toggleNewScan}
+        >
+          {newScanOpen ? <ChevronUp aria-hidden="true" /> : <Plus aria-hidden="true" />}
+          {newScanOpen ? 'Hide scan setup' : 'New scan'}
+        </Button>
+      </div>
+
+      {newScanOpen && (
+        <div id={newScanPanelId} className="mt-3 border-t border-border pt-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <NativeSelect
+              label="Market"
+              value={universeMarket ?? ''}
+              onChange={(value) => onUniverseMarketChange(value || null)}
+              disabled={controlsDisabled}
+              className="w-40"
+            >
+              {!universeMarket ? <option value="" disabled>Pick a market</option> : null}
+              {universeMarkets.map((option) => {
+                const count = option.value === 'TEST'
+                  ? null
+                  : getSelectionCount(option.value, 'market', universeStats);
+                return (
+                  <option key={option.value} value={option.value} disabled={option.disabled}>
+                    {optionStatusLabel(option, count)}
+                  </option>
+                );
+              })}
+            </NativeSelect>
+
+            {needsScope && (
+              <NativeSelect
+                label={scopeLabel}
+                value={universeScope ?? ''}
+                onChange={(value) => onUniverseScopeChange(value || null)}
+                disabled={controlsDisabled}
+                className="w-44"
               >
-                Use last published data
-              </Button>
+                {!universeScope ? <option value="" disabled>{`Pick a ${scopeLabel.toLowerCase()}`}</option> : null}
+                {scopeOptions.map((option) => {
+                  const count = getSelectionCount(
+                    universeMarket,
+                    option.value,
+                    universeStats,
+                    option.universe_def
+                  );
+                  return (
+                    <option key={option.value} value={option.value} disabled={option.disabled}>
+                      {optionStatusLabel(option, count)}
+                    </option>
+                  );
+                })}
+              </NativeSelect>
+            )}
+
+            <div role="group" aria-labelledby={`${newScanPanelId}-strategies`} className="flex flex-col gap-0.5">
+              <span id={`${newScanPanelId}-strategies`} className="text-[11px] font-medium text-muted-foreground">Strategies</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {SCREENER_OPTIONS.map((screener) => {
+                  const selected = selectedScreeners.includes(screener.id);
+                  return (
+                    <button
+                      key={screener.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => onScreenerToggle(screener.id)}
+                      disabled={controlsDisabled}
+                      className={cn(
+                        'h-11 cursor-pointer rounded-full border px-3 text-xs font-medium outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none md:h-8',
+                        selected
+                          ? 'border-accent bg-accent text-accent-foreground'
+                          : 'border-border bg-surface text-foreground hover:bg-surface-subtle',
+                      )}
+                    >
+                      {screener.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <label className="flex h-11 cursor-pointer items-center gap-1.5 text-xs md:h-8">
+              <input
+                type="checkbox"
+                checked={includeVcp}
+                onChange={(event) => onIncludeVcpChange(event.target.checked)}
+                disabled={controlsDisabled}
+                className="size-4 cursor-pointer accent-accent"
+              />
+              VCP
+            </label>
+
+            {selectedScreeners.length > 1 && (
+              <NativeSelect
+                label="Method"
+                value={compositeMethod}
+                onChange={(value) => onCompositeMethodChange(value)}
+                disabled={controlsDisabled}
+                className="w-24"
+              >
+                <option value="weighted_average">Avg</option>
+                <option value="maximum">Max</option>
+                <option value="minimum">Min</option>
+              </NativeSelect>
+            )}
+
+            <span className="grow" />
+
+            <span className="flex h-11 items-center text-[11px] text-muted-foreground tabular-nums md:h-8">
+              {stockCountLabel(universeMarket, universeScope, universeStats, statsLoading, selectedScopeOption)}
             </span>
-          </Tooltip>
-        )}
 
-        {currentScanId && statusData && (
-          <ScanProgress
-            status={statusData.status}
-            progress={statusData.progress}
-            totalStocks={statusData.total_stocks}
-            completedStocks={statusData.completed_stocks}
-            passedStocks={statusData.passed_stocks}
-            etaSeconds={statusData.eta_seconds}
-          />
-        )}
-      </Box>
+            {scanStatus !== 'running' && (
+              refreshConflict ? (
+                // A disabled button can't take focus, so its reason sits on a
+                // focusable wrapper that names it.
+                <span
+                  tabIndex={0}
+                  aria-label={refreshConflict.message}
+                  title={refreshConflict.message}
+                  className="inline-flex rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Button size="sm" onClick={onStartScan} disabled={startDisabled}>
+                    {createScanPending ? <Spinner /> : <Play aria-hidden="true" />}
+                    Scan
+                  </Button>
+                </span>
+              ) : (
+                <Button size="sm" onClick={onStartScan} disabled={startDisabled}>
+                  {createScanPending ? <Spinner /> : <Play aria-hidden="true" />}
+                  Scan
+                </Button>
+              )
+            )}
+          </div>
 
-      <Collapse in={selectedScreeners.includes('custom')}>
-        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
-          <Grid container spacing={1}>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Min Price"
-                type="number"
-                value={customFilters.price_min ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, price_min: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Max Price"
-                type="number"
-                value={customFilters.price_max ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, price_max: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Min RS"
-                type="number"
-                value={customFilters.rs_rating_min ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, rs_rating_min: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-                inputProps={{ min: 0, max: 100 }}
-              />
-            </Grid>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Min Vol"
-                type="number"
-                value={customFilters.volume_min ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, volume_min: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Min EPS %"
-                type="number"
-                value={customFilters.eps_growth_min ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, eps_growth_min: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                label="Min Sales %"
-                type="number"
-                value={customFilters.sales_growth_min ?? ''}
-                onChange={(event) => onCustomFiltersChange({ ...customFilters, sales_growth_min: toOptionalNumber(event.target.value) })}
-                disabled={controlsDisabled}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-          </Grid>
-        </Box>
-      </Collapse>
+          {selectedScreeners.includes('custom') && (
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-3 md:grid-cols-6">
+              {CUSTOM_FILTER_FIELDS.map(({ key, label, min, max }) => (
+                <label key={key} className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={min}
+                    max={max}
+                    value={customFilters[key] ?? ''}
+                    onChange={(event) => onCustomFiltersChange({ ...customFilters, [key]: toOptionalNumber(event.target.value) })}
+                    disabled={controlsDisabled}
+                    className="h-11 w-full rounded-md border border-border bg-surface px-2.5 font-[inherit] text-sm text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:h-8"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {createScanErrorMessage && (
-        <Alert
-          severity="error"
-          sx={{ mt: 1 }}
+        <Notice
+          tone="error"
+          className="mt-2"
           action={staleMarket && onRefreshStaleData ? (
             <Button
-              color="inherit"
-              size="small"
-              startIcon={refreshStaleDataPending ? <CircularProgress size={14} /> : <RefreshIcon />}
+              variant="secondary"
+              size="sm"
               disabled={refreshStaleDataPending}
               onClick={() => onRefreshStaleData(staleMarket)}
             >
+              {refreshStaleDataPending ? <Spinner /> : <RefreshCw aria-hidden="true" />}
               Refresh {staleMarket} data
             </Button>
           ) : null}
         >
           Error: {createScanErrorMessage}
-        </Alert>
+        </Notice>
       )}
       {refreshStaleDataErrorMessage && (
-        <Alert severity="error" sx={{ mt: 1 }}>
+        <Notice tone="error" className="mt-2">
           Error: {refreshStaleDataErrorMessage}
-        </Alert>
+        </Notice>
       )}
       {displayedWarnings.map((warning, index) => (
-        <Alert
-          key={`${warning.code}-${index}`}
-          severity="warning"
-          sx={{ mt: 1 }}
-        >
+        <Notice key={`${warning.code}-${index}`} tone="warning" role="alert" className="mt-2">
           {warning.message}
-        </Alert>
+        </Notice>
       ))}
       {cancelScanErrorMessage && (
-        <Alert severity="error" sx={{ mt: 1 }}>
+        <Notice tone="error" className="mt-2">
           Error: {cancelScanErrorMessage}
-        </Alert>
+        </Notice>
       )}
       {scanStatus === 'cancelled' && (
-        <Alert severity="warning" sx={{ mt: 1 }}>
+        <Notice tone="warning" role="alert" className="mt-2">
           Scan cancelled. Showing partial results.
-        </Alert>
+        </Notice>
       )}
-    </Paper>
+    </section>
   );
 }
 

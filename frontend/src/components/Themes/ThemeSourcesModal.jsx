@@ -1,48 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Box,
-  CircularProgress,
-  Chip,
-  IconButton,
-  Tooltip,
-  Link,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ArticleIcon from '@mui/icons-material/Article';
+import { ExternalLink } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogClose, DialogContent } from '@/ui/dialog';
+import { cn } from '@/lib/cn';
 import { getThemeMentions } from '../../api/themes';
 import TranslatedText from '../common/TranslatedText';
+import { Pill, Spinner } from '../../features/themes/themeUi';
+import { linkClass, thClass, tdClass } from '../../features/themes/themeClasses';
 
-// Sentiment color mapping
-const getSentimentColor = (sentiment) => {
-  switch (sentiment) {
-    case 'bullish':
-      return 'success';
-    case 'bearish':
-      return 'error';
-    default:
-      return 'default';
-  }
-};
+// Sentiment tone mapping
+const SENTIMENT_TONE = { bullish: 'gain', bearish: 'loss' };
 
-// Confidence color
-const getConfidenceColor = (confidence) => {
-  if (confidence >= 0.8) return 'success.main';
-  if (confidence >= 0.5) return 'warning.main';
-  return 'text.secondary';
+// Confidence tone
+const confidenceClass = (confidence) => {
+  if (confidence >= 0.8) return 'text-gain';
+  if (confidence >= 0.5) return 'text-warning';
+  return 'text-muted-foreground';
 };
 
 // Source type label
@@ -77,45 +50,33 @@ export function AttachmentEvidence({ status, attachments }) {
   if (!status || status === 'none') return null;
 
   return (
-    <Box sx={{ mt: 0.75 }}>
-      <Chip
-        label={attachmentStatusLabels[status] || 'Attachment status unavailable'}
-        size="small"
-        variant="outlined"
-        color={status === 'failed' ? 'warning' : 'default'}
-        sx={{ height: 20, fontSize: '0.68rem', mb: attachments?.length ? 0.5 : 0 }}
-      />
+    <div className="mt-1.5">
+      <Pill tone={status === 'failed' ? 'warning' : 'muted'} className={cn('h-5', attachments?.length && 'mb-1')}>
+        {attachmentStatusLabels[status] || 'Attachment status unavailable'}
+      </Pill>
       {attachments?.map((attachment) => {
         const safeUrl = getSafeExternalUrl(attachment.url);
         const attachmentLabel = attachment.kind === 'image' ? 'Image attachment' : 'Linked article';
         return (
-          <Box key={`${attachment.kind}-${attachment.url}`} sx={{ fontSize: '0.72rem', lineHeight: 1.45 }}>
+          <div key={`${attachment.kind}-${attachment.url}`} className="text-[11px] leading-snug">
             {safeUrl ? (
-              <Link href={safeUrl} target="_blank" rel="noopener noreferrer">
-                {attachmentLabel}
-              </Link>
+              <a href={safeUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>{attachmentLabel}</a>
             ) : (
-              <Typography component="span" variant="caption">{attachmentLabel}</Typography>
+              <span>{attachmentLabel}</span>
             )}
             {attachment.status && attachment.status !== 'complete' && (
-              <Typography component="span" variant="caption" color="text.secondary">
-                {' '}({attachment.status})
-              </Typography>
+              <span className="text-muted-foreground"> ({attachment.status})</span>
             )}
             {attachment.error_code && (
-              <Typography variant="caption" color="text.secondary" display="block">
-                Attachment unavailable: {attachment.error_code}
-              </Typography>
+              <span className="block text-muted-foreground">Attachment unavailable: {attachment.error_code}</span>
             )}
             {attachment.warnings?.map((warning) => (
-              <Typography key={warning} variant="caption" color="text.secondary" display="block">
-                Attachment note: {warning}
-              </Typography>
+              <span key={warning} className="block text-muted-foreground">Attachment note: {warning}</span>
             ))}
-          </Box>
+          </div>
         );
       })}
-    </Box>
+    </div>
   );
 }
 
@@ -136,229 +97,122 @@ function ThemeSourcesModal({ open, onClose, themeId, themeName }) {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="xl"
-      fullWidth
-      PaperProps={{
-        sx: { minHeight: '60vh', maxHeight: '90vh' },
-      }}
-    >
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box display="flex" alignItems="center">
-            <ArticleIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="h6">News Sources: {themeName}</Typography>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent dividers>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        title={`News Sources: ${themeName}`}
+        size="xl"
+        className="sm:min-h-[60vh]"
+        footer={<DialogClose asChild><Button variant="ghost" size="sm">Close</Button></DialogClose>}
+      >
         {isLoading && (
-          <Box display="flex" justifyContent="center" p={5}>
-            <CircularProgress />
-          </Box>
+          <div className="flex justify-center p-10"><Spinner label="Loading sources" /></div>
         )}
 
         {error && (
-          <Typography color="error">
-            Error loading sources: {error.message}
-          </Typography>
+          <p role="alert" className="text-loss">Error loading sources: {error.message}</p>
         )}
 
         {mentionsData && mentionsData.mentions?.length > 0 && (
           <>
-            <Box mb={2}>
-              <Typography variant="body2" color="text.secondary">
-                Found {mentionsData.total_count} news items mentioning this
-                theme
-              </Typography>
-            </Box>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Found {mentionsData.total_count} news items mentioning this theme
+            </p>
 
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ minWidth: 250 }}>Title</TableCell>
-                    <TableCell sx={{ minWidth: 300 }}>Excerpt</TableCell>
-                    <TableCell align="center" sx={{ minWidth: 100 }}>
-                      Source
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>Author</TableCell>
-                    <TableCell align="center" sx={{ minWidth: 90 }}>
-                      Sentiment
-                    </TableCell>
-                    <TableCell align="center" sx={{ minWidth: 90 }}>
-                      Confidence
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>Date</TableCell>
-                    <TableCell sx={{ minWidth: 120 }}>Tickers</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    <th scope="col" className={cn(thClass(), 'min-w-[250px]')}>Title</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[300px]')}>Excerpt</th>
+                    <th scope="col" className={cn(thClass('center'), 'min-w-[100px]')}>Source</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[100px]')}>Author</th>
+                    <th scope="col" className={cn(thClass('center'), 'min-w-[90px]')}>Sentiment</th>
+                    <th scope="col" className={cn(thClass('center'), 'min-w-[90px]')}>Confidence</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[100px]')}>Date</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[120px]')}>Tickers</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {mentionsData.mentions.map((mention) => (
-                    <TableRow key={mention.mention_id} hover>
-                      <TableCell>
-                        <Box display="flex" alignItems="flex-start">
-                          <Typography
-                            variant="body2"
-                            fontWeight="medium"
-                            sx={{
-                              maxWidth: 230,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {mention.content_title || 'Untitled'}
-                          </Typography>
+                    <tr key={mention.mention_id} className="align-top hover:bg-surface-subtle">
+                      <td className={tdClass}>
+                        <span className="flex items-start gap-1">
+                          <span className="max-w-[230px] truncate font-medium">{mention.content_title || 'Untitled'}</span>
                           {mention.content_url && (
-                            <Tooltip title="Open original">
-                              <IconButton
-                                size="small"
-                                component={Link}
-                                href={mention.content_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                sx={{ ml: 0.5, p: 0.25 }}
-                              >
-                                <OpenInNewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
+                            <a
+                              href={mention.content_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open original"
+                              title="Open original"
+                              className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <ExternalLink aria-hidden="true" className="size-4" />
+                            </a>
                           )}
-                        </Box>
-                      </TableCell>
+                        </span>
+                      </td>
 
-                      <TableCell>
+                      <td className={tdClass}>
                         {mention.claim_support?.theme === 'inferred' && (
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Theme inferred from source context
-                          </Typography>
+                          <span className="block text-[11px] text-muted-foreground">Theme inferred from source context</span>
                         )}
                         {mention.development && (
-                          <Typography variant="body2" sx={{ mb: 0.75 }}>
-                            <strong>Development: </strong>{mention.development}
-                          </Typography>
+                          <p className="mb-1.5 text-sm"><strong>Development: </strong>{mention.development}</p>
                         )}
-                        <AttachmentEvidence
-                          status={mention.attachment_status}
-                          attachments={mention.attachments}
-                        />
+                        <AttachmentEvidence status={mention.attachment_status} attachments={mention.attachments} />
                         <TranslatedText
                           originalText={mention.excerpt}
                           translatedText={mention.translated_excerpt}
                           sourceLanguage={mention.source_language}
                           translationMetadata={mention.translation_metadata}
-                          typographySx={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 3,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            maxWidth: 280,
-                            color: 'text.secondary',
-                          }}
+                          textClassName="line-clamp-3 max-w-[280px] text-muted-foreground"
                         />
-                      </TableCell>
+                      </td>
 
-                      <TableCell align="center">
-                        <Chip
-                          label={
-                            sourceTypeLabels[mention.source_type] ||
-                            mention.source_type
-                          }
-                          size="small"
-                          variant="outlined"
-                        />
+                      <td className={cn(tdClass, 'text-center')}>
+                        <Pill tone="muted">{sourceTypeLabels[mention.source_type] || mention.source_type}</Pill>
                         {mention.source_name && (
-                          <Typography
-                            variant="caption"
-                            display="block"
-                            color="text.secondary"
-                          >
-                            {mention.source_name}
-                          </Typography>
+                          <span className="block text-[11px] text-muted-foreground">{mention.source_name}</span>
                         )}
-                      </TableCell>
+                      </td>
 
-                      <TableCell>
-                        <Typography variant="body2">
-                          {mention.author || '-'}
-                        </Typography>
-                      </TableCell>
+                      <td className={tdClass}>{mention.author || '-'}</td>
 
-                      <TableCell align="center">
+                      <td className={cn(tdClass, 'text-center')}>
                         {mention.sentiment ? (
-                          <Chip
-                            label={mention.sentiment}
-                            size="small"
-                            color={getSentimentColor(mention.sentiment)}
-                            sx={{ textTransform: 'capitalize' }}
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
+                          <Pill tone={SENTIMENT_TONE[mention.sentiment] || 'muted'} className="capitalize">{mention.sentiment}</Pill>
+                        ) : '-'}
+                      </td>
 
-                      <TableCell align="center">
-                        <Typography
-                          variant="body2"
-                          fontWeight="medium"
-                          color={getConfidenceColor(mention.confidence)}
-                        >
-                          {mention.confidence
-                            ? `${(mention.confidence * 100).toFixed(0)}%`
-                            : '-'}
-                        </Typography>
-                      </TableCell>
+                      <td className={cn(tdClass, 'text-center font-medium tabular-nums', confidenceClass(mention.confidence))}>
+                        {mention.confidence ? `${(mention.confidence * 100).toFixed(0)}%` : '-'}
+                      </td>
 
-                      <TableCell>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDate(mention.published_at)}
-                        </Typography>
-                      </TableCell>
+                      <td className={cn(tdClass, 'text-[11px] text-muted-foreground')}>{formatDate(mention.published_at)}</td>
 
-                      <TableCell>
-                        <Box display="flex" gap={0.5} flexWrap="wrap">
+                      <td className={tdClass}>
+                        <span className="flex flex-wrap gap-1">
                           {mention.tickers?.slice(0, 3).map((ticker) => (
-                            <Chip
-                              key={ticker}
-                              label={ticker}
-                              size="small"
-                              variant="outlined"
-                              sx={{ fontSize: '0.7rem', height: 20 }}
-                            />
+                            <Pill key={ticker} tone="muted" className="h-5">{ticker}</Pill>
                           ))}
                           {mention.tickers?.length > 3 && (
-                            <Chip
-                              label={`+${mention.tickers.length - 3}`}
-                              size="small"
-                              sx={{ fontSize: '0.7rem', height: 20 }}
-                            />
+                            <Pill tone="muted" className="h-5">{`+${mention.tickers.length - 3}`}</Pill>
                           )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
+                        </span>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
           </>
         )}
 
         {mentionsData && mentionsData.mentions?.length === 0 && (
-          <Typography color="text.secondary" textAlign="center" sx={{ p: 3 }}>
-            No news sources found for this theme.
-          </Typography>
+          <p className="p-6 text-center text-muted-foreground">No news sources found for this theme.</p>
         )}
       </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
   );
 }

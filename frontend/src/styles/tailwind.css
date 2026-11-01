@@ -1,0 +1,108 @@
+/* Tailwind with its preflight reset; MUI is gone (see DESIGN.md). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Page colours from the tokens (preflight leaves them to the app). */
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/* Thin, token-colored scrollbars everywhere (tables, panes, the page). */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+/* Dark mode follows the attribute App sets from the colour mode. */
+@custom-variant dark (&:where([data-color-mode='dark'], [data-color-mode='dark'] *));
+
+/* Semantic tokens. Gain/loss colors are reserved for price direction and
+   always ship with a sign or arrow. Canvas chart chrome (CandlestickChart) and
+   THEME_COLOR in src/theme.js mirror the surface values. */
+:root,
+[data-color-mode='light'] {
+  --background: #f7f7f7;
+  --surface: #ffffff;
+  --surface-subtle: #f3f3f3;
+  --foreground: #111111;
+  --muted-foreground: #5f6368;
+  --disabled-foreground: #9aa0a6;
+  --border: #e6e6e6;
+  --accent: #0b7285;
+  --accent-foreground: #ffffff;
+  --gain: #0c7d56;
+  --loss: #c92a37;
+  --loss-foreground: #ffffff;
+  --warning: #b45309;
+  --ring: #0b7285;
+  /* Two-series chart pair (calls/puts, positive/negative), validated with the
+     dataviz palette script for CVD separation and the mode's lightness band. */
+  --series-1: #0b7285;
+  --series-2: #d9480f;
+}
+
+[data-color-mode='dark'] {
+  --background: #080808;
+  --surface: #0f0f10;
+  --surface-subtle: #18191b;
+  --foreground: #efefef;
+  --muted-foreground: #8f9196;
+  --disabled-foreground: #5c5f66;
+  --border: #232427;
+  --accent: #38b2c4;
+  --accent-foreground: #0f0f10;
+  --gain: #2ebd85;
+  --loss: #f6465d;
+  --loss-foreground: #0f0f10;
+  --warning: #f59f00;
+  --ring: #38b2c4;
+  --series-1: #38b2c4;
+  --series-2: #e06c12;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-loss-foreground: var(--loss-foreground);
+  --color-warning: var(--warning);
+  --color-ring: var(--ring);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+
+  --font-sans: 'Instrument Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* Fixed z-index scale (baseline-ui: no arbitrary z-*). */
+@utility z-nav {
+  z-index: 30;
+}
+@utility z-overlay {
+  z-index: 40;
+}
+@utility z-modal {
+  z-index: 50;
+}
+@utility z-toast {
+  z-index: 60;
+}

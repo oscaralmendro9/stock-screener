@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
 
 import StaticBreadthPage from './StaticBreadthPage';
@@ -26,13 +25,13 @@ const renderPage = (initialEntry = '/breadth') => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <MemoryRouter initialEntries={[initialEntry]}>
           <StaticMarketProvider supportedMarkets={['US', 'HK']} defaultMarket="US">
             <StaticBreadthPage />
           </StaticMarketProvider>
         </MemoryRouter>
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };
@@ -520,8 +519,7 @@ describe('StaticBreadthPage', () => {
     // The empty-session message is shown but the date picker remains usable.
     expect(await screen.findByText(/No 4%\+ movers were attributed for 2026-05-15/i)).toBeInTheDocument();
     const sessionCombobox = screen.getByRole('combobox', { name: /session/i });
-    fireEvent.mouseDown(sessionCombobox);
-    fireEvent.click(await screen.findByRole('option', { name: '2026-05-14' }));
+    fireEvent.change(sessionCombobox, { target: { value: '2026-05-14' } });
 
     // After switching, the prior session's groups render.
     expect(await screen.findByText('Semiconductors')).toBeInTheDocument();

@@ -1,31 +1,11 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Collapse,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  Tooltip,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { ChevronDown, ChevronRight, Info, TriangleAlert, X } from 'lucide-react';
+
+import { cn } from '@/lib/cn';
+import { Button } from '@/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
+
 import { breadthMetricDefinitions } from './breadthMetricDefinitions';
 
 const formatValue = (value, valueKind) => {
@@ -34,82 +14,100 @@ const formatValue = (value, valueKind) => {
   return `${Number(value) >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
 };
 
-const StockRows = ({ stocks, valueKind }) => stocks.map((stock) => (
-  <TableRow key={stock.symbol}>
-    <TableCell sx={{ fontWeight: 700, color: 'primary.light' }}>{stock.symbol}</TableCell>
-    <TableCell sx={{ maxWidth: 190 }}>
-      <Tooltip title={stock.companyName || ''}>
-        <Typography noWrap variant="body2">{stock.companyName || '—'}</Typography>
-      </Tooltip>
-    </TableCell>
-    <TableCell sx={{ maxWidth: 180 }}>
-      <Tooltip title={stock.groupName}>
-        <Typography noWrap variant="body2">{stock.groupName}</Typography>
-      </Tooltip>
-    </TableCell>
-    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
-      {formatValue(stock.qualifyingValue, valueKind)}
-    </TableCell>
-    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-      {formatValue(stock.dailyChangePct, 'percent')}
-    </TableCell>
-  </TableRow>
-));
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-1.5 font-medium text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
 
 const StockTable = ({ stocks, definition }) => (
-  <TableContainer sx={{ maxHeight: { xs: 'calc(100vh - 190px)', sm: 520 } }}>
-    <Table stickyHeader size="small" aria-label="Breadth contributing stocks">
-      <TableHead>
-        <TableRow>
-          <TableCell>Ticker</TableCell>
-          <TableCell>Company</TableCell>
-          <TableCell>IBD Group</TableCell>
-          <TableCell align="right" aria-label={`Qualifying value: ${definition.contributor.qualifierLabel}`}>
-            <Tooltip title={definition.contributor.qualifierLabel}>
-              <span>Qualifying value</span>
-            </Tooltip>
-          </TableCell>
-          <TableCell align="right">1-day change</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        <StockRows stocks={stocks} valueKind={definition.contributor.valueKind} />
-      </TableBody>
-    </Table>
-  </TableContainer>
+  <div className="max-h-[calc(100dvh-190px)] overflow-auto sm:max-h-[520px]">
+    <table aria-label="Breadth contributing stocks" className="w-full border-separate border-spacing-0 text-xs">
+      <thead>
+        <tr>
+          <th scope="col" className={cn(TH, 'text-left')}>Ticker</th>
+          <th scope="col" className={cn(TH, 'text-left')}>Company</th>
+          <th scope="col" className={cn(TH, 'text-left')}>IBD Group</th>
+          <th
+            scope="col"
+            className={cn(TH, 'text-right')}
+            aria-label={`Qualifying value: ${definition.contributor.qualifierLabel}`}
+            title={definition.contributor.qualifierLabel}
+          >
+            Qualifying value
+          </th>
+          <th scope="col" className={cn(TH, 'text-right')}>1-day change</th>
+        </tr>
+      </thead>
+      <tbody>
+        {stocks.map((stock) => (
+          <tr key={stock.symbol}>
+            <td className={cn(TD, 'font-semibold text-accent')}>{stock.symbol}</td>
+            <td className={cn(TD, 'max-w-[190px] truncate')} title={stock.companyName || ''}>
+              {stock.companyName || '—'}
+            </td>
+            <td className={cn(TD, 'max-w-[180px] truncate')} title={stock.groupName}>
+              {stock.groupName}
+            </td>
+            <td className={cn(TD, 'text-right font-semibold tabular-nums')}>
+              {formatValue(stock.qualifyingValue, definition.contributor.valueKind)}
+            </td>
+            <td className={cn(TD, 'text-right tabular-nums')}>
+              {formatValue(stock.dailyChangePct, 'percent')}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 const GroupList = ({ groups, definition }) => {
   const [expanded, setExpanded] = useState(null);
   return (
-    <Stack spacing={0.75} sx={{ py: 1 }}>
+    <ul className="flex flex-col gap-1.5 py-2">
       {groups.map((group) => {
         const isExpanded = expanded === group.name;
+        const Chevron = isExpanded ? ChevronDown : ChevronRight;
         return (
-          <Box key={group.name} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Button
-              fullWidth
-              color="inherit"
+          <li key={group.name} className="rounded-md border border-border">
+            <button
+              type="button"
               aria-expanded={isExpanded}
               aria-label={`${group.name}, ${group.count} stocks, ${group.sharePct.toFixed(1)} percent`}
               onClick={() => setExpanded(isExpanded ? null : group.name)}
-              startIcon={isExpanded ? <ExpandMoreIcon /> : <ChevronRightIcon />}
-              sx={{ justifyContent: 'flex-start', px: 1.5, py: 1, textTransform: 'none' }}
+              className="flex min-h-11 w-full cursor-pointer items-center gap-2 px-3 py-2 text-left outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring md:min-h-9"
             >
-              <Typography sx={{ flex: 1, textAlign: 'left', fontWeight: 700 }}>{group.name}</Typography>
-              <Typography color="text.secondary" variant="body2">
+              <Chevron aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 text-sm font-semibold">{group.name}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
                 {group.count} · {group.sharePct.toFixed(1)}%
-              </Typography>
-            </Button>
-            <Collapse in={isExpanded} unmountOnExit>
-              <StockTable stocks={group.stocks} definition={definition} />
-            </Collapse>
-          </Box>
+              </span>
+            </button>
+            {isExpanded && <StockTable stocks={group.stocks} definition={definition} />}
+          </li>
         );
       })}
-    </Stack>
+    </ul>
   );
 };
+
+const NOTICE_TONES = {
+  info: 'border-border bg-surface-subtle',
+  warning: 'border-warning/40 bg-warning/10',
+  error: 'border-loss/40 bg-loss/10',
+};
+
+function Notice({ tone, children, action, className }) {
+  const Icon = tone === 'info' ? Info : TriangleAlert;
+  return (
+    <div
+      role={tone === 'error' ? 'alert' : 'status'}
+      className={cn('flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm', NOTICE_TONES[tone], className)}
+    >
+      <Icon aria-hidden="true" className={cn('size-4 shrink-0', tone === 'error' ? 'text-loss' : tone === 'warning' ? 'text-warning' : 'text-muted-foreground')} />
+      <p className="min-w-0 flex-1">{children}</p>
+      {action}
+    </div>
+  );
+}
 
 const BreadthContributorDialog = ({
   open,
@@ -123,67 +121,78 @@ const BreadthContributorDialog = ({
   onRetry,
   onClose,
 }) => {
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState('stocks');
   const definition = breadthMetricDefinitions[metric] || { label: 'Breadth contributors' };
   const count = Number(row?.[metric] || view?.count || 0);
-  const titleId = 'breadth-contributor-dialog-title';
   useEffect(() => {
-    if (!open) setTab(0);
+    if (!open) setTab('stocks');
   }, [open]);
+  const ready = !isLoading && !inconsistent && !unavailable;
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullScreen={fullScreen}
-      fullWidth
-      maxWidth="md"
-      aria-labelledby={titleId}
-    >
-      <DialogTitle id={titleId} sx={{ pr: 6, pb: 1 }}>
-        <Typography component="span" sx={{ fontWeight: 800 }}>
-          {definition.label}
-        </Typography>
-        <Typography component="span" color="text.secondary">
-          {` · ${row?.date || ''} · ${count} stocks`}
-        </Typography>
-        <IconButton aria-label="Close" onClick={onClose} sx={{ position: 'absolute', right: 10, top: 10 }}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <Tabs value={tab} onChange={(_event, value) => setTab(value)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Tab label="Stocks" />
-        <Tab label="IBD Groups" />
-      </Tabs>
-      <DialogContent sx={{ p: { xs: 1.5, sm: 2.5 }, minHeight: 260 }}>
-        {isLoading && (
-          <Stack alignItems="center" justifyContent="center" spacing={1.5} sx={{ minHeight: 220 }}>
-            <CircularProgress size={30} />
-            <Typography color="text.secondary">Loading contributors…</Typography>
-          </Stack>
-        )}
-        {!isLoading && inconsistent && <Alert severity="warning">{inconsistent}</Alert>}
-        {!isLoading && !inconsistent && unavailable && (
-          <Alert severity="info">Contributor details are not available for this session.</Alert>
-        )}
-        {!isLoading && !inconsistent && !unavailable && error && (
-          <Alert
-            severity={view ? 'warning' : 'error'}
-            action={<Button color="inherit" size="small" onClick={onRetry}>Retry</Button>}
-            sx={view ? { mb: 1.5 } : undefined}
-          >
-            {view ? 'Showing cached contributors because the latest refresh failed.' : 'Could not load contributors.'}
-          </Alert>
-        )}
-        {!isLoading && !inconsistent && !unavailable && view && (
-          tab === 0
-            ? <StockTable stocks={view.stocks} definition={view.definition} />
-            : <GroupList groups={view.groups} definition={view.definition} />
-        )}
-      </DialogContent>
-    </Dialog>
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => { if (!next) onClose?.(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-overlay bg-black/50" />
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className="tw fixed inset-0 z-modal flex flex-col bg-surface text-foreground outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[90dvh] sm:w-[min(900px,calc(100vw-32px))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-border"
+        >
+          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-start gap-2 border-b border-border px-4 pt-3">
+              <div className="min-w-0 flex-1">
+                <DialogPrimitive.Title className="text-base">
+                  <span className="font-semibold">{definition.label}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {` · ${row?.date || ''} · ${count} stocks`}
+                  </span>
+                </DialogPrimitive.Title>
+                <TabsList className="my-2">
+                  <TabsTrigger value="stocks">Stocks</TabsTrigger>
+                  <TabsTrigger value="groups">IBD Groups</TabsTrigger>
+                </TabsList>
+              </div>
+              <DialogPrimitive.Close
+                aria-label="Close"
+                className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring md:size-9"
+              >
+                <X aria-hidden="true" className="size-4" />
+              </DialogPrimitive.Close>
+            </div>
+            <div className="min-h-[260px] flex-1 overflow-y-auto p-3 sm:p-5">
+              {isLoading && (
+                <div role="status" className="flex min-h-[220px] flex-col items-center justify-center gap-3">
+                  <span aria-hidden="true" className="size-7 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+                  <p className="text-sm text-muted-foreground">Loading contributors…</p>
+                </div>
+              )}
+              {!isLoading && inconsistent && <Notice tone="warning">{inconsistent}</Notice>}
+              {!isLoading && !inconsistent && unavailable && (
+                <Notice tone="info">Contributor details are not available for this session.</Notice>
+              )}
+              {ready && error && (
+                <Notice
+                  tone={view ? 'warning' : 'error'}
+                  className={view ? 'mb-3' : undefined}
+                  action={<Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button>}
+                >
+                  {view ? 'Showing cached contributors because the latest refresh failed.' : 'Could not load contributors.'}
+                </Notice>
+              )}
+              {ready && view && (
+                <>
+                  <TabsContent value="stocks" className="outline-none">
+                    <StockTable stocks={view.stocks} definition={view.definition} />
+                  </TabsContent>
+                  <TabsContent value="groups" className="outline-none">
+                    <GroupList groups={view.groups} definition={view.definition} />
+                  </TabsContent>
+                </>
+              )}
+            </div>
+          </Tabs>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 };
 

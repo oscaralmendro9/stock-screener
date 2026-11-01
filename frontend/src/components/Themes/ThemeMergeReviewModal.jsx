@@ -1,37 +1,12 @@
 import ThemeEquivalencePanel from './ThemeEquivalencePanel';
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Box,
-  CircularProgress,
-  IconButton,
-  Tabs,
-  Tab,
-  Chip,
-  Alert,
-  Collapse,
-  Tooltip,
-  Checkbox,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import BlockIcon from '@mui/icons-material/Block';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { Ban, ChevronDown, ChevronUp, CircleCheck, Play } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
+import { Pill, Spinner, TabBar } from '../../features/themes/themeUi';
 import {
   getMergeSuggestions,
   approveMergeSuggestion,
@@ -40,17 +15,17 @@ import {
   runThemeConsolidation,
 } from '../../api/themes';
 
-// Color helpers based on score thresholds
-const getSimilarityColor = (score) => {
-  if (score >= 95) return 'success';
+// Tones based on score thresholds
+const getSimilarityTone = (score) => {
+  if (score >= 95) return 'gain';
   if (score >= 85) return 'warning';
-  return 'default';
+  return 'muted';
 };
 
-const getConfidenceColor = (score) => {
-  if (score >= 90) return 'success';
+const getConfidenceTone = (score) => {
+  if (score >= 90) return 'gain';
   if (score >= 70) return 'warning';
-  return 'error';
+  return 'loss';
 };
 
 const getSimilarityTooltip = (score) => {
@@ -67,20 +42,7 @@ const getConfidenceTooltip = (score) => {
   return 'Low confidence. Prefer reject or defer for additional evidence.';
 };
 
-const getRelationshipColor = (relationship) => {
-  switch (relationship) {
-    case 'identical':
-      return 'success';
-    case 'subset':
-      return 'warning';
-    case 'related':
-      return 'info';
-    case 'distinct':
-      return 'error';
-    default:
-      return 'default';
-  }
-};
+const RELATIONSHIP_TONE = { identical: 'gain', subset: 'warning', related: 'neutral', distinct: 'loss' };
 
 const getRelationshipTooltip = (relationship) => {
   switch (relationship) {
@@ -97,6 +59,20 @@ const getRelationshipTooltip = (relationship) => {
   }
 };
 
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
+const CHECK = 'size-4 cursor-pointer accent-accent';
+
+function Aliases({ aliases }) {
+  if (!aliases?.length) return null;
+  return (
+    <span className="block text-[11px] text-muted-foreground">
+      {aliases.slice(0, 2).join(', ')}
+      {aliases.length > 2 && ` +${aliases.length - 2}`}
+    </span>
+  );
+}
+
 // Expandable row component for showing LLM reasoning
 function SuggestionRow({ suggestion, onReject, isRejecting, checked, onToggle, disabled }) {
   const [expanded, setExpanded] = useState(false);
@@ -106,157 +82,108 @@ function SuggestionRow({ suggestion, onReject, isRejecting, checked, onToggle, d
   const similarityPercent = hasSimilarity ? (suggestion.similarity_score * 100).toFixed(0) : null;
   const confidencePercent = hasConfidence ? (suggestion.llm_confidence * 100).toFixed(0) : null;
   const relationshipType = suggestion.relationship_type || 'unknown';
+  const Chevron = expanded ? ChevronUp : ChevronDown;
 
   return (
     <>
-      <TableRow
-        hover
-        sx={{ cursor: 'pointer', '& > *': { borderBottom: expanded ? 0 : undefined } }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <TableCell sx={{ width: 40 }} onClick={(e) => e.stopPropagation()}>
-          <Checkbox
+      <tr className="cursor-pointer hover:bg-surface-subtle" onClick={() => setExpanded(!expanded)}>
+        <td className={cn(TD, 'w-10')} onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            aria-label={`Select ${suggestion.source_theme_name} to ${suggestion.target_theme_name}`}
             checked={checked}
             onChange={() => onToggle(suggestion.id)}
             disabled={disabled}
-            size="small"
+            className={CHECK}
           />
-        </TableCell>
-        <TableCell sx={{ width: 40 }}>
-          <IconButton size="small">
-            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell>
-          <Box>
-            <Typography variant="body2" fontWeight="medium">
-              {suggestion.source_theme_name}
-            </Typography>
-            {suggestion.source_aliases?.length > 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                {suggestion.source_aliases.slice(0, 2).join(', ')}
-                {suggestion.source_aliases.length > 2 && ` +${suggestion.source_aliases.length - 2}`}
-              </Typography>
-            )}
-          </Box>
-        </TableCell>
-        <TableCell>
-          <Box>
-            <Typography variant="body2" fontWeight="medium">
-              {suggestion.target_theme_name}
-            </Typography>
-            {suggestion.target_aliases?.length > 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                {suggestion.target_aliases.slice(0, 2).join(', ')}
-                {suggestion.target_aliases.length > 2 && ` +${suggestion.target_aliases.length - 2}`}
-              </Typography>
-            )}
-          </Box>
-        </TableCell>
-        <TableCell align="center">
-          <Tooltip title={getSimilarityTooltip(parseFloat(similarityPercent))}>
-            <Chip
-              label={hasSimilarity ? `${similarityPercent}%` : 'N/A'}
-              size="small"
-              color={hasSimilarity ? getSimilarityColor(parseFloat(similarityPercent)) : 'default'}
-              variant="filled"
-              sx={{ minWidth: 55, fontFamily: 'monospace', fontWeight: 600 }}
-            />
-          </Tooltip>
-        </TableCell>
-        <TableCell align="center">
-          <Tooltip title={getConfidenceTooltip(parseFloat(confidencePercent))}>
-            <Chip
-              label={hasConfidence ? `${confidencePercent}%` : 'N/A'}
-              size="small"
-              color={hasConfidence ? getConfidenceColor(parseFloat(confidencePercent)) : 'default'}
-              variant="filled"
-              sx={{ minWidth: 55, fontFamily: 'monospace', fontWeight: 600 }}
-            />
-          </Tooltip>
-        </TableCell>
-        <TableCell align="center">
-          <Tooltip title={getRelationshipTooltip(relationshipType)}>
-            <Chip
-              label={relationshipType}
-              size="small"
-              color={getRelationshipColor(relationshipType)}
-              variant="outlined"
-              sx={{ textTransform: 'capitalize' }}
-            />
-          </Tooltip>
-        </TableCell>
-        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-          <Tooltip title="Reject merge">
-            <span>
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => onReject(suggestion.id)}
-                disabled={isRejecting || disabled}
-              >
-                {isRejecting ? <CircularProgress size={18} /> : <BlockIcon />}
-              </IconButton>
-            </span>
-          </Tooltip>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell colSpan={8} sx={{ py: 0 }}>
-          <Collapse in={expanded} timeout="auto" unmountOnExit>
-            <Box sx={{ py: 2, px: 2, bgcolor: 'action.hover', borderRadius: 1, my: 1 }}>
-              <Box display="flex" gap={4} mb={2}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Relationship
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium" sx={{ textTransform: 'capitalize' }}>
-                    {relationshipType}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Suggested Name
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {suggestion.suggested_name || suggestion.target_theme_name}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Created
-                  </Typography>
-                  <Typography variant="body2">
-                    {new Date(suggestion.created_at).toLocaleDateString()}
-                  </Typography>
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  LLM Reasoning
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 1.5, mt: 0.5, bgcolor: 'background.paper' }}>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {suggestion.reasoning || 'No reasoning provided'}
-                  </Typography>
-                </Paper>
-              </Box>
-              <Box display="flex" gap={1} mt={2} justifyContent="flex-end">
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={isRejecting ? <CircularProgress size={16} /> : <BlockIcon />}
-                  onClick={() => onReject(suggestion.id)}
-                  disabled={isRejecting || disabled}
-                >
+        </td>
+        <td className={cn(TD, 'w-10')}>
+          <button
+            type="button"
+            aria-label={expanded ? 'Hide reasoning' : 'Show reasoning'}
+            aria-expanded={expanded}
+            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            className="grid size-7 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Chevron aria-hidden="true" className="size-4" />
+          </button>
+        </td>
+        <td className={TD}>
+          <span className="block text-sm font-medium">{suggestion.source_theme_name}</span>
+          <Aliases aliases={suggestion.source_aliases} />
+        </td>
+        <td className={TD}>
+          <span className="block text-sm font-medium">{suggestion.target_theme_name}</span>
+          <Aliases aliases={suggestion.target_aliases} />
+        </td>
+        <td className={cn(TD, 'text-center')}>
+          <Pill
+            title={getSimilarityTooltip(parseFloat(similarityPercent))}
+            tone={hasSimilarity ? getSimilarityTone(parseFloat(similarityPercent)) : 'muted'}
+            className="min-w-14 justify-center font-semibold tabular-nums"
+          >
+            {hasSimilarity ? `${similarityPercent}%` : 'N/A'}
+          </Pill>
+        </td>
+        <td className={cn(TD, 'text-center')}>
+          <Pill
+            title={getConfidenceTooltip(parseFloat(confidencePercent))}
+            tone={hasConfidence ? getConfidenceTone(parseFloat(confidencePercent)) : 'muted'}
+            className="min-w-14 justify-center font-semibold tabular-nums"
+          >
+            {hasConfidence ? `${confidencePercent}%` : 'N/A'}
+          </Pill>
+        </td>
+        <td className={cn(TD, 'text-center')}>
+          <Pill title={getRelationshipTooltip(relationshipType)} tone={RELATIONSHIP_TONE[relationshipType] || 'muted'} className="capitalize">
+            {relationshipType}
+          </Pill>
+        </td>
+        <td className={cn(TD, 'text-right')} onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            aria-label="Reject merge"
+            title="Reject merge"
+            onClick={() => onReject(suggestion.id)}
+            disabled={isRejecting || disabled}
+            className="grid size-8 cursor-pointer place-items-center rounded-md text-loss outline-none hover:bg-loss/10 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isRejecting ? <Spinner label="Rejecting" className="size-4" /> : <Ban aria-hidden="true" className="size-4" />}
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={8} className="border-b border-border px-2">
+            <div className="my-2 rounded-md bg-surface-subtle p-4">
+              <div className="mb-4 flex gap-8">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Relationship</p>
+                  <p className="text-sm font-medium capitalize">{relationshipType}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Suggested Name</p>
+                  <p className="text-sm font-medium">{suggestion.suggested_name || suggestion.target_theme_name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Created</p>
+                  <p className="text-sm">{new Date(suggestion.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">LLM Reasoning</p>
+              <div className="mt-1 rounded-md border border-border bg-surface p-3">
+                <p className="text-sm whitespace-pre-wrap">{suggestion.reasoning || 'No reasoning provided'}</p>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="secondary" size="sm" className="text-loss" onClick={() => onReject(suggestion.id)} disabled={isRejecting || disabled}>
+                  {isRejecting ? <Spinner label="Rejecting" className="size-4" /> : <Ban aria-hidden="true" />}
                   Reject
                 </Button>
-              </Box>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -264,32 +191,16 @@ function SuggestionRow({ suggestion, onReject, isRejecting, checked, onToggle, d
 // History row component
 function HistoryRow({ entry }) {
   return (
-    <TableRow hover>
-      <TableCell>
-        <Typography variant="body2">
-          {entry.source_name}
-        </Typography>
-      </TableCell>
-      <TableCell>
-        <Typography variant="body2">
-          {entry.target_name}
-        </Typography>
-      </TableCell>
-      <TableCell>
-        <Chip
-          label={entry.merge_type}
-          size="small"
-          color={entry.merge_type === 'merged' ? 'success' : 'default'}
-          variant="outlined"
-          sx={{ textTransform: 'capitalize' }}
-        />
-      </TableCell>
-      <TableCell>
-        <Typography variant="body2" color="text.secondary">
-          {new Date(entry.merged_at || entry.created_at).toLocaleString()}
-        </Typography>
-      </TableCell>
-    </TableRow>
+    <tr className="hover:bg-surface-subtle">
+      <td className={cn(TD, 'text-sm')}>{entry.source_name}</td>
+      <td className={cn(TD, 'text-sm')}>{entry.target_name}</td>
+      <td className={TD}>
+        <Pill tone={entry.merge_type === 'merged' ? 'gain' : 'muted'} className="capitalize">{entry.merge_type}</Pill>
+      </td>
+      <td className={cn(TD, 'text-sm text-muted-foreground')}>
+        {new Date(entry.merged_at || entry.created_at).toLocaleString()}
+      </td>
+    </tr>
   );
 }
 
@@ -465,100 +376,97 @@ export function ThemeMergeReviewContent({ onClose }) {
   const pendingCount = suggestionsList.length;
   const selectedCount = selectedIds.size;
 
+  const empty = (title, body) => (
+    <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+      <p className="text-lg">{title}</p>
+      <p className="text-sm">{body}</p>
+    </div>
+  );
+
   return (
-    <>
+    <div className="tw text-foreground">
       {/* Run Consolidation toolbar */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, borderBottom: 1, borderColor: 'divider' }}>
-        <Tooltip title="Run theme consolidation to find new duplicate themes">
-          <span>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={isConsolidating ? <CircularProgress size={16} /> : <PlayArrowIcon />}
-              onClick={() => consolidationMutation.mutate()}
-              disabled={isConsolidating}
-            >
-              {isConsolidating ? 'Running...' : 'Run Consolidation'}
-            </Button>
-          </span>
-        </Tooltip>
-      </Box>
+      <div className="flex justify-end border-b border-border p-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          title="Run theme consolidation to find new duplicate themes"
+          onClick={() => consolidationMutation.mutate()}
+          disabled={isConsolidating}
+        >
+          {isConsolidating ? <Spinner label="Running consolidation" className="size-4" /> : <Play aria-hidden="true" />}
+          {isConsolidating ? 'Running...' : 'Run Consolidation'}
+        </Button>
+      </div>
 
       {error && (
-        <Alert severity="error" sx={{ m: 2, mb: 0 }} onClose={() => setError(null)}>
+        <Notice tone="error" className="m-4 mb-0" onDismiss={() => setError(null)}>
           {error}
-        </Alert>
+        </Notice>
       )}
       {successMessage && (
-        <Alert severity="success" sx={{ m: 2, mb: 0 }} onClose={() => setSuccessMessage(null)}>
+        <Notice className="m-4 mb-0" onDismiss={() => setSuccessMessage(null)}>
           {successMessage}
-        </Alert>
+        </Notice>
       )}
-      <Alert severity="info" sx={{ m: 2, mb: 0 }}>
-        Decision guide: prioritize merges when <strong>Relationship=identical</strong> and <strong>Confidence is high</strong>.
-        For <strong>subset/related</strong>, verify intent before approving.
-      </Alert>
+      <Notice className="m-4 mb-0">
+        <span>
+          Decision guide: prioritize merges when <strong>Relationship=identical</strong> and <strong>Confidence is high</strong>.
+          For <strong>subset/related</strong>, verify intent before approving.
+        </span>
+      </Notice>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
-          <Tab
-            label={
-              <Box display="flex" alignItems="center" gap={1}>
-                Pending Review
-                {pendingCount > 0 && (
-                  <Chip label={pendingCount} size="small" color="warning" />
-                )}
-              </Box>
-            }
-          />
-          <Tab label="History" />
-          <Tab label="Reversible grouping" />
-        </Tabs>
-      </Box>
+      <TabBar
+        label="Merge review"
+        className="mt-2 px-2"
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { value: 0, label: 'Pending Review', count: pendingCount },
+          { value: 1, label: 'History' },
+          { value: 2, label: 'Reversible grouping' },
+        ]}
+      />
 
       {activeTab === 2 && <ThemeEquivalencePanel />}
 
       {/* Pending Tab */}
       {activeTab === 0 && (
-        <Box sx={{ minHeight: 400 }}>
+        <div className="min-h-[400px]">
           {isLoadingPending ? (
-            <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-              <CircularProgress />
-            </Box>
+            <div className="flex items-center justify-center p-8"><Spinner label="Loading suggestions" /></div>
           ) : pendingCount === 0 ? (
-            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" p={4}>
-              <CheckCircleIcon sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">
-                No pending merge suggestions
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                All theme merge suggestions have been reviewed
-              </Typography>
-            </Box>
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <CircleCheck aria-hidden="true" className="mb-4 size-12 text-gain" />
+              <p className="text-lg text-muted-foreground">No pending merge suggestions</p>
+              <p className="text-sm text-muted-foreground">All theme merge suggestions have been reviewed</p>
+            </div>
           ) : (
-            <TableContainer sx={{ maxHeight: 500 }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ width: 40 }}>
-                      <Checkbox
+            <div className="max-h-[500px] overflow-auto">
+              <table className="w-full border-separate border-spacing-0">
+                <thead>
+                  <tr>
+                    <th scope="col" className={cn(TH, 'w-10')}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all suggestions"
                         checked={selectedIds.size === suggestionsList.length && suggestionsList.length > 0}
-                        indeterminate={selectedIds.size > 0 && selectedIds.size < suggestionsList.length}
+                        ref={(node) => { if (node) node.indeterminate = selectedIds.size > 0 && selectedIds.size < suggestionsList.length; }}
                         onChange={handleToggleAll}
                         disabled={isApprovingBatch}
-                        size="small"
+                        className={CHECK}
                       />
-                    </TableCell>
-                    <TableCell sx={{ width: 40 }} />
-                    <TableCell>Source Theme</TableCell>
-                    <TableCell>Target Theme</TableCell>
-                    <TableCell align="center" sx={{ width: 80 }}>Similarity</TableCell>
-                    <TableCell align="center" sx={{ width: 80 }}>Confidence</TableCell>
-                    <TableCell align="center" sx={{ width: 100 }}>Relationship</TableCell>
-                    <TableCell align="right" sx={{ width: 80 }}>Reject</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-10')}><span className="sr-only">Details</span></th>
+                    <th scope="col" className={cn(TH, 'text-left')}>Source Theme</th>
+                    <th scope="col" className={cn(TH, 'text-left')}>Target Theme</th>
+                    <th scope="col" className={cn(TH, 'w-20 text-center')}>Similarity</th>
+                    <th scope="col" className={cn(TH, 'w-20 text-center')}>Confidence</th>
+                    <th scope="col" className={cn(TH, 'w-24 text-center')}>Relationship</th>
+                    <th scope="col" className={cn(TH, 'w-20 text-right')}>Reject</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {suggestionsList.map((suggestion) => (
                     <SuggestionRow
                       key={suggestion.id}
@@ -570,91 +478,66 @@ export function ThemeMergeReviewContent({ onClose }) {
                       disabled={isApprovingBatch}
                     />
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* History Tab */}
       {activeTab === 1 && (
-        <Box sx={{ minHeight: 400 }}>
+        <div className="min-h-[400px]">
           {isLoadingHistory ? (
-            <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-              <CircularProgress />
-            </Box>
+            <div className="flex items-center justify-center p-8"><Spinner label="Loading history" /></div>
           ) : (history?.history?.length || history?.length || 0) === 0 ? (
-            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" p={4}>
-              <Typography variant="h6" color="text.secondary">
-                No merge history yet
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Approved merges will appear here
-              </Typography>
-            </Box>
+            empty('No merge history yet', 'Approved merges will appear here')
           ) : (
-            <TableContainer sx={{ maxHeight: 500 }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Source Theme</TableCell>
-                    <TableCell>Target Theme</TableCell>
-                    <TableCell sx={{ width: 100 }}>Action</TableCell>
-                    <TableCell sx={{ width: 180 }}>Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <div className="max-h-[500px] overflow-auto">
+              <table className="w-full border-separate border-spacing-0">
+                <thead>
+                  <tr>
+                    <th scope="col" className={cn(TH, 'text-left')}>Source Theme</th>
+                    <th scope="col" className={cn(TH, 'text-left')}>Target Theme</th>
+                    <th scope="col" className={cn(TH, 'w-24 text-left')}>Action</th>
+                    <th scope="col" className={cn(TH, 'w-44 text-left')}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {(history?.history || history || []).map((entry, index) => (
                     <HistoryRow key={entry.id || index} entry={entry} />
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* Actions bar */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Box>
+      <div className="flex justify-between border-t border-border p-4">
+        <div>
           {activeTab === 0 && pendingCount > 0 && (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleBatchApprove}
-              disabled={selectedCount === 0 || isApprovingBatch}
-              startIcon={isApprovingBatch ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
-            >
+            <Button size="sm" onClick={handleBatchApprove} disabled={selectedCount === 0 || isApprovingBatch}>
+              {isApprovingBatch ? <Spinner label="Approving" className="size-4" /> : <CircleCheck aria-hidden="true" />}
               {isApprovingBatch
                 ? `Approving ${batchProgress.current}/${batchProgress.total}...`
                 : `Approve Selected (${selectedCount})`}
             </Button>
           )}
-        </Box>
+        </div>
         {onClose && (
-          <Button onClick={onClose} disabled={isApprovingBatch}>Close</Button>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={isApprovingBatch}>Close</Button>
         )}
-      </Box>
-    </>
+      </div>
+    </div>
   );
 }
 
 function ThemeMergeReviewModal({ open, onClose }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box display="flex" alignItems="center" gap={1}>
-            <CompareArrowsIcon color="primary" />
-            <Typography variant="h6">Review Theme Merge Suggestions</Typography>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent dividers sx={{ p: 0 }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Review Theme Merge Suggestions" size="lg" bodyClassName="p-0">
         <ThemeMergeReviewContent onClose={onClose} />
       </DialogContent>
     </Dialog>

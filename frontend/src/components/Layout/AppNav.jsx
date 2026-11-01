@@ -1,31 +1,17 @@
 import { useContext, useState } from 'react';
-import {
-  BottomNavigation,
-  BottomNavigationAction,
-  Box,
-  Button,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Typography,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import { ColorModeContext } from '../../contexts/ColorModeContext';
-import { MOBILE_NAV_HEIGHT } from './shellNav';
+import { ChartLine, Ellipsis, Moon, Sun } from 'lucide-react';
 
-const isActive = (item, pathname) => (
-  item.matchPrefix ? pathname.startsWith(item.path) : pathname === item.path
-);
+import { cn } from '@/lib/cn';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/ui/sheet';
+import { ColorModeContext } from '../../contexts/ColorModeContext';
+
+// `match` lists every route a section owns (e.g. Screener: /scan and
+// /validation), each with its sub-paths; otherwise matchPrefix or exact.
+const isActive = (item, pathname) => {
+  if (item.match) return item.match.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return item.matchPrefix ? pathname.startsWith(item.path) : pathname === item.path;
+};
 
 // Hover, keyboard focus or a touch says a link is about to be followed; the
 // live shell passes `onIntent` to prefetch the page, the static shell does not.
@@ -35,82 +21,119 @@ const intentHandlers = (onIntent, path) => (onIntent ? {
   onTouchStart: () => onIntent(path),
 } : {});
 
-export function BrandMark({ label }) {
+const iconButtonClass = 'tw grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 ease-out hover:bg-surface-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:size-9 [&_svg]:size-[18px]';
+
+// With `to`, the mark links home (the usual "logo goes home" convention);
+// without it (the pre-router loading screen) it is plain branding.
+export function BrandMark({ label, to }) {
+  const body = (
+    <>
+      <span aria-hidden="true" className="grid size-7 place-items-center rounded-md bg-accent text-accent-foreground">
+        <ChartLine className="size-[18px]" />
+      </span>
+      {label && <span className="text-[15px] font-bold whitespace-nowrap text-foreground">{label}</span>}
+    </>
+  );
+  if (!to) return <div className="tw flex shrink-0 items-center gap-2">{body}</div>;
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-      <Box
-        sx={(theme) => ({
-          width: 26,
-          height: 26,
-          borderRadius: '8px',
-          display: 'grid',
-          placeItems: 'center',
-          color: theme.palette.primary.contrastText,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
-        })}
-      >
-        <ShowChartIcon sx={{ fontSize: 18 }} />
-      </Box>
-      {label && (
-        <Typography component="div" sx={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-          {label}
-        </Typography>
-      )}
-    </Box>
+    <RouterLink
+      to={to}
+      // The visible label hides on phones; the name stays for screen readers.
+      aria-label={label ? undefined : 'Home'}
+      className="tw flex min-h-11 shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9"
+    >
+      {body}
+    </RouterLink>
   );
 }
 
 export function ColorModeButton() {
   const { mode, toggleColorMode } = useContext(ColorModeContext);
   const label = mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  const Icon = mode === 'dark' ? Sun : Moon;
   return (
-    <IconButton onClick={toggleColorMode} title={label} aria-label={label} size="small" sx={{ color: 'text.secondary' }}>
-      {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-    </IconButton>
+    <button type="button" onClick={toggleColorMode} title={label} aria-label={label} className={iconButtonClass}>
+      <Icon aria-hidden="true" />
+    </button>
   );
+}
+
+// A row in the mobile "More" sheet: an app link (`to`), an external link
+// (`href`), a button (`onClick`), or plain text.
+export function SheetItem({ to, href, icon, label, description, selected = false, onClick, disabled, ...props }) {
+  const className = cn(
+    'flex min-h-12 w-full cursor-pointer items-center gap-4 px-4 text-left text-sm outline-none transition-colors duration-150 ease-out hover:bg-surface-subtle focus-visible:bg-surface-subtle disabled:cursor-default disabled:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+    selected && 'bg-accent/10 font-semibold [&_svg]:text-accent',
+  );
+  const body = (
+    <>
+      {icon}
+      <span className="min-w-0 py-2">
+        <span className="block">{label}</span>
+        {description && <span className="block text-xs text-pretty text-muted-foreground">{description}</span>}
+      </span>
+    </>
+  );
+  return (
+    <li>
+      {to ? (
+        <RouterLink to={to} onClick={onClick} aria-current={selected ? 'page' : undefined} className={className} {...props}>{body}</RouterLink>
+      ) : href ? (
+        <a href={href} onClick={onClick} className={className} {...props}>{body}</a>
+      ) : onClick ? (
+        <button type="button" onClick={onClick} disabled={disabled} className={className} {...props}>{body}</button>
+      ) : (
+        <div className={cn(className, 'cursor-default hover:bg-transparent')} {...props}>{body}</div>
+      )}
+    </li>
+  );
+}
+
+export function SheetDivider() {
+  return <li role="separator" className="my-1 border-t border-border" />;
 }
 
 export function ColorModeListItem({ onDone }) {
   const { mode, toggleColorMode } = useContext(ColorModeContext);
+  const Icon = mode === 'dark' ? Sun : Moon;
   return (
-    <ListItemButton onClick={() => { toggleColorMode(); onDone?.(); }}>
-      <ListItemIcon>{mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}</ListItemIcon>
-      <ListItemText primary={mode === 'dark' ? 'Light mode' : 'Dark mode'} />
-    </ListItemButton>
+    <SheetItem
+      icon={<Icon aria-hidden="true" />}
+      label={mode === 'dark' ? 'Light mode' : 'Dark mode'}
+      onClick={() => { toggleColorMode(); onDone?.(); }}
+    />
   );
 }
 
 export function DesktopNav({ items, onIntent }) {
   const { pathname } = useLocation();
   return (
-    <Box component="nav" aria-label="Main" sx={{ display: 'flex', alignSelf: 'stretch' }}>
+    <nav aria-label="Main" className="tw flex self-stretch">
       {items.map((item) => {
         const active = isActive(item, pathname);
         return (
-          <Button
+          <RouterLink
             key={item.path}
-            component={RouterLink}
             to={item.path}
             {...intentHandlers(onIntent, item.path)}
             aria-current={active ? 'page' : undefined}
-            sx={{
-              color: active ? 'text.primary' : 'text.secondary',
-              fontWeight: active ? 600 : 500,
-              fontSize: '13px',
-              px: 1.5,
-              borderRadius: 0,
-              borderBottom: '2px solid',
-              borderColor: active ? 'primary.main' : 'transparent',
-              '&:hover': { color: 'text.primary', backgroundColor: 'action.hover' },
-            }}
+            className={cn(
+              'flex items-center border-b-2 px-3 text-[13px] whitespace-nowrap outline-none transition-colors duration-150 ease-out hover:bg-surface-subtle hover:text-foreground focus-visible:bg-surface-subtle',
+              active ? 'border-accent font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground',
+            )}
           >
             {item.label}
-          </Button>
+          </RouterLink>
         );
       })}
-    </Box>
+    </nav>
   );
 }
+
+const tabClass = (active) => cn(
+  'flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 text-[11px] outline-none focus-visible:bg-surface-subtle [&_svg]:size-[22px]',
+  active ? 'font-semibold text-accent' : 'font-medium text-muted-foreground',
+);
 
 // The first four items sit in the bar; the rest, plus `extras(close)`, go in the "More" sheet.
 export function MobileBottomNav({ items, extras, onIntent }) {
@@ -120,92 +143,62 @@ export function MobileBottomNav({ items, extras, onIntent }) {
   const primary = items.slice(0, 4);
   const overflow = items.slice(4);
   const activePrimary = primary.find((item) => isActive(item, pathname));
-  const value = activePrimary?.path ?? (overflow.some((item) => isActive(item, pathname)) ? 'more' : false);
+  const moreActive = !activePrimary && overflow.some((item) => isActive(item, pathname));
 
   return (
     <>
-      <Paper
-        component="nav"
+      <nav
         aria-label="Main"
-        square
-        sx={(theme) => ({
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: theme.zIndex.appBar,
-          borderTop: 1,
-          borderColor: 'divider',
-          pb: 'env(safe-area-inset-bottom)',
-          pl: 'env(safe-area-inset-left)',
-          pr: 'env(safe-area-inset-right)',
-          backgroundColor: alpha(theme.palette.background.paper, 0.92),
-          backdropFilter: 'blur(10px)',
-        })}
+        className="tw fixed inset-x-0 bottom-0 z-nav border-t border-border bg-surface pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
       >
-        <BottomNavigation
-          showLabels
-          value={value}
-          sx={{
-            height: MOBILE_NAV_HEIGHT,
-            backgroundColor: 'transparent',
-            '& .MuiBottomNavigationAction-root': { minWidth: 0, color: 'text.secondary' },
-            '& .MuiBottomNavigationAction-label': { fontSize: '11px', '&.Mui-selected': { fontSize: '11px', fontWeight: 600 } },
-            '& .Mui-selected': { color: 'primary.main' },
-          }}
-        >
+        <div className="flex h-14">
           {primary.map((item) => (
-            <BottomNavigationAction
+            <RouterLink
               key={item.path}
-              component={RouterLink}
               to={item.path}
               {...intentHandlers(onIntent, item.path)}
-              value={item.path}
-              label={item.label}
-              icon={item.icon}
               aria-current={item === activePrimary ? 'page' : undefined}
-            />
+              className={tabClass(item === activePrimary)}
+            >
+              {item.icon}
+              <span className="max-w-full truncate px-1">{item.label}</span>
+            </RouterLink>
           ))}
-          <BottomNavigationAction
-            value="more"
-            label="More"
-            icon={<MoreHorizIcon />}
+          <button
+            type="button"
             onClick={() => setMoreOpen(true)}
             aria-haspopup="dialog"
             aria-expanded={moreOpen}
-          />
-        </BottomNavigation>
-      </Paper>
+            data-active={moreActive || undefined}
+            className={tabClass(moreActive)}
+          >
+            <Ellipsis aria-hidden="true" />
+            <span>More</span>
+          </button>
+        </div>
+      </nav>
 
-      <Drawer
-        anchor="bottom"
-        open={moreOpen}
-        onClose={close}
-        PaperProps={{
-          role: 'dialog',
-          'aria-label': 'More',
-          sx: { borderRadius: '16px 16px 0 0', pb: 'env(safe-area-inset-bottom)' },
-        }}
-      >
-        <Box sx={{ width: 38, height: 4, borderRadius: 2, bgcolor: 'text.disabled', mx: 'auto', mt: 1 }} />
-        <List aria-label="More">
-          {overflow.map((item) => (
-            <ListItemButton
-              key={item.path}
-              component={RouterLink}
-              to={item.path}
-              {...intentHandlers(onIntent, item.path)}
-              selected={isActive(item, pathname)}
-              onClick={close}
-            >
-              {item.icon && <ListItemIcon>{item.icon}</ListItemIcon>}
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
-          {overflow.length > 0 && extras && <Divider sx={{ my: 0.5 }} />}
-          {extras?.(close)}
-        </List>
-      </Drawer>
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" aria-describedby={undefined}>
+          <SheetTitle className="sr-only">More</SheetTitle>
+          <SheetDescription className="sr-only">More pages and settings</SheetDescription>
+          <ul aria-label="More" className="py-2">
+            {overflow.map((item) => (
+              <SheetItem
+                key={item.path}
+                to={item.path}
+                {...intentHandlers(onIntent, item.path)}
+                icon={item.icon}
+                label={item.label}
+                selected={isActive(item, pathname)}
+                onClick={close}
+              />
+            ))}
+            {overflow.length > 0 && extras && <SheetDivider />}
+            {extras?.(close)}
+          </ul>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
