@@ -395,7 +395,7 @@ function ScanControlBar({
                     value={customFilters[key] ?? ''}
                     onChange={(event) => onCustomFiltersChange({ ...customFilters, [key]: toOptionalNumber(event.target.value) })}
                     disabled={controlsDisabled}
-                    className="h-11 w-full rounded-md border border-border bg-surface px-2.5 text-sm text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:h-8"
+                    className="h-11 w-full rounded-md border border-border bg-surface px-2.5 font-[inherit] text-sm text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:h-8"
                   />
                 </label>
               ))}

@@ -40,3 +40,19 @@ export function DropdownMenuRadioItem({ className, children, ...props }) {
     </MenuPrimitive.RadioItem>
   );
 }
+
+export function DropdownMenuItem({ className, ...props }) {
+  return (
+    <MenuPrimitive.Item
+      className={cn(
+        'flex h-9 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-subtle [&_svg]:size-4 [&_svg]:shrink-0',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function DropdownMenuSeparator({ className, ...props }) {
+  return <MenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+}

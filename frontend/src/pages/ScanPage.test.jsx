@@ -499,12 +499,14 @@ describe('ScanPage', () => {
       {},
       { timeout: CAPABILITY_TRANSITION_TIMEOUT },
     )).toBeInTheDocument();
-    await user.click(screen.getByText('Select Preset'));
-    await user.click(await screen.findByRole(
-      'option',
-      { name: 'Correction Survivors' },
-      { timeout: CAPABILITY_TRANSITION_TIMEOUT },
-    ));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Filter preset' }),
+      await screen.findByRole(
+        'option',
+        { name: 'Correction Survivors' },
+        { timeout: CAPABILITY_TRANSITION_TIMEOUT },
+      ),
+    );
     expect(await screen.findByText(
       'No stocks match the applied logic',
       {},
