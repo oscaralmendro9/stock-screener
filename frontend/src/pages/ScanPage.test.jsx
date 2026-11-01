@@ -622,14 +622,14 @@ describe('ScanPage', () => {
     expect(await screen.findByText(/Results:\s*1 stocks/i)).toBeInTheDocument();
     // The sort labels under test belong to the full table.
     fireEvent.click(screen.getByRole('button', { name: 'All columns' }));
-    expect(screen.getByText('Comp')).toHaveClass('Mui-active');
+    expect(screen.getByText('Comp').closest('th')).toHaveAttribute('aria-sort', 'descending');
 
     fireEvent.click(screen.getByText('SE'));
 
     expect(await screen.findByText('Sort request failed')).toBeInTheDocument();
     expect(screen.getByText(/Results:\s*1 stocks/i)).toBeInTheDocument();
-    expect(screen.getByText('Comp')).toHaveClass('Mui-active');
-    expect(screen.getByText('SE')).not.toHaveClass('Mui-active');
+    expect(screen.getByText('Comp').closest('th')).toHaveAttribute('aria-sort', 'descending');
+    expect(screen.getByText('SE').closest('th')).not.toHaveAttribute('aria-sort');
     expect(scanApi.queryScanResults).toHaveBeenCalledWith(
       'scan-atomic',
       expect.objectContaining({

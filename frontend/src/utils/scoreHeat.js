@@ -1,4 +1,3 @@
-import { alpha } from '@mui/material/styles';
 
 /**
  * Background tint for 0–100 screener scores so a column can be scanned
@@ -27,21 +26,16 @@ export const heatStep = (value) => {
   return null;
 };
 
-// Kept soft (top step 0.3) so a column reads as a heat scale, not a solid band.
-export const heatFill = (palette, { dir, step }) => (
+// Kept soft (top step 30%) so a column reads as a heat scale, not a solid
+// band. A CSS colour, so the tint follows the theme tokens.
+export const heatFill = ({ dir, step }) => (
   dir === 'up'
-    ? alpha(palette.success.main, 0.06 + (0.24 * step) / UP_EDGES.length)
-    : alpha(palette.error.main, 0.06 + (0.18 * step) / DOWN_EDGES.length)
+    ? `color-mix(in srgb, var(--gain) ${(6 + (24 * step) / UP_EDGES.length).toFixed(1)}%, transparent)`
+    : `color-mix(in srgb, var(--loss) ${(6 + (18 * step) / DOWN_EDGES.length).toFixed(1)}%, transparent)`
 );
 
-/** Class name for tables that precompute the steps (see heatClassStyles). */
+/** Class name marking a tinted cell (tests and styling hooks). */
 export const heatClass = (value) => {
   const heat = heatStep(value);
   return heat ? `rt-heat-${heat.dir}-${heat.step}` : '';
 };
-
-/** `& .rt-heat-*` rules for a styled() parent, generated from the theme. */
-export const heatClassStyles = (palette) => Object.fromEntries([
-  ...UP_EDGES.map((_, i) => ({ dir: 'up', step: i + 1 })),
-  ...DOWN_EDGES.map((_, i) => ({ dir: 'down', step: i + 1 })),
-].map((heat) => [`& .rt-heat-${heat.dir}-${heat.step}`, { backgroundColor: heatFill(palette, heat) }]));

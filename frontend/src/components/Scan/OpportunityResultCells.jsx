@@ -1,7 +1,8 @@
 import { memo, useCallback } from 'react';
-import { TableCell } from '@mui/material';
 
 import ActionStateBadge from '../shared/ActionStateBadge';
+
+const TD = 'border-b border-border px-1.5 py-1 text-center';
 
 function OpportunityResultCells({ row, visible, onOpenEvidence }) {
   const handleOpen = useCallback((event) => {
@@ -15,20 +16,17 @@ function OpportunityResultCells({ row, visible, onOpenEvidence }) {
 
   return (
     <>
-      <TableCell
-        align="center"
-        sx={{ fontFamily: 'monospace', width: 48, minWidth: 48 }}
-      >
+      <td className={`${TD} w-[48px] min-w-[48px] tabular-nums`}>
         {row.resilience_score != null
           ? Number(row.resilience_score).toFixed(1)
           : '-'}
-      </TableCell>
-      <TableCell align="center" sx={{ width: 105, minWidth: 105 }}>
+      </td>
+      <td className={`${TD} w-[105px] min-w-[105px]`}>
         <ActionStateBadge
           state={row.action_state}
           onClick={row.opportunity_state ? handleOpen : undefined}
         />
-      </TableCell>
+      </td>
     </>
   );
 }

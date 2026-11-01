@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTheme } from '@mui/material';
-import { getDesignTokens } from '../theme';
-import { heatClass, heatClassStyles, heatFill, heatStep } from './scoreHeat';
+import { heatClass, heatFill, heatStep } from './scoreHeat';
 
 describe('heatStep', () => {
   it.each([
@@ -36,21 +34,20 @@ describe('heatStep', () => {
   });
 });
 
-describe('heatFill / heatClassStyles', () => {
-  const { palette } = createTheme(getDesignTokens('dark'));
-  const alphaOf = (rgba) => Number(rgba.match(/, ([\d.]+)\)$/)[1]);
+describe('heatFill', () => {
+  const percentOf = (mix) => Number(mix.match(/ ([\d.]+)%/)[1]);
 
   it('deepens with the step and follows the theme tones', () => {
-    const ups = [1, 2, 3, 4, 5].map((step) => heatFill(palette, { dir: 'up', step }));
-    expect(ups[0]).toMatch(/^rgba\(46, 189, 133,/);
-    expect(ups.map(alphaOf)).toEqual([...ups.map(alphaOf)].sort((a, b) => a - b));
-    expect(heatFill(palette, { dir: 'down', step: 3 })).toMatch(/^rgba\(246, 70, 93,/);
+    const ups = [1, 2, 3, 4, 5].map((step) => heatFill({ dir: 'up', step }));
+    expect(ups[0]).toContain('var(--gain)');
+    expect(ups.map(percentOf)).toEqual([...ups.map(percentOf)].sort((a, b) => a - b));
+    expect(percentOf(ups[4])).toBe(30);
+    expect(heatFill({ dir: 'down', step: 3 })).toContain('var(--loss)');
   });
 
-  it('generates a rule for every class heatClass can return', () => {
-    const rules = heatClassStyles(palette);
+  it('names a class for every tinted bucket', () => {
     for (const value of [100, 92, 84, 76, 68, 60, 40, 27, 14]) {
-      expect(rules).toHaveProperty(`& .${heatClass(value)}`);
+      expect(heatClass(value)).toMatch(/^rt-heat-(up|down)-\d$/);
     }
   });
 });
