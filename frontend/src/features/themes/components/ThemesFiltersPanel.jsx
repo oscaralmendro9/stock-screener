@@ -1,8 +1,13 @@
-import { Box, Chip, Paper, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
-import CategoryIcon from '@mui/icons-material/Category';
-import ViewListIcon from '@mui/icons-material/ViewList';
+import { LayoutGrid, List } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { SOURCE_TYPES } from '../constants';
+import { TabBar } from '../themeUi';
 
+const SEGMENT = 'inline-flex h-11 cursor-pointer items-center gap-1 px-3 text-[11px] font-medium outline-none first:rounded-l-md last:rounded-r-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:h-7';
+const CHIP = 'inline-flex h-11 cursor-pointer items-center rounded-full border px-2.5 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-6';
+const chipTone = (on) => (on ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-surface text-foreground hover:bg-surface-subtle');
+
+// Handlers keep the (event, value) signature the container already uses.
 export default function ThemesFiltersPanel({
   themeView,
   onViewChange,
@@ -15,105 +20,76 @@ export default function ThemesFiltersPanel({
   onSourceTypeToggle,
 }) {
   return (
-    <Paper sx={{ mb: 3 }}>
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <ToggleButtonGroup value={themeView} exclusive onChange={onViewChange} size="small" sx={{ height: 28 }}>
-          <ToggleButton value="grouped" sx={{ px: 1.5, fontSize: '11px' }}>
-            <CategoryIcon sx={{ mr: 0.5, fontSize: 16 }} />
-            L1 Grouped
-          </ToggleButton>
-          <ToggleButton value="flat" sx={{ px: 1.5, fontSize: '11px' }}>
-            <ViewListIcon sx={{ mr: 0.5, fontSize: 16 }} />
-            All Themes
-          </ToggleButton>
-        </ToggleButtonGroup>
+    <section className="tw mb-6 rounded-lg border border-border bg-surface text-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
+        <div role="group" aria-label="Theme view" className="flex rounded-md border border-border">
+          {[['grouped', 'L1 Grouped', LayoutGrid], ['flat', 'All Themes', List]].map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={themeView === value}
+              onClick={() => onViewChange(null, value)}
+              className={cn(SEGMENT, themeView === value ? 'bg-surface-subtle text-foreground' : 'text-muted-foreground hover:text-foreground')}
+            >
+              <Icon aria-hidden="true" className="size-4" />
+              {label}
+            </button>
+          ))}
+        </div>
 
         {themeView === 'grouped' && l1Categories?.categories?.length > 0 && (
-          <Box display="flex" gap={0.5} alignItems="center">
-            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-              Sector:
-            </Typography>
-            <Chip
-              label="All"
-              size="small"
-              variant={categoryFilter === null ? 'filled' : 'outlined'}
-              color={categoryFilter === null ? 'primary' : 'default'}
-              onClick={() => onCategoryFilterChange(null)}
-              sx={{ cursor: 'pointer', height: 22, fontSize: '10px' }}
-            />
-            {l1Categories.categories.map((category) => (
-              <Chip
-                key={category.category}
-                label={`${category.category} (${category.count})`}
-                size="small"
-                variant={categoryFilter === category.category ? 'filled' : 'outlined'}
-                color={categoryFilter === category.category ? 'primary' : 'default'}
-                onClick={() => onCategoryFilterChange(categoryFilter === category.category ? null : category.category)}
-                sx={{ cursor: 'pointer', height: 22, fontSize: '10px', textTransform: 'capitalize' }}
-              />
-            ))}
-          </Box>
+          <div role="group" aria-label="Sector" className="flex flex-wrap items-center gap-1">
+            <span className="mr-1 text-[11px] text-muted-foreground">Sector:</span>
+            <button type="button" aria-pressed={categoryFilter === null} onClick={() => onCategoryFilterChange(null)} className={cn(CHIP, chipTone(categoryFilter === null))}>
+              All
+            </button>
+            {l1Categories.categories.map((category) => {
+              const on = categoryFilter === category.category;
+              return (
+                <button
+                  key={category.category}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onCategoryFilterChange(on ? null : category.category)}
+                  className={cn(CHIP, 'capitalize', chipTone(on))}
+                >
+                  {`${category.category} (${category.count})`}
+                </button>
+              );
+            })}
+          </div>
         )}
-      </Box>
+      </div>
 
       {themeView === 'flat' && (
         <>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={selectedTab} onChange={onTabChange}>
-              <Tab label="All Themes" value="all" />
-              <Tab
-                label={
-                  <Box display="flex" alignItems="center">
-                    Trending
-                    <Chip label="Hot" size="small" color="success" sx={{ ml: 0.5, height: 18 }} />
-                  </Box>
-                }
-                value="trending"
-              />
-              <Tab label="Emerging" value="emerging" />
-              <Tab label="Active" value="active" />
-              <Tab label="Fading" value="fading" />
-            </Tabs>
-          </Box>
+          <TabBar
+            label="Theme lifecycle"
+            className="px-2"
+            value={selectedTab}
+            onChange={(value) => onTabChange(null, value)}
+            tabs={[
+              { value: 'all', label: 'All Themes' },
+              { value: 'trending', label: 'Trending' },
+              { value: 'emerging', label: 'Emerging' },
+              { value: 'active', label: 'Active' },
+              { value: 'fading', label: 'Fading' },
+            ]}
+          />
 
-          <Box
-            sx={{
-              px: 2,
-              py: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              borderTop: 1,
-              borderColor: 'divider',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-              Sources:
-            </Typography>
-            {SOURCE_TYPES.map((source) => (
-              <Chip
-                key={source.value}
-                label={source.label}
-                size="small"
-                variant={selectedSourceTypes.includes(source.value) ? 'filled' : 'outlined'}
-                color={selectedSourceTypes.includes(source.value) ? 'primary' : 'default'}
-                onClick={() => onSourceTypeToggle(source.value)}
-                sx={{ cursor: 'pointer' }}
-              />
-            ))}
-          </Box>
+          <div role="group" aria-label="Sources" className="flex flex-wrap items-center gap-2 px-4 py-3">
+            <span className="mr-1 text-sm text-muted-foreground">Sources:</span>
+            {SOURCE_TYPES.map((source) => {
+              const on = selectedSourceTypes.includes(source.value);
+              return (
+                <button key={source.value} type="button" aria-pressed={on} onClick={() => onSourceTypeToggle(source.value)} className={cn(CHIP, chipTone(on))}>
+                  {source.label}
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
-    </Paper>
+    </section>
   );
 }

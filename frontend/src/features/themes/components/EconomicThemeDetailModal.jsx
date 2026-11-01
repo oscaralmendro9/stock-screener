@@ -1,17 +1,5 @@
-import {
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Grid,
-  Paper,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { Pill } from '../themeUi';
 
 const METRICS = [
   ['technical_attention', 'Technical Attention'],
@@ -36,18 +24,18 @@ const displayMetric = (metric = {}) => {
 
 function Section({ title, children }) {
   return (
-    <Box component="section" sx={{ mt: 2 }}>
-      <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
-      <Box sx={{ mt: 0.75 }}>{children}</Box>
-    </Box>
+    <section className="mt-4">
+      <h3 className="font-bold">{title}</h3>
+      <div className="mt-1.5">{children}</div>
+    </section>
   );
 }
 
 function EmptyAwareList({ rows, renderRow }) {
   if (!rows?.length) {
-    return <Typography color="text.secondary">No published records.</Typography>;
+    return <p className="text-muted-foreground">No published records.</p>;
   }
-  return <Stack spacing={0.5}>{rows.map(renderRow)}</Stack>;
+  return <div className="flex flex-col gap-1">{rows.map(renderRow)}</div>;
 }
 
 export default function EconomicThemeDetailModal({
@@ -59,62 +47,53 @@ export default function EconomicThemeDetailModal({
   if (!theme) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>{theme.display_name}</DialogTitle>
-      <DialogContent dividers>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
-          <Chip label={theme.lifecycle || 'lifecycle unavailable'} />
-          <Chip label={`Identity ${theme.economic_theme_id}`} variant="outlined" />
-          {generationId && <Chip label={`Generation ${generationId}`} variant="outlined" />}
-        </Stack>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title={theme.display_name} size="lg">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+          <Pill>{theme.lifecycle || 'lifecycle unavailable'}</Pill>
+          <Pill tone="muted">{`Identity ${theme.economic_theme_id}`}</Pill>
+          {generationId && <Pill tone="muted">{`Generation ${generationId}`}</Pill>}
+        </div>
 
-        <Typography>{theme.definition || 'Definition unavailable.'}</Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          {theme.mechanism || 'Economic mechanism unavailable.'}
-        </Typography>
+        <p>{theme.definition || 'Definition unavailable.'}</p>
+        <p className="mt-2 text-muted-foreground">{theme.mechanism || 'Economic mechanism unavailable.'}</p>
 
-        <Grid container spacing={1.5} sx={{ mt: 1 }}>
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {METRICS.map(([key, label]) => (
-            <Grid item xs={12} sm={6} md={4} key={key}>
-              <Paper variant="outlined" sx={{ p: 1.5 }} data-testid={`metric-${key}`}>
-                <Typography variant="caption" color="text.secondary">{label}</Typography>
-                <Typography fontWeight={700}>{displayMetric(theme.metrics?.[key])}</Typography>
-              </Paper>
-            </Grid>
+            <div key={key} className="rounded-md border border-border p-3" data-testid={`metric-${key}`}>
+              <p className="text-[11px] text-muted-foreground">{label}</p>
+              <p className="font-bold">{displayMetric(theme.metrics?.[key])}</p>
+            </div>
           ))}
-        </Grid>
+        </div>
 
         <Section title="Evidence provenance">
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Typography>Direct evidence: {theme.direct_observation_count ?? 0}</Typography>
-            <Typography>Derived evidence: {theme.derived_observation_count ?? 0}</Typography>
-            <Typography>
-              Independent source families: {theme.deduplicated_source_family_count ?? 0}
-            </Typography>
-          </Stack>
+          <div className="flex flex-col gap-4 sm:flex-row tabular-nums">
+            <p>Direct evidence: {theme.direct_observation_count ?? 0}</p>
+            <p>Derived evidence: {theme.derived_observation_count ?? 0}</p>
+            <p>Independent source families: {theme.deduplicated_source_family_count ?? 0}</p>
+          </div>
         </Section>
 
-        <Divider sx={{ my: 2 }} />
+        <hr className="my-4 border-border" />
         <Section title="Facets">
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <div className="flex flex-wrap gap-2">
             {(theme.facets || []).map((facet) => (
-              <Chip
-                key={`${facet.dimension}:${facet.value || facet.display_value}`}
-                label={`${facet.dimension}: ${facet.display_value || facet.value}`}
-                size="small"
-              />
+              <Pill key={`${facet.dimension}:${facet.value || facet.display_value}`}>
+                {`${facet.dimension}: ${facet.display_value || facet.value}`}
+              </Pill>
             ))}
-            {!theme.facets?.length && <Typography color="text.secondary">No facets.</Typography>}
-          </Stack>
+            {!theme.facets?.length && <p className="text-muted-foreground">No facets.</p>}
+          </div>
         </Section>
 
         <Section title="Relationships">
           <EmptyAwareList
             rows={theme.relationships}
             renderRow={(row, index) => (
-              <Typography key={row.id || index}>
+              <p key={row.id || index}>
                 {row.kind} · {row.source_theme_id || theme.economic_theme_id} → {row.target_theme_id}
-              </Typography>
+              </p>
             )}
           />
         </Section>
@@ -123,9 +102,9 @@ export default function EconomicThemeDetailModal({
           <EmptyAwareList
             rows={theme.signals}
             renderRow={(row, index) => (
-              <Typography key={row.signal_id || index}>
+              <p key={row.signal_id || index}>
                 {row.signal_kind} · {row.canonical_symbol || 'theme-wide'}
-              </Typography>
+              </p>
             )}
           />
         </Section>
@@ -134,9 +113,9 @@ export default function EconomicThemeDetailModal({
           <EmptyAwareList
             rows={theme.developments}
             renderRow={(row, index) => (
-              <Typography key={row.observation_id || index}>
+              <p key={row.observation_id || index}>
                 {row.classification || 'unclassified'} · {row.analysis_channel || 'channel unavailable'}
-              </Typography>
+              </p>
             )}
           />
         </Section>
@@ -145,16 +124,13 @@ export default function EconomicThemeDetailModal({
           <EmptyAwareList
             rows={theme.constituents}
             renderRow={(row, index) => (
-              <Typography key={row.exposure_id || index}>
+              <p key={row.exposure_id || index}>
                 {row.canonical_symbol || `Security ${row.security_id}`} · {row.market || 'market unavailable'} · {row.exposure_kind}
-              </Typography>
+              </p>
             )}
           />
         </Section>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
   );
 }
