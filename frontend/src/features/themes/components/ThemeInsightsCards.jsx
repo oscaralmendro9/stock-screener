@@ -1,22 +1,7 @@
-import {
-  Badge,
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Grid,
-  IconButton,
-  Typography,
-} from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import CloseIcon from '@mui/icons-material/Close';
-import NewReleasesIcon from '@mui/icons-material/NewReleases';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import { LinearProgress } from '@mui/material';
+import { Activity, Bell, ChartLine, Sparkles, Sparkle, TrendingUp, X } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { Pill, ScoreBar, Spinner } from '../themeUi';
+import { linkClass } from '../themeClasses';
 
 function normalizeVelocity(velocity) {
   const numericVelocity = Number(velocity);
@@ -33,349 +18,209 @@ function formatVelocityLabel(velocity) {
 
 export function MomentumBar({ score }) {
   const numericScore = Number.isFinite(score) ? Math.max(0, Math.min(score, 100)) : 0;
-  const color = numericScore >= 70 ? 'success' : numericScore >= 50 ? 'warning' : 'error';
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 80 }}>
-      <Box sx={{ width: '100%', mr: 0.5 }}>
-        <LinearProgress
-          variant="determinate"
-          value={numericScore}
-          color={color}
-          sx={{ height: 6, borderRadius: 3 }}
-        />
-      </Box>
-      <Box sx={{ minWidth: 28, fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>
-        {numericScore.toFixed(0)}
-      </Box>
-    </Box>
-  );
+  return <ScoreBar score={numericScore} label="Momentum" />;
 }
 
 export function VelocityIndicator({ velocity }) {
   const numericVelocity = normalizeVelocity(velocity);
   if (!numericVelocity) {
-    return (
-      <Box sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '11px' }}>
-        -
-      </Box>
-    );
+    return <span className="text-[11px] text-muted-foreground">-</span>;
   }
 
   const isAccelerating = numericVelocity > 1;
-  const color =
+  const tone =
     numericVelocity >= 2
-      ? 'success.main'
+      ? 'text-gain'
       : numericVelocity >= 1.5
-        ? 'warning.main'
-        : numericVelocity >= 1
-          ? 'info.main'
-          : 'text.secondary';
+        ? 'text-warning'
+        : 'text-muted-foreground';
 
   return (
-    <Box display="flex" alignItems="center" sx={{ fontFamily: 'monospace' }}>
-      {isAccelerating && <TrendingUpIcon sx={{ fontSize: 12, mr: 0.25, color }} />}
-      <Box component="span" sx={{ color, fontWeight: numericVelocity >= 1.5 ? 600 : 400, fontSize: '11px' }}>
-        {numericVelocity.toFixed(1)}x
-      </Box>
-    </Box>
+    <span className={cn('inline-flex items-center gap-0.5 text-[11px] tabular-nums', tone, numericVelocity >= 1.5 && 'font-semibold')}>
+      {isAccelerating && <TrendingUp aria-hidden="true" className="size-3" />}
+      {numericVelocity.toFixed(1)}x
+    </span>
+  );
+}
+
+const CARD = 'h-full rounded-lg border border-border bg-surface p-3';
+
+function CardLoading({ label }) {
+  return (
+    <div className={CARD}>
+      <div className="flex justify-center p-2"><Spinner label={label} className="size-5" /></div>
+    </div>
+  );
+}
+
+function CardTitle({ icon, children, extra }) {
+  return (
+    <div className="mb-2 flex items-center gap-1.5">
+      {icon}
+      <h3 className="text-xs font-semibold">{children}</h3>
+      {extra}
+    </div>
   );
 }
 
 function EmergingThemesCard({ themes, isLoading }) {
-  if (isLoading) {
-    return (
-      <Card variant="outlined">
-        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-          <Box display="flex" justifyContent="center" p={1}>
-            <CircularProgress size={20} />
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (isLoading) return <CardLoading label="Loading emerging themes" />;
 
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box display="flex" alignItems="center" mb={1}>
-          <NewReleasesIcon sx={{ color: 'warning.main', mr: 0.5, fontSize: 18 }} />
-          <Box sx={{ fontSize: '12px', fontWeight: 600 }}>Emerging Themes</Box>
-          {themes?.count > 0 && <Chip label={themes.count} size="small" color="warning" sx={{ ml: 0.5 }} />}
-        </Box>
+    <section className={CARD}>
+      <CardTitle
+        icon={<Sparkles aria-hidden="true" className="size-4 text-muted-foreground" />}
+        extra={themes?.count > 0 ? <Pill tone="warning" className="h-5 tabular-nums">{themes.count}</Pill> : null}
+      >
+        Emerging Themes
+      </CardTitle>
 
-        {themes?.themes?.length > 0 ? (
-          <Box>
-            {themes.themes.slice(0, 5).map((theme, index) => (
-              <Box
-                key={theme.theme}
-                sx={{
-                  py: 0.5,
-                  borderBottom: index < 4 ? 1 : 0,
-                  borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 14, color: 'warning.main', mr: 0.5 }} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ fontSize: '11px', fontWeight: 500 }}>{theme.theme}</Box>
-                  <Box display="flex" gap={0.5} mt={0.25}>
-                    <Chip
-                      label={formatVelocityLabel(theme.velocity)}
-                      size="small"
-                      variant="outlined"
-                      color="warning"
-                      sx={{ height: 16, fontSize: '9px' }}
-                    />
-                    <Chip
-                      label={`${theme.mentions_7d} ment.`}
-                      size="small"
-                      variant="outlined"
-                      sx={{ height: 16, fontSize: '9px' }}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Box sx={{ fontSize: '11px', color: 'text.secondary', textAlign: 'center', py: 1 }}>
-            No emerging themes detected
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+      {themes?.themes?.length > 0 ? (
+        <ul>
+          {themes.themes.slice(0, 5).map((theme) => (
+            <li key={theme.theme} className="flex items-center border-b border-border py-1 last:border-b-0">
+              <Sparkle aria-hidden="true" className="mr-1 size-3.5 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium">{theme.theme}</p>
+                <div className="mt-0.5 flex gap-1">
+                  <Pill tone="warning" className="h-4 tabular-nums">{formatVelocityLabel(theme.velocity)}</Pill>
+                  <Pill tone="muted" className="h-4 tabular-nums">{`${theme.mentions_7d} ment.`}</Pill>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-2 text-center text-[11px] text-muted-foreground">No emerging themes detected</p>
+      )}
+    </section>
   );
 }
 
 function TopTrendingThemesCard({ topTrendingThemes = [], onSelectTheme }) {
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent>
-        <Box display="flex" alignItems="center" mb={2}>
-          <ShowChartIcon sx={{ color: 'success.main', mr: 1 }} />
-          <Typography variant="subtitle1" fontWeight="bold">
-            Top Trending
-          </Typography>
-        </Box>
-        {topTrendingThemes.map((theme, index) => (
-          <Box
-            key={theme.id}
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            py={0.75}
-            borderBottom={index < 4 ? 1 : 0}
-            borderColor="divider"
-            sx={{ cursor: 'pointer' }}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelectTheme?.({ id: theme.id, name: theme.name })}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onSelectTheme?.({ id: theme.id, name: theme.name });
-              }
-            }}
-          >
-            <Box display="flex" alignItems="center">
-              <Typography variant="body2" color="text.secondary" sx={{ mr: 1, minWidth: 20 }}>
-                #{theme.rank}
-              </Typography>
-              <Typography variant="body2" fontWeight="medium" sx={{ maxWidth: 200 }} noWrap>
-                {theme.name}
-              </Typography>
-            </Box>
-            <MomentumBar score={theme.momentum_score} />
-          </Box>
+    <section className={CARD}>
+      <CardTitle icon={<ChartLine aria-hidden="true" className="size-4 text-muted-foreground" />}>Top Trending</CardTitle>
+      <ul>
+        {topTrendingThemes.map((theme) => (
+          <li key={theme.id} className="border-b border-border last:border-b-0">
+            <button
+              type="button"
+              onClick={() => onSelectTheme?.({ id: theme.id, name: theme.name })}
+              className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm py-1.5 text-left outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex min-w-0 items-center">
+                <span className="mr-2 min-w-5 text-sm text-muted-foreground tabular-nums">#{theme.rank}</span>
+                <span className="max-w-[200px] truncate text-sm font-medium">{theme.name}</span>
+              </span>
+              <MomentumBar score={theme.momentum_score} />
+            </button>
+          </li>
         ))}
-      </CardContent>
-    </Card>
+      </ul>
+    </section>
   );
 }
 
 function AlertsCard({ alerts, isLoading, onDismiss, dismissingId }) {
-  if (isLoading) {
-    return (
-      <Card variant="outlined">
-        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-          <Box display="flex" justifyContent="center" p={1}>
-            <CircularProgress size={20} />
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (isLoading) return <CardLoading label="Loading alerts" />;
 
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box display="flex" alignItems="center" mb={1}>
-          <Badge badgeContent={alerts?.unread || 0} color="error">
-            <NotificationsIcon sx={{ color: 'primary.main', fontSize: 18 }} />
-          </Badge>
-          <Box sx={{ fontSize: '12px', fontWeight: 600, ml: 1 }}>Alerts</Box>
-          {alerts?.total > 0 && (
-            <Box sx={{ fontSize: '10px', color: 'text.secondary', ml: 0.5 }}>({alerts.total})</Box>
-          )}
-        </Box>
-
-        {alerts?.alerts?.length > 0 ? (
-          <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
-            {alerts.alerts.map((alert) => (
-              <Box
-                key={alert.id}
-                sx={{
-                  py: 0.5,
-                  opacity: alert.is_read ? 0.6 : 1,
-                  borderLeft: 2,
-                  borderColor: alert.severity === 'warning' ? 'warning.main' : 'info.main',
-                  pl: 1,
-                  mb: 0.5,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  position: 'relative',
-                  '&:hover .dismiss-action, &:focus-within .dismiss-action': {
-                    opacity: 1,
-                  },
-                }}
-              >
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ fontSize: '11px', fontWeight: alert.is_read ? 400 : 600 }}>
-                    {alert.title}
-                  </Box>
-                  <Box sx={{ fontSize: '10px', color: 'text.secondary' }}>
-                    {new Date(alert.triggered_at).toLocaleDateString()}
-                  </Box>
-                </Box>
-                <IconButton
-                  className="dismiss-action"
-                  size="small"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDismiss?.(alert.id);
-                  }}
-                  disabled={dismissingId === alert.id}
-                  sx={{
-                    p: 0.25,
-                    ml: 0.5,
-                    opacity: dismissingId === alert.id ? 0.5 : 0.35,
-                    transition: 'opacity 120ms ease',
-                  }}
-                  aria-label={`Dismiss alert ${alert.title}`}
-                >
-                  {dismissingId === alert.id ? <CircularProgress size={12} /> : <CloseIcon sx={{ fontSize: 14 }} />}
-                </IconButton>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Box sx={{ fontSize: '11px', color: 'text.secondary', textAlign: 'center', py: 1 }}>
-            No alerts
-          </Box>
+    <section className={CARD}>
+      <CardTitle
+        icon={(
+          <span className="relative">
+            <Bell aria-hidden="true" className="size-4 text-muted-foreground" />
+            {alerts?.unread ? (
+              <span className="absolute -top-1.5 -right-2 min-w-3.5 rounded-full bg-loss px-0.5 text-center text-[11px] leading-3.5 text-loss-foreground tabular-nums">
+                {alerts.unread}
+              </span>
+            ) : null}
+          </span>
         )}
-      </CardContent>
-    </Card>
+        extra={alerts?.total > 0 ? <span className="text-[11px] text-muted-foreground tabular-nums">({alerts.total})</span> : null}
+      >
+        <span className="ml-1">Alerts</span>
+      </CardTitle>
+
+      {alerts?.alerts?.length > 0 ? (
+        <ul className="max-h-[200px] overflow-y-auto">
+          {alerts.alerts.map((alert) => (
+            <li
+              key={alert.id}
+              className={cn(
+                'group relative mb-1 flex items-start justify-between border-l-2 py-1 pl-2',
+                alert.severity === 'warning' ? 'border-warning' : 'border-border',
+                alert.is_read && 'opacity-60',
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-[11px]', !alert.is_read && 'font-semibold')}>{alert.title}</p>
+                <p className="text-[11px] text-muted-foreground">{new Date(alert.triggered_at).toLocaleDateString()}</p>
+              </div>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDismiss?.(alert.id);
+                }}
+                disabled={dismissingId === alert.id}
+                aria-label={`Dismiss alert ${alert.title}`}
+                className="ml-1 grid size-6 cursor-pointer place-items-center rounded-sm text-muted-foreground opacity-40 outline-none group-focus-within:opacity-100 group-hover:opacity-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                {dismissingId === alert.id ? <Spinner label="Dismissing" className="size-3" /> : <X aria-hidden="true" className="size-3.5" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-2 text-center text-[11px] text-muted-foreground">No alerts</p>
+      )}
+    </section>
   );
 }
 
 function PipelineObservabilityCard({ observability, isLoading }) {
-  if (isLoading) {
-    return (
-      <Card variant="outlined">
-        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-          <Box display="flex" justifyContent="center" p={1}>
-            <CircularProgress size={20} />
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (isLoading) return <CardLoading label="Loading pipeline health" />;
 
   const metrics = observability?.metrics || {};
   const alerts = observability?.alerts || [];
-  const statChip = (label, value, color = 'default') => (
-    <Chip
-      key={label}
-      label={`${label}: ${value}`}
-      size="small"
-      color={color}
-      variant="outlined"
-      sx={{ height: 18, fontSize: '10px' }}
-    />
+  const statChip = (label, value, warn = false) => (
+    <Pill key={label} tone={warn ? 'warning' : 'muted'} className="h-[18px] tabular-nums">{`${label}: ${value}`}</Pill>
   );
 
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box display="flex" alignItems="center" mb={1}>
-          <TimelineIcon sx={{ color: 'primary.main', fontSize: 18 }} />
-          <Box sx={{ fontSize: '12px', fontWeight: 600, ml: 1 }}>Pipeline Health</Box>
-          {alerts.length > 0 && (
-            <Chip
-              label={`${alerts.length} alerts`}
-              size="small"
-              color="warning"
-              sx={{ ml: 1, height: 18, fontSize: '10px' }}
-            />
-          )}
-        </Box>
+    <section className={CARD}>
+      <CardTitle
+        icon={<Activity aria-hidden="true" className="size-4 text-muted-foreground" />}
+        extra={alerts.length > 0 ? <Pill tone="warning" className="ml-1 h-[18px]">{`${alerts.length} alerts`}</Pill> : null}
+      >
+        <span className="ml-1">Pipeline Health</span>
+      </CardTitle>
 
-        <Box display="flex" gap={0.5} flexWrap="wrap" mb={1}>
-          {statChip(
-            'Parse',
-            `${((metrics.parse_failure_rate || 0) * 100).toFixed(1)}%`,
-            metrics.parse_failure_rate > 0.25 ? 'warning' : 'default'
-          )}
-          {statChip(
-            'No-mention',
-            `${((metrics.processed_without_mentions_ratio || 0) * 100).toFixed(1)}%`,
-            metrics.processed_without_mentions_ratio > 0.2 ? 'warning' : 'default'
-          )}
-          {statChip(
-            'New clusters',
-            `${((metrics.new_cluster_rate || 0) * 100).toFixed(1)}%`,
-            metrics.new_cluster_rate > 0.45 ? 'warning' : 'default'
-          )}
-          {statChip(
-            'Merge proxy',
-            `${((metrics.merge_precision_proxy || 0) * 100).toFixed(1)}%`,
-            metrics.merge_precision_proxy < 0.55 ? 'warning' : 'default'
-          )}
-        </Box>
+      <div className="mb-2 flex flex-wrap gap-1">
+        {statChip('Parse', `${((metrics.parse_failure_rate || 0) * 100).toFixed(1)}%`, metrics.parse_failure_rate > 0.25)}
+        {statChip('No-mention', `${((metrics.processed_without_mentions_ratio || 0) * 100).toFixed(1)}%`, metrics.processed_without_mentions_ratio > 0.2)}
+        {statChip('New clusters', `${((metrics.new_cluster_rate || 0) * 100).toFixed(1)}%`, metrics.new_cluster_rate > 0.45)}
+        {statChip('Merge proxy', `${((metrics.merge_precision_proxy || 0) * 100).toFixed(1)}%`, metrics.merge_precision_proxy < 0.55)}
+      </div>
 
-        {alerts.length > 0 ? (
-          <Box sx={{ maxHeight: 120, overflowY: 'auto' }}>
-            {alerts.slice(0, 3).map((item) => (
-              <Box
-                key={item.key}
-                sx={{
-                  mb: 0.75,
-                  px: 1,
-                  py: 0.5,
-                  borderLeft: 2,
-                  borderColor: item.severity === 'warning' ? 'warning.main' : 'info.main',
-                  backgroundColor: 'background.paper',
-                }}
-              >
-                <Box sx={{ fontSize: '10px', fontWeight: 600 }}>{item.title}</Box>
-                <Box sx={{ fontSize: '10px', color: 'text.secondary' }}>{item.description}</Box>
-                <Box sx={{ fontSize: '10px', mt: 0.25 }}>
-                  <a href={item.runbook_url} target="_blank" rel="noreferrer">
-                    Runbook
-                  </a>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Box sx={{ fontSize: '11px', color: 'text.secondary', textAlign: 'center', py: 1 }}>
-            No policy breaches
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+      {alerts.length > 0 ? (
+        <ul className="max-h-[120px] overflow-y-auto">
+          {alerts.slice(0, 3).map((item) => (
+            <li key={item.key} className={cn('mb-1.5 border-l-2 px-2 py-1', item.severity === 'warning' ? 'border-warning' : 'border-border')}>
+              <p className="text-[11px] font-semibold">{item.title}</p>
+              <p className="text-[11px] text-muted-foreground">{item.description}</p>
+              <p className="mt-0.5 text-[11px]">
+                <a href={item.runbook_url} target="_blank" rel="noreferrer" className={linkClass}>Runbook</a>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-2 text-center text-[11px] text-muted-foreground">No policy breaches</p>
+      )}
+    </section>
   );
 }
 
@@ -392,24 +237,16 @@ export default function ThemeInsightsCards({
   dismissingAlertId,
 }) {
   return (
-    <Grid container spacing={2} mb={3}>
-      <Grid item xs={12} md={3}>
-        <EmergingThemesCard themes={emerging} isLoading={isLoadingEmerging} />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <TopTrendingThemesCard topTrendingThemes={topTrendingThemes} onSelectTheme={onSelectTheme} />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <PipelineObservabilityCard observability={observability} isLoading={isLoadingObservability} />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <AlertsCard
-          alerts={alerts}
-          isLoading={isLoadingAlerts}
-          onDismiss={onDismissAlert}
-          dismissingId={dismissingAlertId}
-        />
-      </Grid>
-    </Grid>
+    <div className="tw mb-6 grid grid-cols-1 gap-4 text-foreground md:grid-cols-4">
+      <EmergingThemesCard themes={emerging} isLoading={isLoadingEmerging} />
+      <TopTrendingThemesCard topTrendingThemes={topTrendingThemes} onSelectTheme={onSelectTheme} />
+      <PipelineObservabilityCard observability={observability} isLoading={isLoadingObservability} />
+      <AlertsCard
+        alerts={alerts}
+        isLoading={isLoadingAlerts}
+        onDismiss={onDismissAlert}
+        dismissingId={dismissingAlertId}
+      />
+    </div>
   );
 }
