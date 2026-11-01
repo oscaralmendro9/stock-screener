@@ -1,43 +1,28 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Card,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
 import CandlestickChart from '../components/Charts/CandlestickChart';
 import GroupChartsLayout, { GroupChartCell } from '../components/Charts/GroupChartsLayout';
-import { getGroupRankColor, onPalette } from '../utils/colorUtils';
+import { getGroupRankColor } from '../utils/colorUtils';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 import { isCurrentChartIndex, staticChartPayloadQuery } from './chartClient';
 import { useStaticGeneration } from './dataClient';
 
 const MAX_SYMBOLS = 50;
 const CHART_HEIGHT = 360;
 
-function StatBadge({ value, label, bgcolor }) {
+// colorUtils speaks MUI palette paths; stats read as toned text, not filled boxes.
+const TONE = { 'success.main': 'text-gain', 'warning.main': 'text-warning', 'error.main': 'text-loss' };
+
+function StatBadge({ value, label, tone }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box
-        sx={{
-          borderRadius: 1,
-          px: 1.5,
-          py: 0.5,
-          minWidth: 36,
-          textAlign: 'center',
-          ...onPalette(bgcolor),
-        }}
-      >
-        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', color: 'inherit', fontWeight: 'bold' }}>
-          {value}
-        </Typography>
-      </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.25 }}>
-        {label}
-      </Typography>
-    </Box>
+    <div className="flex flex-col items-center">
+      <span className={cn('min-w-9 text-center text-[13px] font-bold whitespace-nowrap tabular-nums', TONE[tone] || 'text-foreground')}>
+        {value}
+      </span>
+      <span className="mt-0.5 text-[11px] text-muted-foreground">{label}</span>
+    </div>
   );
 }
 
@@ -90,88 +75,54 @@ function StaticGroupChartCard({ symbol, entry, indexCurrent, isSelected, onSelec
     }
   };
 
+  const placeholder = 'flex items-center justify-center p-4';
+
   return (
-    <Card
-      variant="outlined"
+    <div
       role="button"
       tabIndex={0}
       aria-pressed={isSelected}
       aria-label={`${symbol} chart — ${isSelected ? 'selected, zoom enabled' : 'click to enable zoom'}`}
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
-      sx={{
-        overflow: 'hidden',
-        cursor: 'pointer',
-        borderWidth: 2,
-        borderColor: isSelected ? 'success.main' : 'divider',
-        transition: 'border-color 120ms ease-in-out',
-        '&:focus-visible': {
-          outline: '2px solid',
-          outlineColor: 'primary.main',
-          outlineOffset: 2,
-        },
-      }}
+      className={cn(
+        'cursor-pointer overflow-hidden rounded-lg border-2 bg-surface outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
+        isSelected ? 'border-accent' : 'border-border',
+      )}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          px: 2,
-          py: 1,
-          borderBottom: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.default',
-          flexWrap: 'wrap',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontFamily: 'monospace', fontWeight: 700, lineHeight: 1.1 }}>
-              {symbol}
-            </Typography>
-            {companyName ? (
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                {companyName}
-              </Typography>
-            ) : null}
-          </Box>
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-4 py-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <p className="text-lg leading-tight font-bold">{symbol}</p>
+            {companyName ? <p className="text-[11px] text-muted-foreground">{companyName}</p> : null}
+          </div>
           {groupRank != null ? (
-            <StatBadge value={groupRank} label="Grp Rnk" bgcolor={getGroupRankColor(groupRank)} />
+            <StatBadge value={groupRank} label="Grp Rnk" tone={getGroupRankColor(groupRank)} />
           ) : null}
           {adrValue != null ? (
-            <StatBadge value={`${Number(adrValue).toFixed(1)}%`} label="ADR" bgcolor={adrBg} />
+            <StatBadge value={`${Number(adrValue).toFixed(1)}%`} label="ADR" tone={adrBg} />
           ) : null}
           {epsRating != null ? (
-            <StatBadge value={epsRating} label="EPS Rtg" bgcolor={epsBg} />
+            <StatBadge value={epsRating} label="EPS Rtg" tone={epsBg} />
           ) : null}
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {lastClose != null ? (
-            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-              {lastClose.toFixed(2)}
-            </Typography>
-          ) : null}
-        </Box>
-      </Box>
+        </div>
+        {lastClose != null ? (
+          <span className="text-sm font-semibold tabular-nums">{lastClose.toFixed(2)}</span>
+        ) : null}
+      </div>
 
       {isError ? (
-        <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-          <Alert severity="error" sx={{ width: '100%' }}>
-            Failed to load chart payload for {symbol}.
-          </Alert>
-        </Box>
+        <div className={placeholder} style={{ height: CHART_HEIGHT }}>
+          <Notice tone="error" className="w-full">Failed to load chart payload for {symbol}.</Notice>
+        </div>
       ) : isLoading ? (
-        <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <CircularProgress size={32} />
-        </Box>
+        <div role="status" aria-label="Loading chart" className={placeholder} style={{ height: CHART_HEIGHT }}>
+          <span aria-hidden="true" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+        </div>
       ) : !hasBarsPayload ? (
-        <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-          <Alert severity="warning" sx={{ width: '100%' }}>
-            No price data available for {symbol}.
-          </Alert>
-        </Box>
+        <div className={placeholder} style={{ height: CHART_HEIGHT }}>
+          <Notice tone="warning" className="w-full">No price data available for {symbol}.</Notice>
+        </div>
       ) : (
         <CandlestickChart
           symbol={symbol}
@@ -183,7 +134,7 @@ function StaticGroupChartCard({ symbol, entry, indexCurrent, isSelected, onSelec
           interactive={isSelected}
         />
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -227,28 +178,24 @@ function StaticGroupChartsGrid({ symbols = [], chartIndex = null }) {
 
   if (normalizedSymbols.length === 0) {
     return (
-      <Alert severity="info" sx={{ mt: 1 }}>
-        No constituent stocks to chart.
-      </Alert>
+      <Notice className="tw mt-2">No constituent stocks to chart.</Notice>
     );
   }
 
   if (!chartIndex) {
     return (
-      <Alert severity="warning" sx={{ mt: 1 }}>
-        Static chart payloads are unavailable for this market.
-      </Alert>
+      <Notice tone="warning" className="tw mt-2">Static chart payloads are unavailable for this market.</Notice>
     );
   }
 
   const truncated = normalizedSymbols.length > truncatedSymbols.length;
 
   return (
-    <Box data-testid="static-group-charts-root" onClick={() => setSelectedSymbol(null)}>
+    <div data-testid="static-group-charts-root" className="tw" onClick={() => setSelectedSymbol(null)}>
       {truncated && (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+        <p className="mb-2 text-[11px] text-muted-foreground">
           Showing first {truncatedSymbols.length} of {normalizedSymbols.length} stocks.
-        </Typography>
+        </p>
       )}
       <GroupChartsLayout data-testid="static-group-charts-grid" gap={2}>
         {truncatedSymbols.map((sym) => {
@@ -256,26 +203,10 @@ function StaticGroupChartsGrid({ symbols = [], chartIndex = null }) {
           if (!entry) {
             return (
               <GroupChartCell key={sym}>
-                <Card variant="outlined">
-                  <Box
-                    sx={{
-                      px: 2,
-                      py: 1,
-                      borderBottom: 1,
-                      borderColor: 'divider',
-                      bgcolor: 'background.default',
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                      {sym}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No price data
-                    </Typography>
-                  </Box>
-                </Card>
+                <div className="overflow-hidden rounded-lg border border-border bg-surface">
+                  <p className="border-b border-border bg-background px-4 py-2 text-lg font-bold">{sym}</p>
+                  <div className="flex h-20 items-center justify-center text-sm text-muted-foreground">No price data</div>
+                </div>
               </GroupChartCell>
             );
           }
@@ -292,7 +223,7 @@ function StaticGroupChartsGrid({ symbols = [], chartIndex = null }) {
           );
         })}
       </GroupChartsLayout>
-    </Box>
+    </div>
   );
 }
 

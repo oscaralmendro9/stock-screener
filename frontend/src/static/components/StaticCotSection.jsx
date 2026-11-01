@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box } from '@mui/material';
+import { Notice } from '@/ui/notice';
 
 import CotPositioningView from '../../features/cot/CotPositioningView';
 import { sliceCotHistory } from '../../features/cot/cotContract';
@@ -16,11 +16,11 @@ const StaticCotSection = ({ manifest }) => {
 
   if (!advertised) return null;
   if (indexQuery.isError) {
-    return <Alert data-testid="static-cot-section" severity="warning">Static COT data is unavailable.</Alert>;
+    return <div data-testid="static-cot-section" className="tw"><Notice tone="warning">Static COT data is unavailable.</Notice></div>;
   }
 
   return (
-    <Box data-testid="static-cot-section" sx={{ mb: 2 }}>
+    <div data-testid="static-cot-section" className="mb-4">
       <CotPositioningView
         catalog={index?.catalog || null}
         history={history}
@@ -31,7 +31,7 @@ const StaticCotSection = ({ manifest }) => {
         isLoading={indexQuery.isLoading || historyQuery.isLoading}
         error={historyQuery.error}
       />
-    </Box>
+    </div>
   );
 };
 

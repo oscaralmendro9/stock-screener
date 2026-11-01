@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Box, CircularProgress } from '@mui/material';
+import { Notice } from '@/ui/notice';
 import { useNavigate } from 'react-router-dom';
 
 import OptionsCommandCenterView from '../../features/options/OptionsCommandCenterView';
@@ -41,10 +41,10 @@ export default function StaticOptionsPage() {
   });
 
   if (manifestQuery.isLoading || commandQuery.isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
+    return <div role="status" aria-label="Loading" className="tw flex justify-center p-12"><span aria-hidden="true" className="inline-block size-8 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" /></div>;
   }
   if (manifestQuery.isError || commandQuery.isError || !commandQuery.data) {
-    return <Alert severity="info">Options analytics are not available in this static snapshot.</Alert>;
+    return <Notice className="tw">Options analytics are not available in this static snapshot.</Notice>;
   }
 
   return (

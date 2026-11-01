@@ -73,7 +73,7 @@ function DetailSkeleton() {
   );
 }
 
-function Overview({ detail }) {
+export function GroupDetailOverview({ detail }) {
   // Oldest first for the chart.
   const chartData = detail.history
     ? [...detail.history].reverse().map((item) => {
@@ -287,7 +287,7 @@ export default function GroupDetailModal({ group, market, open, onClose }) {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="outline-none">
-                  <Overview detail={detail} />
+                  <GroupDetailOverview detail={detail} />
                 </TabsContent>
                 <TabsContent value="charts" className="outline-none">
                   <GroupChartsGrid symbols={chartSymbols} period="6mo" height={200} />
