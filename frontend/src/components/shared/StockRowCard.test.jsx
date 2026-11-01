@@ -60,14 +60,19 @@ describe('StockRowCard', () => {
   });
 
   it('lets taps on an inert badge reach the card while interactive badges stay clickable', () => {
+    const onOpen = vi.fn();
+    const onBadge = vi.fn();
     const { rerender } = renderWithProviders(
-      <StockRowCard row={row} onOpen={vi.fn()} badge={<span>Strong Buy</span>} />,
+      <StockRowCard row={row} onOpen={onOpen} badge={<span>Strong Buy</span>} />,
     );
     // The badge slot sits above the stretched open-button overlay; it must not swallow taps.
-    expect(screen.getByText('Strong Buy').parentElement).toHaveStyle({ pointerEvents: 'none' });
+    fireEvent.click(screen.getByText('Strong Buy'));
+    expect(onOpen).toHaveBeenCalledTimes(1);
 
-    rerender(<StockRowCard row={row} onOpen={vi.fn()} badge={<button type="button">Watch</button>} />);
-    expect(screen.getByRole('button', { name: 'Watch' })).toHaveStyle({ pointerEvents: 'auto' });
+    rerender(<StockRowCard row={row} onOpen={onOpen} badge={<button type="button" onClick={onBadge}>Watch</button>} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Watch' }));
+    expect(onBadge).toHaveBeenCalledTimes(1);
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the ticker at full width next to a long badge and actions', () => {

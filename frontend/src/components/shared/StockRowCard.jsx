@@ -1,17 +1,17 @@
-import { Box, Typography } from '@mui/material';
 import PriceSparkline from '../Scan/PriceSparkline';
 import { formatLocalCurrency } from '../../utils/formatUtils';
-
-const visuallyHidden = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  whiteSpace: 'nowrap',
-};
+import { cn } from '@/lib/cn';
 
 const oneDecimal = (value) => (Number.isFinite(Number(value)) && value != null ? Number(value).toFixed(1) : '-');
+
+// Slots sit above the stretched open-button overlay so their controls get the
+// tap. A tap on inert content in them (a rating chip) still opens the card.
+const OVERLAY_SLOT = 'relative z-[1] flex items-center gap-1';
+const INTERACTIVE = 'button, a, [role="button"], input, select';
+
+const forwardInertTap = (onOpen) => (onOpen
+  ? (event) => { if (!event.target.closest(INTERACTIVE)) onOpen(event); }
+  : undefined);
 
 /**
  * Phone-width stand-in for a stock table row: everything a reader scans for
@@ -37,6 +37,7 @@ export default function StockRowCard({
   meta = null,
   onOpen = null,
 }) {
+  const onSlotClick = forwardInertTap(onOpen);
   const shown = metric || { label: null, value: oneDecimal(row[scoreField]), name: 'Score' };
   const change = Number(row.price_change_1d);
   const hasChange = row.price_change_1d != null && Number.isFinite(change);
@@ -46,108 +47,66 @@ export default function StockRowCard({
     .join(' · ');
 
   return (
-    <Box
-      sx={{
-        position: 'relative',
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) 88px 72px',
-        alignItems: 'center',
-        gap: 1.25,
-        px: 1.5,
-        py: 1,
-        cursor: onOpen ? 'pointer' : 'default',
-        '&:hover': onOpen ? { backgroundColor: 'action.hover' } : undefined,
-      }}
+    <div
+      className={cn(
+        'tw relative grid grid-cols-[minmax(0,1fr)_88px_72px] items-center gap-2.5 px-3 py-2 text-foreground',
+        onOpen && 'cursor-pointer hover:bg-surface-subtle',
+      )}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
           {onOpen ? (
-            <Box
-              component="button"
+            <button
               type="button"
               onClick={onOpen}
               aria-label={`Open ${row.symbol} chart`}
-              sx={{
-                all: 'unset',
-                // The ticker keeps its width beside the action icons.
-                flexShrink: 0,
-                maxWidth: '70%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontWeight: 700,
-                fontSize: '14px',
-                // Stretch the button's hit area over the whole card.
-                '&::after': { content: '""', position: 'absolute', inset: 0 },
-                '&:focus-visible::after': { outline: 2, outlineColor: 'primary.main', outlineOffset: -2 },
-              }}
+              // The ticker keeps its width beside the action icons.
+              style={{ flexShrink: 0 }}
+              className="max-w-[70%] cursor-pointer truncate border-0 bg-transparent p-0 text-left text-sm font-bold text-foreground outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
             >
               {row.symbol}
-            </Box>
+            </button>
           ) : (
-            <Typography component="span" noWrap sx={{ fontWeight: 700, fontSize: '14px', flexShrink: 0, maxWidth: '70%' }}>{row.symbol}</Typography>
+            <span style={{ flexShrink: 0 }} className="max-w-[70%] truncate text-sm font-bold">{row.symbol}</span>
           )}
           {actions ? (
-            // Above the stretched overlay, but only interactive children take the
-            // tap. Actions stay on the ticker row; badges go on the company line
+            // Actions stay on the ticker row; badges go on the company line
             // so the two can't squeeze each other out at 360px.
-            <Box
-              sx={{
-                position: 'relative',
-                zIndex: 1,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                pointerEvents: 'none',
-                '& button, & a, & [role="button"]': { pointerEvents: 'auto' },
-              }}
-            >
+            <div style={{ flexShrink: 0 }} className={OVERLAY_SLOT} onClick={onSlotClick}>
               {actions}
-            </Box>
+            </div>
           ) : null}
-        </Box>
+        </div>
         {row.company_name || badge ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+          <div className="flex min-w-0 items-center gap-1.5">
             {badge ? (
               // Badges keep up to 75% of the line; the company name truncates first.
               // An inert badge (a rating chip) lets taps fall through to open.
-              <Box
-                sx={{
-                  position: 'relative',
-                  zIndex: 1,
-                  flex: '0 0 auto',
-                  maxWidth: '75%',
-                  minWidth: 0,
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  pointerEvents: 'none',
-                  '& .MuiChip-root': { maxWidth: '100%' },
-                  '& button, & a, & [role="button"]': { pointerEvents: 'auto' },
-                }}
+              <div
+                style={{ minWidth: 0 }}
+                onClick={onSlotClick}
+                className={cn(OVERLAY_SLOT, 'max-w-[75%] flex-none overflow-hidden [&>*]:max-w-full')}
               >
                 {badge}
-              </Box>
+              </div>
             ) : null}
             {row.company_name ? (
-              <Typography noWrap sx={{ fontSize: '12px', color: 'text.secondary', minWidth: 0 }}>{row.company_name}</Typography>
+              <p className="min-w-0 truncate text-xs text-muted-foreground">{row.company_name}</p>
             ) : null}
-          </Box>
+          </div>
         ) : null}
         {group || sortNote ? (
-          <Typography noWrap sx={{ fontSize: '11px', color: 'text.disabled' }}>
+          <p className="truncate text-[11px] text-muted-foreground">
             {sortNote ? (
-              <Box component="span" data-testid="card-sort-note" sx={{ color: 'text.primary', fontWeight: 600 }}>{sortNote}</Box>
+              <span data-testid="card-sort-note" className="font-semibold text-foreground">{sortNote}</span>
             ) : null}
             {sortNote && group ? ' · ' : ''}
             {group}
-          </Typography>
+          </p>
         ) : null}
-      </Box>
+      </div>
 
-      <Box>
+      <div>
         {row.price_sparkline_data ? (
           <PriceSparkline
             data={row.price_sparkline_data}
@@ -159,30 +118,27 @@ export default function StockRowCard({
             showChange={false}
           />
         ) : null}
-      </Box>
+      </div>
 
-      <Box sx={{ textAlign: 'right' }}>
-        <Typography
-          component="span"
-          sx={{ display: 'inline-block', px: 0.75, borderRadius: 1, bgcolor: 'action.selected', fontSize: '11px', fontWeight: 700 }}
-        >
+      <div className="text-right tabular-nums">
+        <span className="inline-block rounded bg-surface-subtle px-1.5 text-[11px] font-bold">
           {/* An aria-label on a span isn't announced; give screen readers the
               full name as real text and hide the abbreviation from them. */}
           <span aria-hidden="true">{shown.label ? `${shown.label} ` : ''}{shown.value}</span>
-          <Box component="span" sx={visuallyHidden}>{`${shown.name} ${shown.value}`}</Box>
-        </Typography>
-        <Typography sx={{ fontSize: '13px', fontWeight: 600, mt: 0.25 }}>
+          <span className="sr-only">{`${shown.name} ${shown.value}`}</span>
+        </span>
+        <p className="mt-0.5 text-[13px] font-semibold">
           {formatLocalCurrency(row.current_price, row.currency)}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: '11.5px',
-            color: hasChange && change > 0 ? 'success.main' : hasChange && change < 0 ? 'error.main' : 'text.secondary',
-          }}
+        </p>
+        <p
+          className={cn(
+            'text-[11.5px]',
+            hasChange && change > 0 ? 'text-gain' : hasChange && change < 0 ? 'text-loss' : 'text-muted-foreground',
+          )}
         >
           {hasChange ? `${change > 0 ? '+' : ''}${change.toFixed(1)}%` : '-'}
-        </Typography>
-      </Box>
-    </Box>
+        </p>
+      </div>
+    </div>
   );
 }

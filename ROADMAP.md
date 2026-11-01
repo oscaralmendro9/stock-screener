@@ -65,8 +65,8 @@ Open:
 - [~] Key-market cards keep their sparklines (Taste bans sparklines on KPIs): here the index trend is the content, as on Finviz
 
 ## Phase 4 — Page migration
-- [~] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables and top groups on Tailwind. Still MUI inside it: `PriceSparkline`, `RSSparkline`, `ActionStateBadge`, `StockRowCard`, the chart modal and the evidence drawer
-- [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. Still MUI: the scan control bar, presets menu, multi-selects and the static site's `FilterPanel`
+- [x] Daily: snapshot tab, key-market cards, market health, correction survivors, scan-row tables, top groups and the phone `StockRowCard` (taps on inert badges are forwarded to open the card instead of relying on `pointer-events`) on Tailwind
+- [~] Scan, Finviz-style: filter grid with preset buckets and category tabs (`features/scan/screener/`), view tabs (Overview, Growth, Technical, Setups, Scores) on a compact paged table; "All columns" and phones keep `ResultsTable`. The scan control bar (native selects with placeholders, `aria-pressed` strategy toggles, labelled custom-filter inputs, `ui/notice` errors, `ScanProgress` as an ARIA progress bar) is on Tailwind. Still MUI: presets menu, multi-selects and the static site's `FilterPanel`
 - [~] Stock detail: the page body is on Tailwind (collapsible `<details>` sections, badges, peers table, lookback toggle, skeleton, notices). Still MUI inside it: `QueryErrorAlert`. `AddToWatchlistMenu` is now a Radix popover with menu semantics, rendered without a portal so it also works inside the remaining MUI modals
 - [x] Breadth: page, context strip, history table, chart (theme tokens, `aria-pressed` range toggle, day ticks on short ranges), formula toggletips (`ui/popover`, open on hover, tap or keyboard) and the contributor dialog (Radix) on Tailwind. The static site's `StaticBreadthPage` shell stays MUI
 - [~] Groups: page, view tabs (shared with the static site), movers, rankings table (RS tints from tokens, `aria-sort` headers) and the group detail dialog (Radix, rank chart on tokens) on Tailwind; shared `ui/notice`. Still MUI: `RRGChart`, the matrix panel, `GroupChartsGrid` and the price/RS sparklines inside the dialog
@@ -78,7 +78,7 @@ Open:
 - [x] Shared bits: `PriceSparkline`, `RSSparkline` (native title + `role="img"` label instead of MUI tooltips, token colours), `ActionStateBadge` (a button only when it opens evidence), `PriceChangeBar`, `QueryErrorAlert` (on `ui/notice`)
 - [x] `OpportunityEvidenceDrawer` on `ui/sheet` (tests only so far: this install has no opportunity-state evidence to open)
 - [~] Operations: page (hash-driven ARIA tabs with arrow/Home/End keys, job console with native filters, progress bars, lease cards, queue/worker/alert tables, confirm dialogs on `ui/dialog`), `MarketCoverage`, `ThemeSourceHealth`, `InactiveMarkets` and `SchedulesSection` (per-market chips open Radix popovers, Run confirms on `ui/dialog`, tones exposed as `data-tone`/`data-variant`) on Tailwind. Still MUI: the social-signal health panel and the exposure research workspace (both features off in this install)
-- [ ] The rest (Themes, assistant, static shells, scan control bar, Daily leftovers, Groups RRG/matrix)
+- [ ] The rest (Themes, assistant, static shells, scan presets and multi-selects, Groups RRG/matrix)
 - [ ] Remove MUI and enable Tailwind preflight
 
 ## Phase 5 — Paid data (optional)

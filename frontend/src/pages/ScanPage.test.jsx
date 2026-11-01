@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
@@ -148,11 +148,10 @@ describe('ScanPage', () => {
   });
 
   const pickWatchlist = async (user, name) => {
-    await user.click(await screen.findByRole('combobox', { name: 'Market' }));
-    await user.click(await screen.findByRole('option', { name: 'Watchlist' }));
-    await user.click(await screen.findByRole('combobox', { name: 'Watchlist' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Market' }), 'Watchlist');
+    const watchlist = await screen.findByRole('combobox', { name: 'Watchlist' });
     if (name) {
-      await user.click(await screen.findByRole('option', { name }));
+      await user.selectOptions(watchlist, await screen.findByRole('option', { name }));
     }
   };
 
@@ -191,14 +190,14 @@ describe('ScanPage', () => {
     const { queryClient } = renderWithProviders(<ScanPage />);
     await pickWatchlist(user, 'Leaders');
     expect(await screen.findByText('1 stocks')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Watchlist' })).toHaveTextContent('Leaders');
+    expect(screen.getByRole('combobox', { name: 'Watchlist' })).toHaveDisplayValue(/Leaders/);
 
     watchlistApi.getWatchlists.mockResolvedValue({ watchlists: [{ id: 8, name: 'Laggards' }], total: 1 });
     await act(() => queryClient.invalidateQueries({ queryKey: ['userWatchlists'] }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Scan' })).toBeDisabled());
     expect(screen.getByText('...')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Watchlist' })).not.toHaveTextContent('Leaders');
+    expect(screen.getByRole('combobox', { name: 'Watchlist' })).not.toHaveDisplayValue(/Leaders/);
   });
 
   it.each([
@@ -212,8 +211,7 @@ describe('ScanPage', () => {
     renderWithProviders(<ScanPage />);
     await pickWatchlist(user);
 
-    expect(await screen.findByRole('option', { name: hint })).toHaveAttribute('aria-disabled', 'true');
-    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('option', { name: hint })).toBeDisabled();
     expect(await screen.findByRole('button', { name: 'Scan' })).toBeDisabled();
   });
 
@@ -522,9 +520,9 @@ describe('ScanPage', () => {
       page: { number: 1, size: 50 },
     });
 
-    await user.click(screen.getByRole('combobox', { name: 'Previous Scans' }));
-    const scanOptions = await screen.findAllByRole('option');
-    await user.click(scanOptions.at(-1));
+    const previousScans = screen.getByRole('combobox', { name: 'Previous Scans' });
+    const scanOptions = within(previousScans).getAllByRole('option');
+    await user.selectOptions(previousScans, scanOptions.at(-1));
     await waitFor(() => {
       expect(scanApi.queryScanResults.mock.calls.some(
         ([scanId, request]) => (
@@ -746,8 +744,7 @@ describe('ScanPage', () => {
 
     expect(await screen.findByText(STALE_TAIL_WARNING.message)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: 'Previous Scans' }));
-    await user.click(await screen.findByRole('option', { name: 'New Scan' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Previous Scans' }), 'New Scan');
 
     await waitFor(() => {
       expect(screen.queryByText(STALE_TAIL_WARNING.message)).not.toBeInTheDocument();
@@ -894,13 +891,8 @@ describe('ScanPage', () => {
       const { queryClient } = renderWithProviders(<ScanPage />);
 
       await historyHolds(queryClient, [WATCHLIST_SCAN]);
-      fireEvent.mouseDown(await screen.findByLabelText('Previous Scans'));
-      const option = await waitFor(() => {
-        const element = document.querySelector('[role="option"][data-value="watchlist-scan"]');
-        expect(element).not.toBeNull();
-        return element;
-      });
-      fireEvent.click(option);
+      await waitFor(() => expect(document.querySelector('option[value="watchlist-scan"]')).not.toBeNull());
+      fireEvent.change(await screen.findByLabelText('Previous Scans'), { target: { value: 'watchlist-scan' } });
       await waitFor(() => expect(scanApi.getScanStatus).toHaveBeenCalledWith('watchlist-scan'));
 
       await act(async () => {
@@ -956,13 +948,8 @@ describe('ScanPage', () => {
         const { queryClient, rerender } = renderWithProviders(<ScanPage />);
 
         await historyHolds(queryClient, [WATCHLIST_SCAN]);
-        fireEvent.mouseDown(await screen.findByLabelText('Previous Scans'));
-        const option = await waitFor(() => {
-          const element = document.querySelector('[role="option"][data-value="watchlist-scan"]');
-          expect(element).not.toBeNull();
-          return element;
-        });
-        fireEvent.click(option);
+        await waitFor(() => expect(document.querySelector('option[value="watchlist-scan"]')).not.toBeNull());
+        fireEvent.change(await screen.findByLabelText('Previous Scans'), { target: { value: 'watchlist-scan' } });
         await waitFor(() => expect(scanApi.getScanStatus).toHaveBeenCalledWith('watchlist-scan'));
 
         await switchMarket(rerender, 'HK');
@@ -1014,7 +1001,6 @@ describe('ScanPage', () => {
   });
 
   it('disables scan creation with a hover warning when prices refresh is active for the selected market', async () => {
-    const user = userEvent.setup();
     runtimeState.runtimeReady = true;
     runtimeState.scanDefaults = {
       ...DEFAULT_SCAN_DEFAULTS,
@@ -1046,11 +1032,7 @@ describe('ScanPage', () => {
     const scanButton = await screen.findByRole('button', { name: 'Scan' });
     expect(scanButton).toBeDisabled();
 
-    await user.hover(scanButton.parentElement);
-
-    expect(
-      await screen.findByText('US price refresh is running. Wait for it to finish before starting a scan.')
-    ).toBeInTheDocument();
+    expect(scanButton.parentElement).toHaveAttribute('title', 'US price refresh is running. Wait for it to finish before starting a scan.');
   });
 
   it('adds keyboard focus semantics to the disabled scan control wrapper when refresh is blocked', async () => {
@@ -1091,7 +1073,6 @@ describe('ScanPage', () => {
   });
 
   it('disables scan creation with a hover warning when fundamentals refresh is active for the selected market', async () => {
-    const user = userEvent.setup();
     runtimeState.runtimeReady = true;
     runtimeState.scanDefaults = {
       ...DEFAULT_SCAN_DEFAULTS,
@@ -1123,11 +1104,7 @@ describe('ScanPage', () => {
     const scanButton = await screen.findByRole('button', { name: 'Scan' });
     expect(scanButton).toBeDisabled();
 
-    await user.hover(scanButton.parentElement);
-
-    expect(
-      await screen.findByText('US fundamentals refresh is queued. Wait for it to finish before starting a scan.')
-    ).toBeInTheDocument();
+    expect(scanButton.parentElement).toHaveAttribute('title', 'US fundamentals refresh is queued. Wait for it to finish before starting a scan.');
   });
 
   it('shows the backend market-refresh conflict message if a scan request loses the polling race', async () => {
@@ -1208,8 +1185,7 @@ describe('ScanPage', () => {
 
     renderWithProviders(<ScanPage />);
 
-    await user.click(await screen.findByRole('combobox', { name: 'Universe' }));
-    await user.click(await screen.findByRole('option', { name: 'Main Board' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Universe' }), 'Main Board');
     await user.click(screen.getByRole('button', { name: 'Scan' }));
 
     await waitFor(() => {
@@ -1228,7 +1204,6 @@ describe('ScanPage', () => {
   });
 
   it('disables non-enabled markets from runtime capability options', async () => {
-    const user = userEvent.setup();
     runtimeState.runtimeReady = true;
     runtimeState.universeOptions = {
       markets: [
@@ -1263,16 +1238,10 @@ describe('ScanPage', () => {
 
     renderWithProviders(<ScanPage />);
 
-    await user.click(await screen.findByRole('combobox', { name: 'Market' }));
+    await screen.findByRole('combobox', { name: 'Market' });
 
-    expect(await screen.findByRole('option', { name: 'United States' })).not.toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(await screen.findByRole('option', { name: /Hong Kong/ })).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
+    expect(await screen.findByRole('option', { name: 'United States' })).not.toBeDisabled();
+    expect(await screen.findByRole('option', { name: /Hong Kong/ })).toBeDisabled();
   });
 
   it('lets the user refresh stale market data from a scan failure', async () => {
@@ -1537,13 +1506,8 @@ describe('ScanPage', () => {
       // slow enough to time out under a loaded full-suite run.
       openScanSetup();
       fireEvent.click(screen.getByText('Scan', { selector: 'button' }));
-      fireEvent.mouseDown(screen.getByLabelText('Previous Scans'));
-      const scanB = await waitFor(() => {
-        const option = document.querySelector('[role="option"][data-value="scan-b"]');
-        expect(option).not.toBeNull();
-        return option;
-      });
-      fireEvent.click(scanB);
+      await waitFor(() => expect(document.querySelector('option[value="scan-b"]')).not.toBeNull());
+      fireEvent.change(screen.getByLabelText('Previous Scans'), { target: { value: 'scan-b' } });
       await waitFor(() => expect(scanApi.getScanStatus).toHaveBeenCalledWith('scan-b'));
 
       await act(async () => {
@@ -1636,7 +1600,7 @@ describe('ScanPage', () => {
       expect(screen.queryByText('Use last published data', { selector: 'button' })).not.toBeInTheDocument();
 
       // Clearing the custom symbols makes it a market-wide request.
-      fireEvent.click(screen.getByTestId('CancelIcon'));
+      fireEvent.click(screen.getByRole('button', { name: 'Clear social selection' }));
 
       expect(await screen.findByText('Use last published data', { selector: 'button' }, { timeout: 3000 })).toBeEnabled();
     });
@@ -1658,7 +1622,7 @@ describe('ScanPage', () => {
       ).toBeEnabled();
 
       // A different universe was never found stale, so a normal scan is the answer.
-      fireEvent.click(screen.getByTestId('CancelIcon'));
+      fireEvent.click(screen.getByRole('button', { name: 'Clear social selection' }));
 
       await waitFor(() => {
         expect(screen.queryByText('Use last published data', { selector: 'button' })).not.toBeInTheDocument();
