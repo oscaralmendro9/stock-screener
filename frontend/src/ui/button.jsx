@@ -12,7 +12,9 @@ const buttonVariants = cva(
       variant: {
         primary: 'bg-accent text-accent-foreground hover:bg-accent/90',
         secondary: 'border border-border bg-surface text-foreground hover:bg-surface-subtle',
-        ghost: 'text-foreground hover:bg-surface-subtle',
+        // Transparent border colour (no width) so a switch to secondary fades the
+        // border in instead of flashing preflight's currentColor default.
+        ghost: 'border-transparent text-foreground hover:bg-surface-subtle',
         destructive: 'bg-loss text-loss-foreground hover:bg-loss/90',
       },
       // md and icon meet the 44px touch target on phones; sm is desktop-dense.

@@ -8,7 +8,9 @@ import { breadthMetricDefinitions } from './breadthMetricDefinitions';
 
 
 // Toggletip: opens on mouse hover, on click/tap and from the keyboard, so the
-// formula is reachable on phones where hover does not exist.
+// formula is reachable on phones where hover does not exist. The trigger's
+// ::after pad grows its tap target to at least 24px (WCAG 2.5.8) without
+// moving the icon or the label beside it.
 function BreadthMetricTooltip({ metric, compact = false }) {
   const [open, setOpen] = useState(false);
   const definition = breadthMetricDefinitions[metric];
@@ -25,7 +27,7 @@ function BreadthMetricTooltip({ metric, compact = false }) {
         onPointerEnter={hover(true)}
         onPointerLeave={hover(false)}
         className={cn(
-          'ml-0.5 inline-grid shrink-0 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+          "relative ml-0.5 inline-grid shrink-0 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-1 after:content-[''] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
           compact ? 'size-4' : 'size-5',
         )}
       >
