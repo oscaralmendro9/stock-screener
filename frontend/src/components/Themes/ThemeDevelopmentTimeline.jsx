@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Notice } from '@/ui/notice';
 import { getThemeDevelopments } from '../../api/themes';
-import { Pill, linkClass } from '../../features/themes/themeUi';
+import { Pill } from '../../features/themes/themeUi';
+import { linkClass } from '../../features/themes/themeClasses';
 
 const labels = { new_event: 'New event', repeated_coverage: 'Repeated coverage', material_update: 'Substantive update', contradiction: 'Conflicting report', additional_detail: 'Additional detail', uncertain: 'Event identity uncertain' };
 function safeUrl(url) {

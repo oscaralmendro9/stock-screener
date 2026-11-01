@@ -10,9 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { getL1Rankings, getL1Children } from '../../api/themes';
-import {
-  Pager, Pill, ScoreBar, SignedPercent, SortHeader, Spinner, tdClass, thClass,
-} from '../../features/themes/themeUi';
+import { Pager, Pill, ScoreBar, SignedPercent, SortHeader, Spinner } from '../../features/themes/themeUi';
+import { tdClass, thClass } from '../../features/themes/themeClasses';
 
 const SORTABLE_COLUMNS = [
   { id: 'display_name', label: 'Theme Group', align: 'left' },

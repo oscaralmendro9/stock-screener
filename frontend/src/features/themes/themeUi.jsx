@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { thClass } from './themeClasses';
 
 // Small Tailwind building blocks shared by the Themes screens, so each one
 // does not restate the same field, pill and tab markup.
@@ -108,12 +109,6 @@ export function TabBar({ tabs, value, onChange, label, className }) {
     </div>
   );
 }
-
-export const linkClass = 'text-accent no-underline hover:underline';
-
-const TH_BASE = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold whitespace-nowrap text-muted-foreground';
-export const thClass = (align = 'left') => cn(TH_BASE, align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left');
-export const tdClass = 'border-b border-border px-2 py-1.5';
 
 // Column header that sorts on click and reports it through aria-sort.
 export function SortHeader({ label, active, order, onSort, align = 'left', title }) {
