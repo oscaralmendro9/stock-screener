@@ -188,15 +188,12 @@ describe('StaticGroupsPage', () => {
       'neutral',
       'down-strong',
     ]);
-    // Translucent success/error tints from MUI's default theme (success #2e7d32,
-    // error #d32f2f): strong deeper than soft, neutral untinted.
-    const tint = (cell) => getComputedStyle(cell).backgroundColor;
-    const opacity = (cell) => Number(tint(cell).match(/, ([\d.]+)\)$/)[1]);
-    expect(tint(leaderCells[2])).toMatch(/^rgba\(46, 125, 50, /);
-    expect(tint(leaderCells[4])).toMatch(/^rgba\(46, 125, 50, /);
-    expect(opacity(leaderCells[2])).toBeGreaterThan(opacity(leaderCells[4]));
-    expect(tint(leaderCells[5])).toBe('rgba(0, 0, 0, 0)');
-    expect(tint(laggardCells[2])).toMatch(/^rgba\(211, 47, 47, /);
+    // Translucent gain/loss tints (Tailwind classes, as on the live table):
+    // strong deeper than soft, neutral untinted.
+    expect(leaderCells[2].className).toMatch(/\bbg-gain\/40\b/);
+    expect(leaderCells[4].className).toMatch(/\bbg-gain\/20\b/);
+    expect(leaderCells[5].className).not.toMatch(/\bbg-(gain|loss)\//);
+    expect(laggardCells[2].className).toMatch(/\bbg-loss\/35\b/);
   });
 
   it('sorts static group rankings by RS columns', async () => {
