@@ -1,29 +1,5 @@
-import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Chip,
-  Collapse,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Tooltip,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { Fragment, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -36,11 +12,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 
-// Palette keys for sx; the Recharts marks resolve them via useTheme().
-const UP_COLOR = 'success.main';
-const DOWN_COLOR = 'error.main';
+// Theme tokens: CSS classes for the table, CSS variables for the Recharts marks.
 const NO_GROUP_LABEL = 'No Group';
+const AXIS_TICK = { fontSize: 11, fill: 'var(--muted-foreground)' };
 
 const formatPct = (value) => {
   if (value == null || Number.isNaN(value)) return '-';
@@ -49,127 +27,68 @@ const formatPct = (value) => {
 };
 
 const totalActivity = (row) => (row?.up_count ?? 0) + (row?.down_count ?? 0);
+const netTone = (net) => (net > 0 ? 'text-gain' : net < 0 ? 'text-loss' : 'text-foreground');
 
-function StockList({ title, stocks, color }) {
+function StockList({ title, stocks, tone }) {
   if (!stocks || stocks.length === 0) {
     return null;
   }
   return (
-    <Box sx={{ flex: 1, minWidth: 220 }}>
-      <Typography
-        variant="caption"
-        sx={{
-          fontSize: '10px',
-          fontWeight: 600,
-          color,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-        }}
-      >
+    <div className="min-w-[220px] flex-1">
+      <p className={cn('text-[11px] font-semibold tracking-wide uppercase', tone)}>
         {title} ({stocks.length})
-      </Typography>
-      <Table size="small" sx={{ mt: 0.5 }}>
-        <TableBody>
+      </p>
+      <table className="mt-1 w-full text-xs">
+        <tbody>
           {stocks.map((stock) => (
-            <TableRow key={stock.symbol}>
-              <TableCell sx={{ py: 0.25, fontFamily: 'monospace', fontWeight: 600, width: 70 }}>
-                {stock.symbol}
-              </TableCell>
-              <TableCell sx={{ py: 0.25, fontSize: '11px', color: 'text.secondary' }}>
-                {stock.name || ''}
-              </TableCell>
-              <TableCell
-                align="right"
-                sx={{ py: 0.25, fontFamily: 'monospace', color, fontWeight: 600, width: 80 }}
-              >
-                {formatPct(stock.pct_change)}
-              </TableCell>
-              <TableCell
-                align="right"
-                sx={{ py: 0.25, fontFamily: 'monospace', color: 'text.secondary', width: 70 }}
-              >
+            <tr key={stock.symbol} className="border-b border-border">
+              <td className="w-[70px] py-0.5 font-semibold">{stock.symbol}</td>
+              <td className="py-0.5 text-[11px] text-muted-foreground">{stock.name || ''}</td>
+              <td className={cn('w-20 py-0.5 text-right font-semibold tabular-nums', tone)}>{formatPct(stock.pct_change)}</td>
+              <td className="w-[70px] py-0.5 text-right text-muted-foreground tabular-nums">
                 {stock.close != null ? `$${stock.close.toFixed(2)}` : '-'}
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
-    </Box>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 function SplitBar({ upCount, downCount }) {
   const total = upCount + downCount;
-  const tooltip = `${upCount} up, ${downCount} down`;
+  const label = `${upCount} up, ${downCount} down`;
   return (
-    <Tooltip title={tooltip} arrow placement="top">
-      <Box
-        role="img"
-        aria-label={tooltip}
-        sx={{
-          display: 'flex',
-          width: 80,
-          height: 8,
-          borderRadius: 0.5,
-          overflow: 'hidden',
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: total === 0 ? 'action.disabledBackground' : 'transparent',
-        }}
-      >
-        {upCount > 0 && (
-          <Box sx={{ flex: upCount, bgcolor: UP_COLOR }} />
-        )}
-        {downCount > 0 && (
-          <Box sx={{ flex: downCount, bgcolor: DOWN_COLOR }} />
-        )}
-      </Box>
-    </Tooltip>
+    <div
+      role="img"
+      aria-label={label}
+      title={label}
+      className={cn('flex h-2 w-20 overflow-hidden rounded-sm border border-border', total === 0 && 'bg-surface-subtle')}
+    >
+      {upCount > 0 && <div className="bg-gain" style={{ flex: upCount }} />}
+      {downCount > 0 && <div className="bg-loss" style={{ flex: downCount }} />}
+    </div>
   );
 }
 
 function NetTrendSparkline({ data }) {
-  const { palette } = useTheme();
   const latestNet = data?.length ? data[data.length - 1].net : 0;
-  const stroke = latestNet > 0 ? palette.success.main : latestNet < 0 ? palette.error.main : palette.text.disabled;
+  const stroke = latestNet > 0 ? 'var(--gain)' : latestNet < 0 ? 'var(--loss)' : 'var(--disabled-foreground)';
 
   if (!data || data.length === 0) {
-    return (
-      <Box
-        sx={{
-          width: 80,
-          height: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'text.disabled',
-          fontSize: 10,
-        }}
-      >
-        -
-      </Box>
-    );
+    return <div className="flex h-6 w-20 items-center justify-center text-[11px] text-disabled-foreground">-</div>;
   }
 
   return (
-    <Box
-      data-testid="net-trend-sparkline"
-      sx={{ width: 80, height: 24 }}
-    >
+    <div data-testid="net-trend-sparkline" className="h-6 w-20">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
-          <ReferenceLine y={0} stroke={palette.text.disabled} strokeWidth={0.5} />
-          <Line
-            type="monotone"
-            dataKey="net"
-            stroke={stroke}
-            strokeWidth={1.5}
-            dot={false}
-            isAnimationActive={false}
-          />
+          <ReferenceLine y={0} stroke="var(--disabled-foreground)" strokeWidth={0.5} />
+          <Line type="monotone" dataKey="net" stroke={stroke} strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
-    </Box>
+    </div>
   );
 }
 
@@ -179,29 +98,16 @@ function HeroBarChartTooltip({ active, payload }) {
   }
   const entry = payload[0].payload;
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        px: 1.5,
-        py: 1,
-        fontSize: 11,
-        fontFamily: 'monospace',
-        border: '1px solid',
-        borderColor: 'divider',
-      }}
-    >
-      <Typography sx={{ fontSize: 11, fontWeight: 700, mb: 0.5 }}>{entry.group}</Typography>
-      <Box sx={{ color: UP_COLOR }}>Up 4%+: {entry.up_count}</Box>
-      <Box sx={{ color: DOWN_COLOR }}>Down 4%+: {entry.down_count}</Box>
-      <Box sx={{ color: entry.net >= 0 ? UP_COLOR : DOWN_COLOR }}>
-        Net: {entry.net > 0 ? `+${entry.net}` : entry.net}
-      </Box>
-    </Paper>
+    <div className="tw rounded-md border border-border bg-surface px-3 py-2 text-[11px] text-foreground shadow-md tabular-nums">
+      <p className="mb-1 font-bold">{entry.group}</p>
+      <p className="text-gain">Up 4%+: {entry.up_count}</p>
+      <p className="text-loss">Down 4%+: {entry.down_count}</p>
+      <p className={netTone(entry.net)}>Net: {entry.net > 0 ? `+${entry.net}` : entry.net}</p>
+    </div>
   );
 }
 
 function GroupActivityBarChart({ topGroups, date }) {
-  const { palette } = useTheme();
   if (!topGroups.length) {
     return null;
   }
@@ -210,131 +116,83 @@ function GroupActivityBarChart({ topGroups, date }) {
   const chartHeight = Math.max(180, topGroups.length * 26 + 40);
 
   return (
-    <Paper
-      elevation={0}
-      data-testid="group-activity-hero-chart"
-      sx={{ border: '1px solid', borderColor: 'divider', p: 1.5, mb: 1.5 }}
-    >
-      <Typography
-        variant="caption"
-        sx={{
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          color: 'text.secondary',
-          display: 'block',
-          mb: 0.5,
-        }}
-      >
+    <section data-testid="group-activity-hero-chart" className="mb-3 rounded-lg border border-border p-3">
+      <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
         Top {topGroups.length} groups driving breadth · {date}
-      </Typography>
-      <Box sx={{ width: '100%', height: chartHeight }}>
+      </h3>
+      <div className="w-full" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={topGroups}
-            layout="vertical"
-            margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
-            barCategoryGap={4}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke={palette.divider} horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-            <YAxis
-              type="category"
-              dataKey="group"
-              tick={{ fontSize: 10 }}
-              width={170}
-              interval={0}
-            />
-            <RechartsTooltip content={<HeroBarChartTooltip />} cursor={{ fill: palette.action.hover }} />
-            <Bar dataKey="up_count" stackId="activity" fill={palette.success.main} />
-            <Bar dataKey="down_count" stackId="activity" fill={palette.error.main} />
+          <BarChart data={topGroups} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={4}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+            <XAxis type="number" tick={AXIS_TICK} allowDecimals={false} />
+            <YAxis type="category" dataKey="group" tick={AXIS_TICK} width={170} interval={0} />
+            <RechartsTooltip content={<HeroBarChartTooltip />} cursor={{ fill: 'var(--surface-subtle)' }} />
+            <Bar dataKey="up_count" stackId="activity" fill="var(--gain)" />
+            <Bar dataKey="down_count" stackId="activity" fill="var(--loss)" />
           </BarChart>
         </ResponsiveContainer>
-      </Box>
-    </Paper>
+      </div>
+    </section>
   );
 }
 
+const TD = 'border-b border-border px-2 py-1';
+
 function GroupRow({ row, maxAbsNet, trendData }) {
-  const { palette } = useTheme();
   const [open, setOpen] = useState(false);
   const total = totalActivity(row);
   const toggle = () => setOpen((prev) => !prev);
+  const Chevron = open ? ChevronUp : ChevronDown;
 
   const netIntensity = maxAbsNet > 0 ? Math.min(Math.abs(row.net) / maxAbsNet, 1) : 0;
-  const netBgColor =
-    row.net > 0
-      ? alpha(palette.success.main, netIntensity * 0.32)
-      : row.net < 0
-        ? alpha(palette.error.main, netIntensity * 0.32)
-        : 'transparent';
+  const netMix = Math.round(netIntensity * 32);
+  const netBgColor = row.net > 0
+    ? `color-mix(in srgb, var(--gain) ${netMix}%, transparent)`
+    : row.net < 0
+      ? `color-mix(in srgb, var(--loss) ${netMix}%, transparent)`
+      : 'transparent';
 
   return (
     <>
-      <TableRow
-        hover
-        onClick={toggle}
-        sx={{ cursor: 'pointer', '& > *': { borderBottom: 'unset', py: 0 } }}
-      >
-        <TableCell sx={{ width: 32 }}>
-          <IconButton
-            size="small"
-            sx={{ p: 0 }}
+      <tr onClick={toggle} className="cursor-pointer hover:bg-surface-subtle">
+        <td className={cn(TD, 'w-8')}>
+          <button
+            type="button"
             aria-label={open ? `Collapse ${row.group}` : `Expand ${row.group}`}
             aria-expanded={open}
             onClick={(event) => {
               event.stopPropagation();
               toggle();
             }}
+            className="grid size-7 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
-        </TableCell>
-        <TableCell sx={{ fontWeight: 600 }}>{row.group}</TableCell>
-        <TableCell sx={{ width: 96 }}>
+            <Chevron aria-hidden="true" className="size-4" />
+          </button>
+        </td>
+        <td className={cn(TD, 'font-semibold')}>{row.group}</td>
+        <td className={cn(TD, 'w-24')}>
           <SplitBar upCount={row.up_count} downCount={row.down_count} />
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{ fontFamily: 'monospace', color: 'success.main', fontWeight: 600 }}
-        >
-          {row.up_count}
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{ fontFamily: 'monospace', color: 'error.main', fontWeight: 600 }}
-        >
-          {row.down_count}
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{
-            fontFamily: 'monospace',
-            fontWeight: 700,
-            color: row.net > 0 ? 'success.main' : row.net < 0 ? 'error.main' : 'text.primary',
-            backgroundColor: netBgColor,
-          }}
-        >
+        </td>
+        <td className={cn(TD, 'text-right font-semibold text-gain tabular-nums')}>{row.up_count}</td>
+        <td className={cn(TD, 'text-right font-semibold text-loss tabular-nums')}>{row.down_count}</td>
+        <td className={cn(TD, 'text-right font-bold tabular-nums', netTone(row.net))} style={{ backgroundColor: netBgColor }}>
           {row.net > 0 ? `+${row.net}` : row.net}
-        </TableCell>
-        <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-          {total}
-        </TableCell>
-        <TableCell sx={{ width: 96 }}>
+        </td>
+        <td className={cn(TD, 'text-right tabular-nums')}>{total}</td>
+        <td className={cn(TD, 'w-24')}>
           <NetTrendSparkline data={trendData} />
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell sx={{ py: 0, borderBottom: open ? undefined : 'none' }} colSpan={8}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', py: 1, px: 4 }}>
-              <StockList title="Up 4%+" stocks={row.up_stocks} color="success.main" />
-              <StockList title="Down 4%+" stocks={row.down_stocks} color="error.main" />
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+        </td>
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan={8} className="border-b border-border">
+            <div className="flex flex-wrap gap-4 px-8 py-2">
+              <StockList title="Up 4%+" stocks={row.up_stocks} tone="text-gain" />
+              <StockList title="Down 4%+" stocks={row.down_stocks} tone="text-loss" />
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -442,124 +300,102 @@ function BreadthGroupAttribution({ attribution }) {
 
   if (!attribution || attribution.available === false) {
     return (
-      <Alert severity="info" sx={{ fontSize: '12px' }}>
+      <Notice className="tw text-xs">
         {attribution?.reason || 'Group attribution is not available for this market yet.'}
-      </Alert>
+      </Notice>
     );
   }
 
   if (!selectedDay) {
     return (
-      <Alert severity="info" sx={{ fontSize: '12px' }}>
+      <Notice className="tw text-xs">
         No 4%+ movers were attributed for the lookback window.
-      </Alert>
+      </Notice>
     );
   }
 
   const hasGroups = sortedGroups.length > 0;
 
-  const sortableHeader = (column, label, align = 'left') => (
-    <TableCell align={align}>
-      <TableSortLabel
-        active={orderBy === column}
-        direction={orderBy === column ? order : 'asc'}
-        onClick={() => handleSort(column)}
+  const sortableHeader = (column, label, align = 'left') => {
+    const active = orderBy === column;
+    const Arrow = active && order === 'desc' ? ArrowDown : ArrowUp;
+    return (
+      <th
+        scope="col"
+        aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : undefined}
+        className={cn('sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold text-muted-foreground', align === 'right' ? 'text-right' : 'text-left')}
       >
-        {label}
-      </TableSortLabel>
-    </TableCell>
+        <button
+          type="button"
+          onClick={() => handleSort(column)}
+          className={cn('group inline-flex cursor-pointer items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring', active && 'text-foreground')}
+        >
+          {label}
+          <Arrow aria-hidden="true" className={cn('size-3', active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40')} />
+        </button>
+      </th>
+    );
+  };
+  const plainHeader = (label, width) => (
+    <th scope="col" className={cn('sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-left text-xs font-semibold text-muted-foreground', width)}>
+      {label}
+    </th>
   );
 
   return (
-    <Box>
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 1.5,
-          mb: 1.5,
-          justifyContent: 'space-between',
-        }}
-      >
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="breadth-attribution-date-label">Session</InputLabel>
-          <Select
-            labelId="breadth-attribution-date-label"
-            label="Session"
-            value={selectedDay.date}
-            onChange={(event) => setSelectedDate(event.target.value)}
-          >
-            {history.map((day) => (
-              <MenuItem key={day.date} value={day.date}>
-                {day.date}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Chip
-            size="small"
-            label={`Up 4%+: ${selectedDay.stocks_up_4pct}`}
-            sx={{ bgcolor: (theme) => alpha(theme.palette.success.main, 0.16), color: 'success.main', fontWeight: 600 }}
-          />
-          <Chip
-            size="small"
-            label={`Down 4%+: ${selectedDay.stocks_down_4pct}`}
-            sx={{ bgcolor: (theme) => alpha(theme.palette.error.main, 0.16), color: 'error.main', fontWeight: 600 }}
-          />
-          <Chip
-            size="small"
-            label={`Groups: ${(selectedDay.groups || []).length}`}
-            variant="outlined"
-          />
-        </Box>
-      </Box>
+    <div className="tw text-foreground">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <NativeSelect label="Session" value={selectedDay.date} onChange={setSelectedDate} className="w-40">
+          {history.map((day) => (
+            <option key={day.date} value={day.date}>{day.date}</option>
+          ))}
+        </NativeSelect>
+        <div className="flex gap-2 text-xs font-semibold tabular-nums">
+          <span className="inline-flex h-6 items-center rounded-full bg-gain/15 px-2 text-gain">{`Up 4%+: ${selectedDay.stocks_up_4pct}`}</span>
+          <span className="inline-flex h-6 items-center rounded-full bg-loss/15 px-2 text-loss">{`Down 4%+: ${selectedDay.stocks_down_4pct}`}</span>
+          <span className="inline-flex h-6 items-center rounded-full border border-border px-2 font-normal">{`Groups: ${(selectedDay.groups || []).length}`}</span>
+        </div>
+      </div>
 
       {hasGroups ? (
         <>
           <GroupActivityBarChart topGroups={topGroups} date={selectedDay.date} />
 
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <TableContainer sx={{ maxHeight: 'calc(100vh - 320px)' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ width: 32 }} />
-                    {sortableHeader('group', 'IBD Industry Group')}
-                    <TableCell sx={{ width: 96 }}>Split</TableCell>
-                    {sortableHeader('up', 'Up 4%+', 'right')}
-                    {sortableHeader('down', 'Down 4%+', 'right')}
-                    {sortableHeader('net', 'Net', 'right')}
-                    {sortableHeader('total', 'Total', 'right')}
-                    <TableCell sx={{ width: 96 }}>10-day Net</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedGroups.map((row) => (
-                    <GroupRow
-                      key={row.group}
-                      row={row}
-                      maxAbsNet={maxAbsNet}
-                      trendData={groupTrendMap.get(row.group)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          <div className="max-h-[calc(100vh-320px)] overflow-auto rounded-lg border border-border">
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  {plainHeader(<span className="sr-only">Expand</span>, 'w-8')}
+                  {sortableHeader('group', 'IBD Industry Group')}
+                  {plainHeader('Split', 'w-24')}
+                  {sortableHeader('up', 'Up 4%+', 'right')}
+                  {sortableHeader('down', 'Down 4%+', 'right')}
+                  {sortableHeader('net', 'Net', 'right')}
+                  {sortableHeader('total', 'Total', 'right')}
+                  {plainHeader('10-day Net', 'w-24')}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedGroups.map((row) => (
+                  <Fragment key={row.group}>
+                    <GroupRow row={row} maxAbsNet={maxAbsNet} trendData={groupTrendMap.get(row.group)} />
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Click a group to expand its 4%+ movers. Stocks without an IBD industry group are
             bucketed under &quot;No Group&quot;.
-          </Typography>
+          </p>
         </>
       ) : (
-        <Alert severity="info" sx={{ fontSize: '12px' }}>
+        <Notice className="text-xs">
           No 4%+ movers were attributed for {selectedDay.date}. Pick another session above to see
           the groups that drove its breadth.
-        </Alert>
+        </Notice>
       )}
-    </Box>
+    </div>
   );
 }
 

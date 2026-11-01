@@ -520,8 +520,7 @@ describe('StaticBreadthPage', () => {
     // The empty-session message is shown but the date picker remains usable.
     expect(await screen.findByText(/No 4%\+ movers were attributed for 2026-05-15/i)).toBeInTheDocument();
     const sessionCombobox = screen.getByRole('combobox', { name: /session/i });
-    fireEvent.mouseDown(sessionCombobox);
-    fireEvent.click(await screen.findByRole('option', { name: '2026-05-14' }));
+    fireEvent.change(sessionCombobox, { target: { value: '2026-05-14' } });
 
     // After switching, the prior session's groups render.
     expect(await screen.findByText('Semiconductors')).toBeInTheDocument();
