@@ -1,53 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Box,
-  Button,
-  IconButton,
-  TextField,
-  InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  TablePagination,
-  Chip,
-  CircularProgress,
-  Typography,
-  Link,
-  Tooltip,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import DownloadIcon from '@mui/icons-material/Download';
-import SearchIcon from '@mui/icons-material/Search';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ArticleIcon from '@mui/icons-material/Article';
+import { Download, ExternalLink, Search } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { cn } from '@/lib/cn';
 import { getContentItems, exportContentItems } from '../../api/themes';
 import TranslatedText from '../common/TranslatedText';
-
-const TITLE_CELL_TEXT_SX = {
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  display: '-webkit-box',
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: 'vertical',
-};
-
-const TITLE_CELL_LINK_TEXT_SX = {
-  ...TITLE_CELL_TEXT_SX,
-  fontWeight: 500,
-  color: 'primary.main',
-};
+import { Pager, Pill, Select, SortHeader, Spinner } from '../../features/themes/themeUi';
+import { linkClass, tdClass, thClass } from '../../features/themes/themeClasses';
 
 function TitleCell({ item }) {
   const originalDisplay =
@@ -56,30 +16,21 @@ function TitleCell({ item }) {
       ? item.content.slice(0, 100) + (item.content.length > 100 ? '...' : '')
       : 'Untitled');
   const titleNode = (
-    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+    <span className="flex items-start">
       <TranslatedText
         originalText={originalDisplay}
         translatedText={item.translated_title || null}
         sourceLanguage={item.source_language}
         translationMetadata={item.translation_metadata}
-        typographySx={item.url ? TITLE_CELL_LINK_TEXT_SX : TITLE_CELL_TEXT_SX}
+        textClassName={cn('line-clamp-2', item.url && 'font-medium text-accent')}
       />
-      {item.url && (
-        <OpenInNewIcon
-          sx={{ fontSize: 12, ml: 0.5, flexShrink: 0, mt: 0.5, color: 'primary.main' }}
-        />
-      )}
-    </Box>
+      {item.url && <ExternalLink aria-hidden="true" className="mt-1 ml-1 size-3 shrink-0 text-accent" />}
+    </span>
   );
   return item.url ? (
-    <Link
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-    >
+    <a href={item.url} target="_blank" rel="noopener noreferrer" className={linkClass}>
       {titleNode}
-    </Link>
+    </a>
   ) : (
     titleNode
   );
@@ -102,26 +53,8 @@ const SENTIMENT_OPTIONS = [
 
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
-const sentimentColors = {
-  bullish: 'success',
-  bearish: 'error',
-  neutral: 'default',
-};
-
-const processingStatusColors = {
-  pending: 'default',
-  in_progress: 'info',
-  processed: 'success',
-  failed_retryable: 'warning',
-  failed_terminal: 'error',
-};
-
-const sourceTypeColors = {
-  substack: '#FF6719',
-  twitter: '#1DA1F2',
-  news: '#6B7280',
-  reddit: '#FF4500',
-};
+const SENTIMENT_TONE = { bullish: 'gain', bearish: 'loss' };
+const PROCESSING_TONE = { processed: 'gain', failed_retryable: 'warning', failed_terminal: 'loss' };
 
 function ArticleBrowserModal({ open, onClose, pipeline }) {
   // State for filters and pagination
@@ -171,15 +104,6 @@ function ArticleBrowserModal({ open, onClose, pipeline }) {
     setPage(0);
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -219,299 +143,131 @@ function ArticleBrowserModal({ open, onClose, pipeline }) {
     });
   };
 
+  const sortHeader = (field, label) => (
+    <SortHeader label={label} active={orderBy === field} order={order} onSort={() => handleSort(field)} />
+  );
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="xl"
-      fullWidth
-      PaperProps={{ sx: { height: '90vh' } }}
-    >
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box display="flex" alignItems="center">
-            <ArticleIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="h6">Browse Articles</Typography>
-            {data && (
-              <Chip
-                label={`${data.total} items`}
-                size="small"
-                sx={{ ml: 2 }}
-              />
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={exporting ? <CircularProgress size={14} /> : <DownloadIcon />}
-              onClick={handleExport}
-              disabled={!data?.total || exporting}
-              sx={{ ml: 2 }}
-            >
-              {exporting ? 'Exporting...' : 'CSV'}
-            </Button>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Browse Articles" size="xl" className="sm:h-[90vh]">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          {data && <Pill tone="muted" className="tabular-nums">{`${data.total} items`}</Pill>}
+          <Button variant="secondary" size="sm" onClick={handleExport} disabled={!data?.total || exporting}>
+            {exporting ? <Spinner label="Exporting" className="size-4" /> : <Download aria-hidden="true" />}
+            {exporting ? 'Exporting...' : 'CSV'}
+          </Button>
+          <label className="relative flex min-w-[280px] flex-col gap-0.5">
+            <span className="sr-only">Search articles</span>
+            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              placeholder="Search title, source, or ticker..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-11 w-full rounded-md border border-border bg-surface pr-2.5 pl-8 font-[inherit] text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-8"
+            />
+          </label>
+          <Select label="Source Type" value={sourceType} onChange={(value) => { setSourceType(value); setPage(0); }} className="w-36">
+            {SOURCE_TYPE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </Select>
+          <Select label="Sentiment" value={sentiment} onChange={(value) => { setSentiment(value); setPage(0); }} className="w-36">
+            {SENTIMENT_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </Select>
+        </div>
 
-      <DialogContent>
-        {/* Filters Row */}
-        <Box display="flex" gap={2} mb={2} flexWrap="wrap">
-          {/* Search */}
-          <TextField
-            size="small"
-            placeholder="Search title, source, or ticker..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 280 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          {/* Source Type Filter */}
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Source Type</InputLabel>
-            <Select
-              value={sourceType}
-              label="Source Type"
-              onChange={(e) => {
-                setSourceType(e.target.value);
-                setPage(0);
-              }}
-            >
-              {SOURCE_TYPE_OPTIONS.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Sentiment Filter */}
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Sentiment</InputLabel>
-            <Select
-              value={sentiment}
-              label="Sentiment"
-              onChange={(e) => {
-                setSentiment(e.target.value);
-                setPage(0);
-              }}
-            >
-              {SENTIMENT_OPTIONS.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Table */}
         {isLoading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-            <CircularProgress />
-          </Box>
+          <div className="flex min-h-[400px] items-center justify-center"><Spinner label="Loading articles" /></div>
         ) : error ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-            <Typography color="error">Error loading articles: {error.message}</Typography>
-          </Box>
+          <div className="flex min-h-[400px] items-center justify-center">
+            <p role="alert" className="text-loss">Error loading articles: {error.message}</p>
+          </div>
         ) : (
           <>
-            <TableContainer sx={{ maxHeight: 'calc(90vh - 280px)' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ minWidth: 250 }}>
-                      <TableSortLabel
-                        active={orderBy === 'title'}
-                        direction={orderBy === 'title' ? order : 'asc'}
-                        onClick={() => handleSort('title')}
-                      >
-                        Title
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>
-                      <TableSortLabel
-                        active={orderBy === 'source_name'}
-                        direction={orderBy === 'source_name' ? order : 'asc'}
-                        onClick={() => handleSort('source_name')}
-                      >
-                        Source
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 80 }}>Type</TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>
-                      <TableSortLabel
-                        active={orderBy === 'published_at'}
-                        direction={orderBy === 'published_at' ? order : 'asc'}
-                        onClick={() => handleSort('published_at')}
-                      >
-                        Published
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 120 }}>Status</TableCell>
-                    <TableCell sx={{ minWidth: 180 }}>Themes</TableCell>
-                    <TableCell sx={{ minWidth: 80 }}>Sentiment</TableCell>
-                    <TableCell sx={{ minWidth: 150 }}>Tickers</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <div className="max-h-[calc(90vh-280px)] overflow-auto">
+              <table className="w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    {sortHeader('title', 'Title')}
+                    {sortHeader('source_name', 'Source')}
+                    <th scope="col" className={cn(thClass(), 'min-w-20')}>Type</th>
+                    {sortHeader('published_at', 'Published')}
+                    <th scope="col" className={cn(thClass(), 'min-w-[120px]')}>Status</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[180px]')}>Themes</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-20')}>Sentiment</th>
+                    <th scope="col" className={cn(thClass(), 'min-w-[150px]')}>Tickers</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {data?.items?.map((item) => (
-                    <TableRow key={item.id} hover>
-                      {/* Title */}
-                      <TableCell>
-                        <Box sx={{ maxWidth: 300 }}>
+                    <tr key={item.id} className="align-top hover:bg-surface-subtle">
+                      <td className={cn(tdClass, 'min-w-[250px]')}>
+                        <div className="max-w-[300px]">
                           <TitleCell item={item} />
-                          {item.author && (
-                            <Typography variant="caption" color="text.secondary">
-                              by {item.author}
-                            </Typography>
-                          )}
-                        </Box>
-                      </TableCell>
-
-                      {/* Source Name */}
-                      <TableCell>
-                        <Typography variant="body2" noWrap sx={{ maxWidth: 120 }}>
-                          {item.source_name || '-'}
-                        </Typography>
-                      </TableCell>
-
-                      {/* Source Type */}
-                      <TableCell>
-                        <Chip
-                          label={item.source_type}
-                          size="small"
-                          sx={{
-                            backgroundColor: sourceTypeColors[item.source_type] || '#6B7280',
-                            color: 'white',
-                            fontSize: '10px',
-                            height: 20,
-                          }}
-                        />
-                      </TableCell>
-
-                      {/* Published Date */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                          {formatDate(item.published_at)}
-                        </Typography>
-                      </TableCell>
-
-                      {/* Processing Status */}
-                      <TableCell>
+                          {item.author && <span className="text-[11px] text-muted-foreground">by {item.author}</span>}
+                        </div>
+                      </td>
+                      <td className={cn(tdClass, 'min-w-[100px]')}><span className="block max-w-[120px] truncate">{item.source_name || '-'}</span></td>
+                      <td className={tdClass}><Pill tone="muted" className="h-5">{item.source_type}</Pill></td>
+                      <td className={cn(tdClass, 'text-[11px] tabular-nums')}>{formatDate(item.published_at)}</td>
+                      <td className={tdClass}>
                         {item.processing_status ? (
-                          <Chip
-                            label={item.processing_status.replaceAll('_', ' ')}
-                            size="small"
-                            color={processingStatusColors[item.processing_status] || 'default'}
-                            sx={{ fontSize: '10px', height: 20, textTransform: 'capitalize' }}
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
-                        )}
-                      </TableCell>
-
-                      {/* Themes */}
-                      <TableCell>
-                        <Box display="flex" gap={0.5} flexWrap="wrap">
+                          <Pill tone={PROCESSING_TONE[item.processing_status] || 'muted'} className="h-5 capitalize">
+                            {item.processing_status.replaceAll('_', ' ')}
+                          </Pill>
+                        ) : <span className="text-muted-foreground">-</span>}
+                      </td>
+                      <td className={tdClass}>
+                        <span className="flex flex-wrap gap-1">
                           {item.themes.slice(0, 3).map((theme) => (
-                            <Tooltip key={theme.id} title={theme.name}>
-                              <Chip
-                                label={theme.name.length > 15 ? `${theme.name.slice(0, 15)}...` : theme.name}
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                                sx={{ fontSize: '10px', height: 20 }}
-                              />
-                            </Tooltip>
+                            <Pill key={theme.id} title={theme.name} className="h-5">
+                              {theme.name.length > 15 ? `${theme.name.slice(0, 15)}...` : theme.name}
+                            </Pill>
                           ))}
                           {item.themes.length > 3 && (
-                            <Tooltip title={item.themes.slice(3).map(t => t.name).join(', ')}>
-                              <Chip
-                                label={`+${item.themes.length - 3}`}
-                                size="small"
-                                sx={{ fontSize: '10px', height: 20 }}
-                              />
-                            </Tooltip>
+                            <Pill tone="muted" className="h-5" title={item.themes.slice(3).map(t => t.name).join(', ')}>
+                              {`+${item.themes.length - 3}`}
+                            </Pill>
                           )}
-                        </Box>
-                      </TableCell>
-
-                      {/* Sentiment */}
-                      <TableCell>
+                        </span>
+                      </td>
+                      <td className={tdClass}>
                         {item.primary_sentiment ? (
-                          <Chip
-                            label={item.primary_sentiment}
-                            size="small"
-                            color={sentimentColors[item.primary_sentiment] || 'default'}
-                            sx={{ fontSize: '10px', height: 20 }}
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
-                        )}
-                      </TableCell>
-
-                      {/* Tickers */}
-                      <TableCell>
-                        <Box display="flex" gap={0.25} flexWrap="wrap">
+                          <Pill tone={SENTIMENT_TONE[item.primary_sentiment] || 'muted'} className="h-5 capitalize">{item.primary_sentiment}</Pill>
+                        ) : <span className="text-muted-foreground">-</span>}
+                      </td>
+                      <td className={tdClass}>
+                        <span className="flex flex-wrap gap-0.5">
                           {item.tickers.slice(0, 4).map((ticker) => (
-                            <Chip
-                              key={ticker}
-                              label={ticker}
-                              size="small"
-                              sx={{
-                                fontSize: '9px',
-                                height: 18,
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
-                              }}
-                            />
+                            <Pill key={ticker} className="h-[18px] font-semibold">{ticker}</Pill>
                           ))}
                           {item.tickers.length > 4 && (
-                            <Tooltip title={item.tickers.slice(4).join(', ')}>
-                              <Chip
-                                label={`+${item.tickers.length - 4}`}
-                                size="small"
-                                sx={{ fontSize: '9px', height: 18 }}
-                              />
-                            </Tooltip>
+                            <Pill tone="muted" className="h-[18px]" title={item.tickers.slice(4).join(', ')}>{`+${item.tickers.length - 4}`}</Pill>
                           )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
+                        </span>
+                      </td>
+                    </tr>
                   ))}
                   {data?.items?.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <Typography color="text.secondary" py={4}>
-                          No articles found matching your filters
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-muted-foreground">No articles found matching your filters</td>
+                    </tr>
                   )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
 
-            {/* Pagination */}
-            <TablePagination
-              component="div"
-              count={data?.total || 0}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-            />
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Rows per page:
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                  className="h-8 cursor-pointer rounded-md border border-border bg-surface px-1.5 font-[inherit] text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {ROWS_PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+              <Pager page={page} pageSize={rowsPerPage} total={data?.total || 0} onPage={setPage} />
+            </div>
           </>
         )}
       </DialogContent>
