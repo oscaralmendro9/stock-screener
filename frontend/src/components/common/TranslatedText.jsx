@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Box, Chip, Collapse, IconButton, Tooltip, Typography } from '@mui/material';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
+import { cn } from '@/lib/cn';
 import { formatConfidence } from '../../utils/formatUtils';
 
 function hasTranslation(translatedText, originalText) {
@@ -27,11 +26,15 @@ function confidenceChipColor(confidence) {
   return 'warning';
 }
 
+const CONFIDENCE_TONE = { success: 'border-gain/50 text-gain', warning: 'border-warning/50 text-warning', default: 'border-border text-muted-foreground' };
+const TEXT_SIZE = { body1: 'text-base', body2: 'text-sm', caption: 'text-[11px]' };
+
 /**
  * Render text that may be a translation of a non-English source, with a
  * language chip, confidence badge, and an expandable "Show original"
  * disclosure. English sources (source_language absent or 'en') render
- * as plain text so the common case stays visually quiet.
+ * as plain text so the common case stays visually quiet. `textClassName`
+ * styles the text lines, `className` the wrapper.
  */
 export default function TranslatedText({
   originalText,
@@ -39,8 +42,8 @@ export default function TranslatedText({
   sourceLanguage,
   translationMetadata,
   variant = 'body2',
-  typographySx,
-  boxSx,
+  textClassName,
+  className,
 }) {
   const [expanded, setExpanded] = useState(false);
   const languageCode = displayLanguageCode(sourceLanguage);
@@ -49,12 +52,13 @@ export default function TranslatedText({
 
   const primaryText = isTranslated ? translatedText : originalText;
   const fallback = primaryText || originalText || '';
+  const textClass = cn(TEXT_SIZE[variant] || 'text-sm', textClassName);
 
   if (!languageCode) {
     return (
-      <Typography variant={variant} sx={typographySx} title={originalText || undefined}>
+      <p className={textClass} title={originalText || undefined}>
         {fallback || '-'}
-      </Typography>
+      </p>
     );
   }
 
@@ -71,73 +75,51 @@ export default function TranslatedText({
     .join(' · ');
 
   return (
-    <Box sx={boxSx}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
-        <Tooltip title={chipTooltip} arrow>
-          <Chip
-            label={languageCode}
-            size="small"
-            variant="outlined"
-            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600 }}
-          />
-        </Tooltip>
+    <div className={cn('tw', className)}>
+      <div className="mb-1 flex flex-wrap items-center gap-1">
+        <span title={chipTooltip} className="inline-flex h-[18px] items-center rounded-full border border-border px-1.5 text-[11px] font-semibold">
+          {languageCode}
+        </span>
         {confidenceLabel && (
-          <Tooltip title="Translation confidence" arrow>
-            <Chip
-              label={confidenceLabel}
-              size="small"
-              color={confidenceChipColor(translationMetadata?.confidence)}
-              variant="outlined"
-              sx={{ height: 18, fontSize: '0.65rem' }}
-            />
-          </Tooltip>
+          <span
+            title="Translation confidence"
+            className={cn('inline-flex h-[18px] items-center rounded-full border px-1.5 text-[11px] tabular-nums', CONFIDENCE_TONE[confidenceChipColor(translationMetadata?.confidence)])}
+          >
+            {confidenceLabel}
+          </span>
         )}
         {isTranslated && originalText && (
-          <Tooltip title={expanded ? 'Hide original' : 'Show original'} arrow>
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                // Guard against callers rendering TranslatedText inside a <Link>
-                // where the default/bubbled click would trigger navigation.
-                event.preventDefault();
-                event.stopPropagation();
-                setExpanded((prev) => !prev);
-              }}
-              sx={{ p: 0.25 }}
-              aria-label={expanded ? 'Hide original text' : 'Show original text'}
-            >
-              {expanded ? (
-                <ExpandLessIcon sx={{ fontSize: 14 }} />
-              ) : (
-                <ExpandMoreIcon sx={{ fontSize: 14 }} />
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-      <Typography variant={variant} sx={typographySx}>
-        {fallback || '-'}
-      </Typography>
-      {isTranslated && originalText && (
-        <Collapse in={expanded} unmountOnExit>
-          <Box
-            sx={{
-              mt: 0.75,
-              pt: 0.75,
-              borderTop: 1,
-              borderColor: 'divider',
-              fontStyle: 'italic',
+          <button
+            type="button"
+            title={expanded ? 'Hide original' : 'Show original'}
+            onClick={(event) => {
+              // Guard against callers rendering TranslatedText inside a <Link>
+              // where the default/bubbled click would trigger navigation.
+              event.preventDefault();
+              event.stopPropagation();
+              setExpanded((prev) => !prev);
             }}
+            aria-label={expanded ? 'Hide original text' : 'Show original text'}
+            aria-expanded={expanded}
+            className="grid size-6 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
-              Original ({languageCode})
-            </Typography>
-            <Typography variant={variant} color="text.secondary" sx={typographySx}>
-              {originalText}
-            </Typography>
-          </Box>
-        </Collapse>
+            {expanded ? <ChevronUp aria-hidden="true" className="size-3.5" /> : <ChevronDown aria-hidden="true" className="size-3.5" />}
+          </button>
+        )}
+      </div>
+      <p className={textClass}>
+        {fallback || '-'}
+      </p>
+      {isTranslated && originalText && expanded && (
+        <div className="mt-1.5 border-t border-border pt-1.5 italic">
+          <p className="mb-0.5 text-[11px] text-muted-foreground">
+            Original ({languageCode})
+          </p>
+          <p className={cn(textClass, 'text-muted-foreground')}>
+            {originalText}
+          </p>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

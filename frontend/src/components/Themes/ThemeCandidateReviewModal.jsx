@@ -1,38 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Checkbox,
-  CircularProgress,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import { CircleCheck, CircleX } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/ui/button';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 import { getCandidateThemeQueue, reviewCandidateThemes } from '../../api/themes';
+import { Pill, Spinner } from '../../features/themes/themeUi';
 
-const confidenceBandColor = (band) => {
-  if (band === '0.85-1.00') return 'success';
-  if (band === '0.70-0.84') return 'info';
+const confidenceBandTone = (band) => {
+  if (band === '0.85-1.00') return 'gain';
+  if (band === '0.70-0.84') return 'neutral';
   if (band === '0.40-0.69') return 'warning';
-  return 'default';
+  return 'muted';
 };
 
 const EMPTY_ITEMS = [];
+const TH = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold text-muted-foreground';
+const TD = 'border-b border-border px-2 py-1.5';
 
 export function ThemeCandidateReviewContent({ pipeline = 'technical' }) {
   const queryClient = useQueryClient();
@@ -104,165 +89,115 @@ export function ThemeCandidateReviewContent({ pipeline = 'technical' }) {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
+    <div className="tw p-4 text-foreground">
       {(errorText || error) && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Notice tone="error" className="mb-4">
           {errorText || error?.message || 'Failed to load candidate queue'}
-        </Alert>
+        </Notice>
       )}
 
       {queue?.confidence_bands?.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1.5 }}>
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {queue.confidence_bands.map((band) => (
-            <Chip
-              key={band.band}
-              size="small"
-              label={`${band.band}: ${band.count}`}
-              color={confidenceBandColor(band.band)}
-              variant="outlined"
-            />
+            <Pill key={band.band} tone={confidenceBandTone(band.band)} className="tabular-nums">{`${band.band}: ${band.count}`}</Pill>
           ))}
-        </Box>
+        </div>
       )}
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Box sx={{ fontSize: '12px', color: 'text.secondary' }}>
-          {queue?.total ?? 0} candidates in queue
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            color="success"
-            variant="contained"
-            startIcon={<CheckCircleOutlineIcon />}
-            onClick={() => runAction('promote')}
-            disabled={reviewMutation.isPending || selectedVisibleIds.length === 0}
-          >
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground tabular-nums">{queue?.total ?? 0} candidates in queue</p>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => runAction('promote')} disabled={reviewMutation.isPending || selectedVisibleIds.length === 0}>
+            <CircleCheck aria-hidden="true" />
             Promote Selected
           </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            startIcon={<CancelOutlinedIcon />}
-            onClick={() => runAction('reject')}
-            disabled={reviewMutation.isPending || selectedVisibleIds.length === 0}
-          >
+          <Button variant="secondary" size="sm" className="text-loss" onClick={() => runAction('reject')} disabled={reviewMutation.isPending || selectedVisibleIds.length === 0}>
+            <CircleX aria-hidden="true" />
             Reject Selected
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {isLoading ? (
-        <Box display="flex" justifyContent="center" p={4}>
-          <CircularProgress />
-        </Box>
+        <div className="flex justify-center p-8"><Spinner label="Loading candidate queue" /></div>
       ) : (
-        <TableContainer sx={{ maxHeight: 460 }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    indeterminate={selectedVisibleIds.length > 0 && !allSelected}
+        <div className="max-h-[460px] overflow-auto">
+          <table className="w-full border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                <th scope="col" className={cn(TH, 'w-10')}>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all candidates"
+                    ref={(node) => { if (node) node.indeterminate = selectedVisibleIds.length > 0 && !allSelected; }}
                     checked={allSelected}
                     onChange={toggleSelectAll}
+                    className="size-4 cursor-pointer accent-accent"
                   />
-                </TableCell>
-                <TableCell>Theme</TableCell>
-                <TableCell align="right">Mentions (7D)</TableCell>
-                <TableCell align="right">Sources (7D)</TableCell>
-                <TableCell align="right">Persistence</TableCell>
-                <TableCell align="right">Avg Conf (30D)</TableCell>
-                <TableCell>Band</TableCell>
-                <TableCell>Reason</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((row) => (
-                <TableRow
-                  key={row.theme_cluster_id}
-                  hover
-                  selected={selectedSet.has(row.theme_cluster_id)}
-                  onClick={() => toggleTheme(row.theme_cluster_id)}
-                  sx={{ cursor: 'pointer' }}
-                >
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selectedSet.has(row.theme_cluster_id)}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        toggleTheme(row.theme_cluster_id);
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>
-                    {row.theme_display_name || row.theme_name}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                    {row.mentions_7d}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                    {row.source_diversity_7d}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                    {row.persistence_days_7d}d
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                    {(row.avg_confidence_30d * 100).toFixed(0)}%
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={row.confidence_band}
-                      size="small"
-                      color={confidenceBandColor(row.confidence_band)}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 240 }}>
-                    <Tooltip title={row.queue_reason || '-'}>
-                      <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {row.queue_reason || '-'}
-                      </Box>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
+                </th>
+                <th scope="col" className={cn(TH, 'text-left')}>Theme</th>
+                <th scope="col" className={cn(TH, 'text-right')}>Mentions (7D)</th>
+                <th scope="col" className={cn(TH, 'text-right')}>Sources (7D)</th>
+                <th scope="col" className={cn(TH, 'text-right')}>Persistence</th>
+                <th scope="col" className={cn(TH, 'text-right')}>Avg Conf (30D)</th>
+                <th scope="col" className={cn(TH, 'text-left')}>Band</th>
+                <th scope="col" className={cn(TH, 'text-left')}>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row) => {
+                const selected = selectedSet.has(row.theme_cluster_id);
+                const name = row.theme_display_name || row.theme_name;
+                return (
+                  <tr
+                    key={row.theme_cluster_id}
+                    aria-selected={selected}
+                    onClick={() => toggleTheme(row.theme_cluster_id)}
+                    className={cn('cursor-pointer hover:bg-surface-subtle', selected && 'bg-surface-subtle')}
+                  >
+                    <td className={TD}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${name}`}
+                        checked={selected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleTheme(row.theme_cluster_id);
+                        }}
+                        className="size-4 cursor-pointer accent-accent"
+                      />
+                    </td>
+                    <td className={cn(TD, 'font-semibold')}>{name}</td>
+                    <td className={cn(TD, 'text-right tabular-nums')}>{row.mentions_7d}</td>
+                    <td className={cn(TD, 'text-right tabular-nums')}>{row.source_diversity_7d}</td>
+                    <td className={cn(TD, 'text-right tabular-nums')}>{row.persistence_days_7d}d</td>
+                    <td className={cn(TD, 'text-right tabular-nums')}>{(row.avg_confidence_30d * 100).toFixed(0)}%</td>
+                    <td className={TD}><Pill tone={confidenceBandTone(row.confidence_band)}>{row.confidence_band}</Pill></td>
+                    <td className={cn(TD, 'max-w-[240px] truncate')} title={row.queue_reason || '-'}>{row.queue_reason || '-'}</td>
+                  </tr>
+                );
+              })}
               {!items.length && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    Candidate queue is empty.
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-muted-foreground">Candidate queue is empty.</td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </tbody>
+          </table>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
 function ThemeCandidateReviewModal({ open, onClose, pipeline = 'technical' }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography variant="h6">Candidate Theme Queue Review</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Promote high-quality candidates to active or reject noise in bulk.
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Candidate Theme Queue Review" size="lg" bodyClassName="p-0">
+        <p className="px-4 pt-3 text-sm text-muted-foreground">
+          Promote high-quality candidates to active or reject noise in bulk.
+        </p>
         <ThemeCandidateReviewContent pipeline={pipeline} />
       </DialogContent>
     </Dialog>
