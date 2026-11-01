@@ -128,8 +128,7 @@ describe('AssistantWatchlistDialog', () => {
     expect(await screen.findByText('1 symbol can be added to Leaders.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm add' }));
     await waitFor(() => expect(bulkAddItems).toHaveBeenCalledWith(7, ['NVDA']));
-    fireEvent.mouseDown(screen.getByRole('combobox'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Laggards' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Watchlist' }), { target: { value: '8' } });
     finishAdd([]);
 
     await waitFor(() => {

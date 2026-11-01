@@ -1,13 +1,12 @@
-import { Box } from '@mui/material';
 import { AssistantChatProvider } from '../contexts/AssistantChatContext';
 import AssistantChat from '../components/AssistantChat/AssistantChat';
 
 function ChatbotPage() {
   return (
     <AssistantChatProvider>
-      <Box sx={{ py: 1, height: '100%' }}>
+      <div className="tw h-full py-2">
         <AssistantChat mode="page" />
-      </Box>
+      </div>
     </AssistantChatProvider>
   );
 }

@@ -3,15 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider, removeOldestQuery } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import {
-  AppBar,
-  Box,
-  Container,
-  CssBaseline,
-  ThemeProvider,
-  Toolbar,
-  createTheme,
-} from '@mui/material';
+import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 
 import { STATIC_SITE_MODE } from './config/runtimeMode';
 
@@ -113,16 +105,14 @@ function RedirectHomeOnceConfirmed() {
 // while still giving the user immediate visual structure instead of a bare
 // spinner.
 const AppLoadingScreen = ({ label = 'Stock Scanner' }) => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <AppBar position="static">
-      <Toolbar variant="dense" sx={{ minHeight: 52 }}>
-        <BrandMark label={label} />
-      </Toolbar>
-    </AppBar>
-    <Container maxWidth={false} disableGutters sx={{ mt: 1 }}>
+  <div className="tw flex min-h-screen flex-col bg-background text-foreground">
+    <header className="flex h-[52px] items-center border-b border-border bg-surface px-4">
+      <BrandMark label={label} />
+    </header>
+    <main className="mt-2">
       <PageSkeleton label="Loading Stock Scanner" />
-    </Container>
-  </Box>
+    </main>
+  </div>
 );
 
 // Create React Query client with optimized settings

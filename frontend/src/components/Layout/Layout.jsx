@@ -13,7 +13,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/ui/dropdown-menu';
-import { Drawer } from '@mui/material';
+import { Sheet, SheetContent, SheetTitle } from '@/ui/sheet';
 import GlobalSearch from './GlobalSearch';
 import MarketSelector from './MarketSelector';
 import RuntimeActivityStatusButton from './RuntimeActivityStatusButton';
@@ -285,20 +285,16 @@ function Layout({ children }) {
             <Bot aria-hidden="true" className="size-6" />
           </button>
 
-          {/* Stays an MUI Drawer until AssistantChat migrates: its content opens
-              MUI dialogs, and a Radix modal around them would block their clicks. */}
-          <Drawer
-            anchor="right"
-            open={assistantOpen}
-            onClose={() => setAssistantOpen(false)}
-            PaperProps={{ sx: { width: { xs: '100%', sm: 440 } } }}
-          >
-            {assistantOpen && (
-              <Suspense fallback={<DrawerLoadingFallback />}>
-                <AssistantDrawerContent onClose={() => setAssistantOpen(false)} />
-              </Suspense>
-            )}
-          </Drawer>
+          <Sheet open={assistantOpen} onOpenChange={setAssistantOpen}>
+            <SheetContent side="right" aria-describedby={undefined} className="overflow-hidden">
+              <SheetTitle className="sr-only">Assistant</SheetTitle>
+              {assistantOpen && (
+                <Suspense fallback={<DrawerLoadingFallback />}>
+                  <AssistantDrawerContent onClose={() => setAssistantOpen(false)} />
+                </Suspense>
+              )}
+            </SheetContent>
+          </Sheet>
         </>
       )}
     </div>

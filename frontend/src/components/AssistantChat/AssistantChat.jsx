@@ -1,22 +1,9 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Divider,
-  IconButton,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
-import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
-import SendIcon from '@mui/icons-material/Send';
+import { ListPlus, Plus, SendHorizontal, X } from 'lucide-react';
 
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 import { useAssistantChat } from '../../contexts/AssistantChatContext';
 import AssistantMessageList from './AssistantMessageList';
 import AssistantWatchlistDialog from './AssistantWatchlistDialog';
@@ -67,53 +54,44 @@ function AssistantChat({ mode = 'page', onClose = null }) {
   };
 
   return (
-    <Paper
-      elevation={mode === 'page' ? 1 : 0}
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        minHeight: mode === 'page' ? '70vh' : '100%',
-        borderRadius: mode === 'page' ? 2 : 0,
-        overflow: 'hidden',
-      }}
+    <section
+      aria-label="Assistant"
+      className={cn(
+        'tw flex h-full flex-col overflow-hidden bg-surface text-foreground',
+        mode === 'page' ? 'min-h-[70vh] rounded-lg border border-border' : 'min-h-full',
+      )}
     >
-      <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h6">
-            Assistant
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {conversationTitle || 'Assistant'}
-          </Typography>
-        </Box>
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold">Assistant</h2>
+          <p className="truncate text-[11px] text-muted-foreground">{conversationTitle || 'Assistant'}</p>
+        </div>
 
-        <Chip
-          size="small"
-          color={assistantHealth.available ? 'success' : 'default'}
-          label={assistantHealth.available ? 'Hermes online' : 'Hermes offline'}
-        />
-        <Tooltip title="Start new conversation">
-          <IconButton size="small" onClick={() => startNewConversation()}>
-            <AddIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <span
+          className={cn(
+            'inline-flex h-6 items-center gap-1.5 rounded-full border border-border px-2 text-[11px]',
+            assistantHealth.available ? 'text-foreground' : 'text-muted-foreground',
+          )}
+        >
+          <span aria-hidden="true" className={cn('size-1.5 rounded-full', assistantHealth.available ? 'bg-gain' : 'bg-disabled-foreground')} />
+          {assistantHealth.available ? 'Hermes online' : 'Hermes offline'}
+        </span>
+        <Button variant="ghost" size="icon" aria-label="Start new conversation" title="Start new conversation" onClick={() => startNewConversation()}>
+          <Plus aria-hidden="true" />
+        </Button>
         {onClose && (
-          <Tooltip title="Close assistant">
-            <IconButton size="small" onClick={onClose}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Button variant="ghost" size="icon" aria-label="Close assistant" title="Close assistant" onClick={onClose}>
+            <X aria-hidden="true" />
+          </Button>
         )}
-      </Box>
-      <Divider />
+      </div>
 
       {!assistantHealth.available && (
-        <Box sx={{ p: 2, pb: 0 }}>
-          <Alert severity="warning">
+        <div className="px-4 pt-4">
+          <Notice tone="warning">
             {assistantHealth.detail || 'The assistant runtime is not currently available.'}
-          </Alert>
-        </Box>
+          </Notice>
+        </div>
       )}
 
       <AssistantMessageList
@@ -121,56 +99,45 @@ function AssistantChat({ mode = 'page', onClose = null }) {
         isLoading={isLoadingConversation || isStreaming}
       />
 
-      <Divider />
-
-      <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1} sx={{ mb: latestAssistantSymbols.length ? 1 : 0 }}>
-          {latestAssistantSymbols.length > 0 && (
-            <Button
-              size="small"
-              startIcon={<PlaylistAddIcon />}
-              onClick={() => setWatchlistDialogOpen(true)}
-            >
+      <div className="border-t border-border p-4">
+        {latestAssistantSymbols.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setWatchlistDialogOpen(true)}>
+              <ListPlus aria-hidden="true" />
               Add tickers to watchlist
             </Button>
-          )}
-          {latestAssistantSymbols.length > 0 && (
-            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
-              {latestAssistantSymbols.join(', ')}
-            </Typography>
-          )}
-        </Stack>
+            <span className="text-[11px] text-muted-foreground">{latestAssistantSymbols.join(', ')}</span>
+          </div>
+        )}
 
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={6}
+        <div className="flex items-end gap-2">
+          <textarea
+            aria-label="Message the assistant"
+            rows={2}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask about scans, themes, breadth, symbols, or compare internal signals with current web context."
             disabled={!assistantHealth.available || isStreaming}
+            className="max-h-40 min-h-16 w-full flex-1 resize-y rounded-md border border-border bg-surface px-3 py-2 font-[inherit] text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           />
           <Button
-            variant="contained"
-            endIcon={<SendIcon />}
             onClick={handleSubmit}
             disabled={!input.trim() || !assistantHealth.available || isStreaming}
-            sx={{ minWidth: 110, height: 40 }}
+            className="min-w-[110px]"
           >
             Send
+            <SendHorizontal aria-hidden="true" />
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       <AssistantWatchlistDialog
         open={watchlistDialogOpen}
         symbols={latestAssistantSymbols}
         onClose={() => setWatchlistDialogOpen(false)}
       />
-    </Paper>
+    </section>
   );
 }
 
