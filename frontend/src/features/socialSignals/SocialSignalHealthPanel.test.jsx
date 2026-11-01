@@ -188,16 +188,16 @@ describe('SocialSignalHealthPanel', () => {
       .mockResolvedValueOnce(latestSources[0]);
     renderPanel();
     await unlock();
-    const editor = screen.getByLabelText('Rename Asia Growth').querySelector('input');
+    const editor = screen.getByLabelText('Rename Asia Growth');
     fireEvent.change(editor, { target: { value: 'Local Name' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
 
     await waitFor(() => expect(
-      screen.getByLabelText('Rename Server Name').querySelector('input'),
+      screen.getByLabelText('Rename Server Name'),
     ).toHaveValue('Server Name'));
     expect(screen.getByText(/Reloaded the latest version/)).toBeInTheDocument();
-    const refreshedEditor = screen.getByLabelText('Rename Server Name').querySelector('input');
+    const refreshedEditor = screen.getByLabelText('Rename Server Name');
     fireEvent.change(refreshedEditor, { target: { value: 'Final Name' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
     await waitFor(() => expect(api.renameSocialSource).toHaveBeenLastCalledWith(
