@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  Badge,
-  Box,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Tab,
-  Tabs,
-  Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { ArrowLeftRight, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { TabBar } from '../../features/themes/themeUi';
 import { ThemeMergeReviewContent } from './ThemeMergeReviewModal';
 import { ThemeCandidateReviewContent } from './ThemeCandidateReviewModal';
 
@@ -24,44 +13,20 @@ function ThemeReviewDialog({ open, onClose, pipeline, initialTab = 0, mergeCount
   }, [open, initialTab]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ pb: 0 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Theme Review</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mt: 1 }}>
-          <Tab
-            icon={
-              <Badge badgeContent={mergeCount} color="warning" max={99}>
-                <CompareArrowsIcon sx={{ fontSize: 18 }} />
-              </Badge>
-            }
-            iconPosition="start"
-            label="Merges"
-            sx={{ minHeight: 48 }}
-          />
-          <Tab
-            icon={
-              <Badge badgeContent={candidateCount} color="info" max={99}>
-                <AutoAwesomeIcon sx={{ fontSize: 18 }} />
-              </Badge>
-            }
-            iconPosition="start"
-            label="Candidates"
-            sx={{ minHeight: 48 }}
-          />
-        </Tabs>
-      </DialogTitle>
-      <DialogContent dividers sx={{ p: 0 }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Theme Review" size="lg" bodyClassName="p-0">
+        <TabBar
+          label="Theme review"
+          className="px-2"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 0, label: 'Merges', count: mergeCount, icon: <ArrowLeftRight aria-hidden="true" className="size-4" /> },
+            { value: 1, label: 'Candidates', count: candidateCount, icon: <Sparkles aria-hidden="true" className="size-4" /> },
+          ]}
+        />
         {tab === 0 && <ThemeMergeReviewContent onClose={onClose} />}
-        {tab === 1 && (
-          <Box sx={{ p: 0 }}>
-            <ThemeCandidateReviewContent pipeline={pipeline} />
-          </Box>
-        )}
+        {tab === 1 && <ThemeCandidateReviewContent pipeline={pipeline} />}
       </DialogContent>
     </Dialog>
   );

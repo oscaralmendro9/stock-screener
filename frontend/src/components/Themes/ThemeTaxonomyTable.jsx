@@ -7,41 +7,12 @@
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  IconButton,
-  LinearProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  TableSortLabel,
-  Typography,
-} from '@mui/material';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { getL1Rankings, getL1Children } from '../../api/themes';
-
-const CATEGORY_COLORS = {
-  technology: 'primary',
-  healthcare: 'success',
-  energy: 'warning',
-  defense: 'error',
-  financials: 'info',
-  materials: 'default',
-  consumer: 'secondary',
-  industrials: 'default',
-  macro: 'info',
-  crypto: 'warning',
-  real_estate: 'default',
-  other: 'default',
-};
+import {
+  Pager, Pill, ScoreBar, SignedPercent, SortHeader, Spinner, tdClass, thClass,
+} from '../../features/themes/themeUi';
 
 const SORTABLE_COLUMNS = [
   { id: 'display_name', label: 'Theme Group', align: 'left' },
@@ -51,28 +22,6 @@ const SORTABLE_COLUMNS = [
   { id: 'basket_return_1w', label: 'Return 1w', align: 'right' },
   { id: 'basket_rs_vs_spy', label: 'RS vs SPY', align: 'right' },
 ];
-
-const MomentumBar = ({ score }) => {
-  if (score == null) return <Box sx={{ color: 'text.secondary', fontSize: '11px', fontFamily: 'monospace' }}>-</Box>;
-  const color = score >= 70 ? 'success' : score >= 50 ? 'warning' : 'error';
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 80 }}>
-      <Box sx={{ width: '100%', mr: 0.5 }}>
-        <LinearProgress variant="determinate" value={Math.min(score, 100)} color={color} sx={{ height: 6, borderRadius: 3 }} />
-      </Box>
-      <Box sx={{ minWidth: 28, fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>
-        {score?.toFixed(0)}
-      </Box>
-    </Box>
-  );
-};
-
-const formatReturn = (val) => {
-  if (val == null) return '-';
-  const pct = val.toFixed(1);
-  const color = val >= 0 ? 'success.main' : 'error.main';
-  return <Box component="span" sx={{ color, fontFamily: 'monospace', fontSize: '11px' }}>{val > 0 ? '+' : ''}{pct}%</Box>;
-};
 
 /** Expandable L2 children rows for a single L1 theme */
 function L1ChildrenRows({ l1Id, open, onThemeClick, orderBy, order }) {
@@ -87,71 +36,47 @@ function L1ChildrenRows({ l1Id, open, onThemeClick, orderBy, order }) {
 
   if (isLoading) {
     return (
-      <TableRow>
-        <TableCell colSpan={8} sx={{ py: 1, pl: 6 }}>
-          <CircularProgress size={16} sx={{ mr: 1 }} />
-          <Typography variant="caption" color="text.secondary">Loading children...</Typography>
-        </TableCell>
-      </TableRow>
+      <tr>
+        <td colSpan={8} className="py-2 pl-12">
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Spinner label="Loading children" className="size-4" />
+            Loading children...
+          </span>
+        </td>
+      </tr>
     );
   }
 
   if (!data?.children?.length) {
     return (
-      <TableRow>
-        <TableCell colSpan={8} sx={{ py: 1, pl: 6 }}>
-          <Typography variant="caption" color="text.secondary">No L2 themes assigned</Typography>
-        </TableCell>
-      </TableRow>
+      <tr>
+        <td colSpan={8} className="py-2 pl-12 text-[11px] text-muted-foreground">No L2 themes assigned</td>
+      </tr>
     );
   }
 
   return data.children.map((child) => (
-    <TableRow
+    <tr
       key={child.id}
-      hover
-      sx={{
-        bgcolor: 'action.hover',
-        cursor: 'pointer',
-        '&:hover': { bgcolor: 'action.selected' },
-      }}
+      tabIndex={0}
+      className="cursor-pointer bg-surface-subtle outline-none hover:bg-border/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       onClick={() => onThemeClick?.({ id: child.id, name: child.display_name })}
+      onKeyDown={(event) => { if (event.key === 'Enter') onThemeClick?.({ id: child.id, name: child.display_name }); }}
     >
-      <TableCell sx={{ pl: 6, width: 40 }} />
-      <TableCell>
-        <Box sx={{ pl: 2 }}>
-          <Typography variant="body2" sx={{ fontSize: '12px' }}>
-            {child.display_name}
-          </Typography>
-          {child.l1_assignment_method && (
-            <Chip
-              label={child.l1_assignment_method}
-              size="small"
-              variant="outlined"
-              sx={{ height: 16, fontSize: '9px', ml: 1 }}
-            />
-          )}
-        </Box>
-      </TableCell>
-      <TableCell>
-        <Chip label={child.lifecycle_state} size="small" sx={{ height: 18, fontSize: '10px' }} />
-      </TableCell>
-      <TableCell align="center">
-        <MomentumBar score={child.momentum_score} />
-      </TableCell>
-      <TableCell align="right">
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
-          {child.mentions_7d}
-        </Typography>
-      </TableCell>
-      <TableCell align="right">
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
-          {child.num_constituents}
-        </Typography>
-      </TableCell>
-      <TableCell />
-      <TableCell />
-    </TableRow>
+      <td className={cn(tdClass, 'w-10')} />
+      <td className={tdClass}>
+        <span className="flex items-center gap-2 pl-4">
+          <span className="text-xs">{child.display_name}</span>
+          {child.l1_assignment_method && <Pill tone="muted" className="h-4">{child.l1_assignment_method}</Pill>}
+        </span>
+      </td>
+      <td className={cn(tdClass, 'text-center')}><ScoreBar score={child.momentum_score} label="Momentum" /></td>
+      <td className={cn(tdClass, 'text-right text-[11px] tabular-nums')}>{child.mentions_7d}</td>
+      <td className={cn(tdClass, 'text-right text-[11px] tabular-nums')}>{child.num_constituents}</td>
+      <td className={tdClass} />
+      <td className={tdClass} />
+      <td className={tdClass}><Pill tone="muted">{child.lifecycle_state}</Pill></td>
+    </tr>
   ));
 }
 
@@ -189,9 +114,9 @@ export default function ThemeTaxonomyTable({
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
-        <CircularProgress />
-      </Box>
+      <div className="tw flex min-h-[300px] items-center justify-center">
+        <Spinner label="Loading theme groups" />
+      </div>
     );
   }
 
@@ -199,98 +124,65 @@ export default function ThemeTaxonomyTable({
   const total = data?.total || 0;
 
   return (
-    <Paper elevation={1}>
-      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ fontSize: '14px', fontWeight: 600 }}>
-          L1 Theme Groups
-        </Box>
-        <Chip label={`${total} groups`} size="small" />
-      </Box>
+    <section className="tw rounded-lg border border-border bg-surface text-foreground">
+      <div className="flex items-center justify-between border-b border-border p-3">
+        <h2 className="text-sm font-semibold">L1 Theme Groups</h2>
+        <Pill tone="muted" className="tabular-nums">{`${total} groups`}</Pill>
+      </div>
 
-      <TableContainer sx={{ maxHeight: 'calc(100vh - 400px)' }}>
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ width: 40 }} />
+      <div className="max-h-[calc(100vh-400px)] overflow-auto">
+        <table className="w-full border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr>
+              <th scope="col" className={cn(thClass(), 'w-10')}><span className="sr-only">Expand</span></th>
               {SORTABLE_COLUMNS.map((col) => (
-                <TableCell key={col.id} align={col.align}>
-                  <TableSortLabel
-                    active={orderBy === col.id}
-                    direction={orderBy === col.id ? order : 'asc'}
-                    onClick={() => handleSort(col.id)}
-                    sx={{ fontSize: '12px' }}
-                  >
-                    {col.label}
-                  </TableSortLabel>
-                </TableCell>
+                <SortHeader
+                  key={col.id}
+                  label={col.label}
+                  align={col.align}
+                  active={orderBy === col.id}
+                  order={order}
+                  onSort={() => handleSort(col.id)}
+                />
               ))}
-              <TableCell>Category</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+              <th scope="col" className={thClass()}>Category</th>
+            </tr>
+          </thead>
+          <tbody>
             {rankings.map((l1) => {
               const isExpanded = !!expandedL1[l1.id];
+              const Chevron = isExpanded ? ChevronDown : ChevronRight;
               return (
                 <React.Fragment key={l1.id}>
-                  <TableRow
-                    hover
-                    sx={{
-                      bgcolor: 'action.hover',
-                      cursor: 'pointer',
-                      '& td': { fontWeight: 600 },
-                    }}
-                    onClick={() => toggleExpand(l1.id)}
-                  >
-                    <TableCell sx={{ width: 40 }}>
-                      <IconButton size="small" sx={{ p: 0 }}>
-                        {isExpanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
-                      </IconButton>
-                    </TableCell>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '13px' }}>
-                          {l1.display_name}
-                        </Typography>
-                        <Chip
-                          label={`${l1.num_l2_children} themes`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 18, fontSize: '10px' }}
-                        />
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <MomentumBar score={l1.momentum_score} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700 }}>
-                        {l1.mentions_7d}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700 }}>
-                        {l1.num_constituents}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatReturn(l1.basket_return_1w)}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                        {l1.basket_rs_vs_spy != null ? l1.basket_rs_vs_spy.toFixed(0) : '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {l1.category && (
-                        <Chip
-                          label={l1.category}
-                          size="small"
-                          color={CATEGORY_COLORS[l1.category] || 'default'}
-                          sx={{ height: 20, fontSize: '10px', textTransform: 'capitalize' }}
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <tr className="cursor-pointer bg-surface-subtle font-semibold hover:bg-border/40" onClick={() => toggleExpand(l1.id)}>
+                    <td className={cn(tdClass, 'w-10')}>
+                      <button
+                        type="button"
+                        aria-label={isExpanded ? `Collapse ${l1.display_name}` : `Expand ${l1.display_name}`}
+                        aria-expanded={isExpanded}
+                        onClick={(event) => { event.stopPropagation(); toggleExpand(l1.id); }}
+                        className="grid size-7 cursor-pointer place-items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Chevron aria-hidden="true" className="size-4" />
+                      </button>
+                    </td>
+                    <td className={tdClass}>
+                      <span className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold">{l1.display_name}</span>
+                        <Pill tone="muted" className="h-[18px] font-normal">{`${l1.num_l2_children} themes`}</Pill>
+                      </span>
+                    </td>
+                    <td className={cn(tdClass, 'text-center')}><ScoreBar score={l1.momentum_score} label="Momentum" /></td>
+                    <td className={cn(tdClass, 'text-right text-xs font-bold tabular-nums')}>{l1.mentions_7d}</td>
+                    <td className={cn(tdClass, 'text-right text-xs font-bold tabular-nums')}>{l1.num_constituents}</td>
+                    <td className={cn(tdClass, 'text-right')}><SignedPercent value={l1.basket_return_1w} /></td>
+                    <td className={cn(tdClass, 'text-right text-[11px] tabular-nums')}>
+                      {l1.basket_rs_vs_spy != null ? l1.basket_rs_vs_spy.toFixed(0) : '-'}
+                    </td>
+                    <td className={tdClass}>
+                      {l1.category && <Pill className="capitalize font-normal">{l1.category}</Pill>}
+                    </td>
+                  </tr>
                   <L1ChildrenRows
                     l1Id={l1.id}
                     open={isExpanded}
@@ -301,20 +193,15 @@ export default function ThemeTaxonomyTable({
                 </React.Fragment>
               );
             })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
 
       {total > pageSize && (
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={pageSize}
-          rowsPerPageOptions={[pageSize]}
-        />
+        <div className="border-t border-border">
+          <Pager page={page} pageSize={pageSize} total={total} onPage={setPage} />
+        </div>
       )}
-    </Paper>
+    </section>
   );
 }

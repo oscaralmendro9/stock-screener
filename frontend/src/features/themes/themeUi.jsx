@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 // Small Tailwind building blocks shared by the Themes screens, so each one
@@ -109,3 +110,73 @@ export function TabBar({ tabs, value, onChange, label, className }) {
 }
 
 export const linkClass = 'text-accent no-underline hover:underline';
+
+const TH_BASE = 'sticky top-0 z-[1] border-b border-border bg-surface px-2 py-2 text-xs font-semibold whitespace-nowrap text-muted-foreground';
+export const thClass = (align = 'left') => cn(TH_BASE, align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left');
+export const tdClass = 'border-b border-border px-2 py-1.5';
+
+// Column header that sorts on click and reports it through aria-sort.
+export function SortHeader({ label, active, order, onSort, align = 'left', title }) {
+  const Arrow = active && order === 'desc' ? ArrowDown : ArrowUp;
+  return (
+    <th scope="col" aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : undefined} className={thClass(align)}>
+      <button
+        type="button"
+        onClick={onSort}
+        title={title}
+        className={cn('group inline-flex cursor-pointer items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring', active && 'text-foreground')}
+      >
+        {label}
+        <Arrow aria-hidden="true" className={cn('size-3', active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40')} />
+      </button>
+    </th>
+  );
+}
+
+// Previous/next pager over a 0-based page index.
+export function Pager({ page, pageSize, total, onPage }) {
+  const from = total === 0 ? 0 : page * pageSize + 1;
+  const to = Math.min(total, (page + 1) * pageSize);
+  const nav = 'grid size-11 cursor-pointer place-items-center rounded-md outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 md:size-8';
+  return (
+    <div className="flex items-center justify-end gap-3 px-3 py-1.5 text-xs text-muted-foreground">
+      <span className="tabular-nums">{`${from}–${to} of ${total}`}</span>
+      <button type="button" aria-label="Go to previous page" disabled={page <= 0} onClick={() => onPage(page - 1)} className={nav}>
+        <ChevronLeft aria-hidden="true" className="size-4" />
+      </button>
+      <button type="button" aria-label="Go to next page" disabled={to >= total} onClick={() => onPage(page + 1)} className={nav}>
+        <ChevronRight aria-hidden="true" className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+// 0–100 score as a short bar plus the number; tone by strength.
+export function ScoreBar({ score, label = 'Score' }) {
+  if (score == null) return <span className="text-[11px] text-muted-foreground">-</span>;
+  const tone = score >= 70 ? 'bg-gain' : score >= 50 ? 'bg-warning' : 'bg-loss';
+  return (
+    <span className="flex min-w-20 items-center gap-1">
+      <span
+        role="meter"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(score)}
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-subtle"
+      >
+        <span className={cn('block h-full rounded-full', tone)} style={{ width: `${Math.min(score, 100)}%` }} />
+      </span>
+      <span className="min-w-7 text-[11px] font-semibold tabular-nums">{score.toFixed(0)}</span>
+    </span>
+  );
+}
+
+export function SignedPercent({ value, digits = 1 }) {
+  if (value == null) return <span className="text-muted-foreground">-</span>;
+  return (
+    <span className={cn('text-[11px] tabular-nums', value >= 0 ? 'text-gain' : 'text-loss')}>
+      {value > 0 ? '+' : ''}{value.toFixed(digits)}%
+    </span>
+  );
+}
