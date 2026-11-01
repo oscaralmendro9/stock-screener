@@ -1,50 +1,56 @@
 import { useRef } from 'react';
-import { Box, Button, Drawer, Typography, ListItemButton, Divider } from '@mui/material';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Button } from '@/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@/ui/sheet';
+import { cn } from '@/lib/cn';
 import { formatMatrixValue } from './groupMatrixColors';
 import { groupLabel } from './groupMatrixModel';
 import { stockMetadataRows } from './groupMatrixStockDetails';
-
 function ConstituentList({ stocks, onSelectStock }) {
   const ref = useRef(null);
   const virtual = useVirtualizer({ count: stocks.length, getScrollElement: () => ref.current,
     estimateSize: () => 56, overscan: 3, initialRect: { width: 420, height: 560 } });
-  return <Box ref={ref} sx={{ height: '65vh', overflow: 'auto' }} role="list" aria-label="Matching stocks">
-    <Box sx={{ height: virtual.getTotalSize(), position: 'relative' }}>
+  return <div ref={ref} className="h-[65vh] overflow-auto" role="list" aria-label="Matching stocks">
+    <div className="relative" style={{ height: virtual.getTotalSize() }}>
       {virtual.getVirtualItems().map(item => {
         const stock = stocks[item.index];
-        return <ListItemButton key={stock.symbol} role="button" aria-label={`Open ${stock.symbol} details`}
-          onClick={() => onSelectStock(stock)} sx={{ position: 'absolute', top: item.start, height: 56, width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-          <Box><Typography fontWeight={700}>{stock.symbol}</Typography><Typography variant="caption">{stock.company_name}</Typography></Box>
-          <Typography variant="caption">{formatMatrixValue(stock.price_change_1d, 'price_change_1d')}</Typography>
-        </ListItemButton>;
+        const change = stock.price_change_1d;
+        return <button type="button" key={stock.symbol} aria-label={`Open ${stock.symbol} details`}
+          onClick={() => onSelectStock(stock)} style={{ top: item.start }}
+          className="absolute flex h-14 w-full cursor-pointer items-center justify-between gap-2 rounded-sm px-2 text-left outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-ring">
+          <span className="min-w-0"><span className="block text-sm font-bold">{stock.symbol}</span><span className="block truncate text-[11px] text-muted-foreground">{stock.company_name}</span></span>
+          <span className={cn('text-xs tabular-nums', change > 0 ? 'text-gain' : change < 0 ? 'text-loss' : 'text-muted-foreground')}>
+            {formatMatrixValue(change, 'price_change_1d')}
+          </span>
+        </button>;
       })}
-    </Box>
-  </Box>;
+    </div>
+  </div>;
 }
 export default function GroupMatrixDetails({ selection, onClose, onSelectStock, onSelectStocks, matchingStocks, data }) {
   const stock = selection?.stock;
   const details = stock && stockMetadataRows(stock, data);
-  return <Drawer anchor="right" open={Boolean(selection)} onClose={onClose} ModalProps={{ disableRestoreFocus: true }}
-    PaperProps={{ role: 'dialog', 'aria-modal': true, 'aria-label': stock ? `${stock.symbol} details` : selection?.title,
-      sx: { width: { xs: '100%', sm: 460 }, maxWidth: '100vw', p: 2 } }}>
-    <Box display="flex" alignItems="center" justifyContent="space-between" gap={1}>
-      <Typography variant="h6">{stock ? stock.symbol : selection?.title}</Typography>
-      <Button onClick={onClose} autoFocus>Close</Button>
-    </Box>
-    {stock ? <>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>{stock.company_name}</Typography>
-      <Box component="dl" sx={{ m: 0 }}>{details.map(([label, value]) => <Box key={label} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography component="dt" variant="body2" color="text.secondary">{label}</Typography>
-        <Typography component="dd" variant="body2" sx={{ m: 0, overflowWrap: 'anywhere' }}>{value}</Typography>
-      </Box>)}</Box>
-      <Typography variant="caption" color="text.secondary" sx={{ my: 2 }}>Cap and classification use latest stored metadata. Automated classifications are estimates.</Typography>
-      <Button onClick={() => onSelectStocks({ title: `${groupLabel(stock.ibd_industry_group)} · current filters`,
-        stocks: matchingStocks.filter(s => s.sector === stock.sector && s.ibd_industry_group === stock.ibd_industry_group) })}>View industry constituents</Button>
-    </> : <>
-      <Typography variant="body2" sx={{ my: 1 }}>{selection?.stocks?.length || 0} stocks</Typography>
-      <Divider />
-      {selection && <ConstituentList stocks={selection.stocks} onSelectStock={onSelectStock} />}
-    </>}
-  </Drawer>;
+  return <Sheet open={Boolean(selection)} onOpenChange={next => { if (!next) onClose(); }}>
+    {/* The panel puts focus back itself, also when the trigger was virtualized away. */}
+    <SheetContent side="right" aria-describedby={undefined} onCloseAutoFocus={event => event.preventDefault()} className="p-4">
+      <div className="flex items-center justify-between gap-2">
+        <SheetTitle className="min-w-0 truncate text-lg font-semibold">{stock ? stock.symbol : selection?.title}</SheetTitle>
+        <Button variant="ghost" size="sm" onClick={onClose} autoFocus>Close</Button>
+      </div>
+      {stock ? <>
+        <p className="mb-4 text-sm text-muted-foreground">{stock.company_name}</p>
+        <dl className="m-0">{details.map(([label, value]) => <div key={label} className="grid grid-cols-2 gap-2 border-b border-border py-2 text-sm">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="m-0 [overflow-wrap:anywhere] tabular-nums">{value}</dd>
+        </div>)}</dl>
+        <p className="my-4 text-[11px] text-muted-foreground">Cap and classification use latest stored metadata. Automated classifications are estimates.</p>
+        <Button variant="secondary" size="sm" className="self-start" onClick={() => onSelectStocks({ title: `${groupLabel(stock.ibd_industry_group)} · current filters`,
+          stocks: matchingStocks.filter(s => s.sector === stock.sector && s.ibd_industry_group === stock.ibd_industry_group) })}>View industry constituents</Button>
+      </> : <>
+        <p className="my-2 text-sm tabular-nums">{selection?.stocks?.length || 0} stocks</p>
+        <hr className="border-border" />
+        {selection && <ConstituentList stocks={selection.stocks} onSelectStock={onSelectStock} />}
+      </>}
+    </SheetContent>
+  </Sheet>;
 }

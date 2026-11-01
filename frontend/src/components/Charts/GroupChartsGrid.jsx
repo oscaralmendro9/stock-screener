@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  AlertTitle,
-  Box,
-  Button,
-  Card,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 import { useQuery } from '@tanstack/react-query';
 
 import CandlestickChart from './CandlestickChart';
@@ -150,46 +143,39 @@ function GroupChartsGrid({ symbols = [], period = '6mo', height = 200 }) {
   });
 
   if (normalizedSymbols.length === 0) {
-    return (
-      <Alert severity="info" sx={{ mt: 1 }}>
-        No constituent stocks to chart.
-      </Alert>
-    );
+    return <Notice className="tw mt-2">No constituent stocks to chart.</Notice>;
   }
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" py={6}>
-        <CircularProgress />
-        <Typography variant="body2" sx={{ ml: 2 }} color="text.secondary">
-          Loading {truncatedSymbols.length} charts…
-        </Typography>
-      </Box>
+      <div className="tw flex items-center justify-center gap-4 py-12 text-sm text-muted-foreground">
+        <span role="progressbar" aria-label="Loading charts" className="inline-block size-6 rounded-full border-2 border-border border-t-accent motion-safe:animate-spin" />
+        Loading {truncatedSymbols.length} charts…
+      </div>
     );
   }
 
   if (isError) {
     return (
-      <Alert severity="error" sx={{ mt: 1 }}>
-        <AlertTitle>Failed to load group charts</AlertTitle>
+      <Notice
+        tone="error"
+        className="tw mt-2"
+        action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>}
+      >
+        <p className="font-semibold">Failed to load group charts</p>
         {error?.message || 'Unknown error fetching price history'}
-        <Box mt={1}>
-          <Button size="small" variant="outlined" onClick={() => refetch()}>
-            Retry
-          </Button>
-        </Box>
-      </Alert>
+      </Notice>
     );
   }
 
   const truncated = normalizedSymbols.length > truncatedSymbols.length;
 
   return (
-    <Box>
+    <div className="tw">
       {truncated && (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+        <p className="mb-2 text-[11px] text-muted-foreground">
           Showing first {truncatedSymbols.length} of {normalizedSymbols.length} stocks.
-        </Typography>
+        </p>
       )}
       {/* Keyed by identity: a new group or period gets fresh observations. */}
       <GroupChartCells
@@ -200,7 +186,7 @@ function GroupChartsGrid({ symbols = [], period = '6mo', height = 200 }) {
         height={height}
         dataUpdatedAt={dataUpdatedAt}
       />
-    </Box>
+    </div>
   );
 }
 
@@ -218,49 +204,17 @@ function GroupChartCells({ symbols, batch, period, height, dataUpdatedAt }) {
 
           return (
             <GroupChartCell key={sym} ref={cellRef(sym)} data-testid="group-chart-cell">
-              <Card
-                variant="outlined"
-                sx={{
-                  overflow: 'hidden',
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    px: 1,
-                    py: 0.5,
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                    {sym}
-                  </Typography>
+              <div className="overflow-hidden rounded-md border border-border bg-surface">
+                <div className="flex items-center justify-between border-b border-border px-2 py-1">
+                  <span className="text-sm font-bold">{sym}</span>
                   {lastClose !== null && (
-                    <Typography
-                      variant="caption"
-                      sx={{ fontFamily: 'monospace', color: 'text.secondary' }}
-                    >
-                      {lastClose.toFixed(2)}
-                    </Typography>
+                    <span className="text-xs text-muted-foreground tabular-nums">{lastClose.toFixed(2)}</span>
                   )}
-                </Box>
+                </div>
                 {isMissing ? (
-                  <Box
-                    sx={{
-                      height,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      No price data
-                    </Typography>
-                  </Box>
+                  <div className="flex items-center justify-center text-[11px] text-muted-foreground" style={{ height }}>
+                    No price data
+                  </div>
                 ) : isRevealed(sym) ? (
                   <CandlestickChart
                     symbol={sym}
@@ -271,20 +225,11 @@ function GroupChartCells({ symbols, batch, period, height, dataUpdatedAt }) {
                     compact
                   />
                 ) : (
-                  <Box
-                    sx={{
-                      height,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Chart loads when scrolled into view
-                    </Typography>
-                  </Box>
+                  <div className="flex items-center justify-center text-[11px] text-muted-foreground" style={{ height }}>
+                    Chart loads when scrolled into view
+                  </div>
                 )}
-              </Card>
+              </div>
             </GroupChartCell>
           );
         })}

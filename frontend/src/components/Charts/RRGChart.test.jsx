@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { screen, fireEvent, renderHook } from '@testing-library/react';
-import { ThemeProvider, createTheme } from '@mui/material';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import RRGChart from './RRGChart';
 import { QUADRANT_TONES, useQuadrantColors } from './rrgColors';
-import { getDesignTokens } from '../../theme';
 
 const sampleData = {
   date: '2024-09-29',
@@ -97,21 +95,17 @@ describe('RRGChart', () => {
     expect(screen.getByText(/No RRG data available/)).toBeInTheDocument();
   });
 
-  it('keeps each quadrant on its theme tone in both modes', () => {
-    // Guards the live + static charts against colour drift.
+  it('keeps each quadrant on its theme token in both modes', () => {
+    // Guards the live + static charts against colour drift; the CSS variables
+    // switch with the colour mode.
     expect(QUADRANT_TONES).toEqual({
-      Leading: 'success',
+      Leading: 'gain',
       Weakening: 'warning',
-      Lagging: 'error',
-      Improving: 'primary',
+      Lagging: 'loss',
+      Improving: 'accent',
     });
-    for (const mode of ['light', 'dark']) {
-      const theme = createTheme(getDesignTokens(mode));
-      const { result } = renderHook(() => useQuadrantColors(), {
-        wrapper: ({ children }) => <ThemeProvider theme={theme}>{children}</ThemeProvider>,
-      });
-      expect(result.current.colors.Leading).toBe(theme.palette.success.main);
-      expect(result.current.colorOf('Unknown')).toBe(theme.palette.text.disabled);
-    }
+    const { result } = renderHook(() => useQuadrantColors());
+    expect(result.current.colors.Leading).toBe('var(--gain)');
+    expect(result.current.colorOf('Unknown')).toBe('var(--disabled-foreground)');
   });
 });

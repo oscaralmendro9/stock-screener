@@ -9,10 +9,11 @@ export const MATRIX_METRICS = {
 
 const RS_COLORS = { 'down-strong': '#a83240', 'down-soft': '#854349', neutral: '#444c5c', 'up-soft': '#326a50', 'up-strong': '#23713e' };
 const DAILY_COLORS = ['#b52d40', '#91404a', '#6b4854', '#444c5c', '#3e6255', '#327749', '#23783e'];
-export function matrixColor(value, metric, theme) {
+// Missing values follow the theme through CSS variables.
+export function matrixColor(value, metric) {
   if (!Number.isFinite(value)) return {
-    backgroundColor: theme.palette.mode === 'dark' ? '#303540' : '#e8eaef',
-    color: theme.palette.text.primary, missing: true,
+    backgroundColor: 'var(--surface-subtle)',
+    color: 'var(--foreground)', missing: true,
   };
   return { backgroundColor: metric === 'rs_rating' ? RS_COLORS[groupRsTone(value)]
     : DAILY_COLORS[Math.round(Math.max(-3, Math.min(3, value / MATRIX_METRICS[metric].colorStep))) + 3], color: '#fff', missing: false };

@@ -1,30 +1,28 @@
-import { useMemo } from 'react';
-import { alpha, useTheme } from '@mui/material/styles';
-
 /**
  * Shared RRG quadrant colors — single source of truth for the live and static
  * charts (and any consumer that colors by quadrant, e.g. a detail modal). Each
- * quadrant maps to a theme tone so the colours follow light/dark mode.
+ * quadrant maps to a design token, so the colours follow light/dark mode
+ * through CSS variables (SVG presentation attributes resolve var()).
  */
 export const QUADRANT_TONES = {
-  Leading: 'success',
+  Leading: 'gain',
   Weakening: 'warning',
-  Lagging: 'error',
-  Improving: 'primary',
+  Lagging: 'loss',
+  Improving: 'accent',
 };
 
+const COLORS = Object.fromEntries(
+  Object.entries(QUADRANT_TONES).map(([quadrant, tone]) => [quadrant, `var(--${tone})`]),
+);
+const FILLS = Object.fromEntries(
+  Object.entries(COLORS).map(([quadrant, color]) => [quadrant, `color-mix(in srgb, ${color} 8%, transparent)`]),
+);
+const colorOf = (quadrant) => COLORS[quadrant] || 'var(--disabled-foreground)';
+const QUADRANT_COLORS = { colors: COLORS, fills: FILLS, colorOf };
+
+// Kept as a hook so callers need no change; the values are theme-independent.
 export function useQuadrantColors() {
-  const { palette } = useTheme();
-  return useMemo(() => {
-    const colors = Object.fromEntries(
-      Object.entries(QUADRANT_TONES).map(([quadrant, tone]) => [quadrant, palette[tone].main]),
-    );
-    const fills = Object.fromEntries(
-      Object.entries(colors).map(([quadrant, color]) => [quadrant, alpha(color, 0.08)]),
-    );
-    const colorOf = (quadrant) => colors[quadrant] || palette.text.disabled;
-    return { colors, fills, colorOf };
-  }, [palette]);
+  return QUADRANT_COLORS;
 }
 
 /**

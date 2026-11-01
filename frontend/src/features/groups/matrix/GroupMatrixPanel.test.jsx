@@ -22,13 +22,11 @@ describe('Matrix panel', () => {
   afterEach(() => vi.restoreAllMocks());
   it('offers weekly and monthly changes in both layouts and stock inspection', () => {
     render(<Harness />);
-    fireEvent.mouseDown(screen.getByRole('combobox', {name:/^Color/}));
-    fireEvent.click(screen.getByRole('option', {name:'1-Week Change'}));
+    fireEvent.change(screen.getByRole('combobox', {name:/^Color/}), {target:{value:'price_change_1w'}});
     expect(screen.getByRole('button', {name:/^STK01 \+4.50%/})).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', {name:'Clusters'}));
     expect(screen.getByRole('button', {name:/^STK01 \+4.50%/})).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole('combobox', {name:/^Color/}));
-    fireEvent.click(screen.getByRole('option', {name:'1-Month Change'}));
+    fireEvent.change(screen.getByRole('combobox', {name:/^Color/}), {target:{value:'price_change_1m'}});
     const tile = screen.getByRole('button', {name:/^STK01 -8.25%/});
     fireEvent.focus(tile);
     expect(screen.getByRole('tooltip')).toHaveTextContent('1-Week Change');

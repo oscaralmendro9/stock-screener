@@ -79,9 +79,7 @@ describe('StaticGroupChartsGrid', () => {
     expect(chartGrid).toHaveStyle({
       display: 'grid',
     });
-    const generatedCss = document.head.textContent.replace(/\s/g, '');
-    expect(generatedCss).toContain('grid-template-columns:1fr');
-    expect(generatedCss).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
+    expect(chartGrid).toHaveClass('grid-cols-1', 'md:grid-cols-2');
   });
 
   it('shows a no-data message when a loaded chart payload has no bars array', async () => {

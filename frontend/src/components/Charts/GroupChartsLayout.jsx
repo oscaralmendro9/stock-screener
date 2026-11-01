@@ -1,37 +1,23 @@
 import { forwardRef } from 'react';
-import { Box } from '@mui/material';
 
-const TWO_COLUMN_TEMPLATE = 'repeat(2, minmax(0, 1fr))';
+import { cn } from '@/lib/cn';
 
-const mergeSx = (base, sx) => (
-  Array.isArray(sx)
-    ? [base, ...sx]
-    : [base, sx].filter(Boolean)
-);
-
-function GroupChartsLayout({ children, gap = 1, sx, ...props }) {
+// One column on phones, two from md up, in CSS (no JS media query). `gap` is
+// in the old 8px spacing units.
+function GroupChartsLayout({ children, gap = 1, className, style, ...props }) {
   return (
-    <Box
+    <div
       {...props}
-      sx={mergeSx(
-        {
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: TWO_COLUMN_TEMPLATE,
-          },
-          gap,
-        },
-        sx,
-      )}
+      className={cn('tw grid grid-cols-1 md:grid-cols-2', className)}
+      style={{ display: 'grid', gap: gap * 8, ...style }}
     >
       {children}
-    </Box>
+    </div>
   );
 }
 
-export const GroupChartCell = forwardRef(function GroupChartCell({ sx, ...props }, ref) {
-  return <Box ref={ref} {...props} sx={mergeSx({ minWidth: 0 }, sx)} />;
+export const GroupChartCell = forwardRef(function GroupChartCell({ style, ...props }, ref) {
+  return <div ref={ref} {...props} style={{ minWidth: 0, ...style }} />;
 });
 
 export default GroupChartsLayout;
