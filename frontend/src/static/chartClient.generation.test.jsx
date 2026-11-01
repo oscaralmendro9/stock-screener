@@ -1,6 +1,5 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import StaticChartViewerModal from './StaticChartViewerModal';
@@ -44,9 +43,9 @@ describe('static charts across a data generation switch', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={createTheme()}>
+        <>
           <OpenChart />
-        </ThemeProvider>
+        </>
       </QueryClientProvider>,
     );
 

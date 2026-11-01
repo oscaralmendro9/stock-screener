@@ -107,7 +107,6 @@ export default defineConfig(({ mode }) => {
         'react',
         'react-dom',
         'react-router-dom',
-        '@mui/material',
         '@tanstack/react-query',
         '@tanstack/react-virtual',
         'recharts',

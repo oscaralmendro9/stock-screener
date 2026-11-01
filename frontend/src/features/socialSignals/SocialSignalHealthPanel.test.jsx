@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createTheme, ThemeProvider } from '@mui/material';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,9 +49,9 @@ function seedMocks() {
 
 function renderPanel() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const rendered = render(<QueryClientProvider client={client}><ThemeProvider theme={createTheme()}>
+  const rendered = render(<QueryClientProvider client={client}><>
     <SocialSignalHealthPanel />
-  </ThemeProvider></QueryClientProvider>);
+  </></QueryClientProvider>);
   return { ...rendered, client };
 }
 

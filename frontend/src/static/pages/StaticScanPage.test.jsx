@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import StaticScanPage from './StaticScanPage';
 
@@ -90,9 +89,9 @@ const renderPage = () => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <StaticScanPage />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };

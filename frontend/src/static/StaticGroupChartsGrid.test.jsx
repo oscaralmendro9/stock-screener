@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -30,13 +29,13 @@ const renderGrid = (props = {}) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <StaticGroupChartsGrid
           symbols={['NVDA']}
           chartIndex={{ symbols: [{ symbol: 'NVDA', path: 'charts/NVDA.json' }] }}
           {...props}
         />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };

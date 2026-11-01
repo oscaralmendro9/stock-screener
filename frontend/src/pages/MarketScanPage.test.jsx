@@ -1,4 +1,3 @@
-import { createTheme, ThemeProvider } from '@mui/material';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,9 +26,9 @@ vi.mock('../features/socialSignals/SocialSignalsTab', () => ({
 }));
 
 const renderPage = () => render(
-  <ThemeProvider theme={createTheme()}>
+  <>
     <MarketScanPage />
-  </ThemeProvider>,
+  </>,
 );
 
 describe('MarketScanPage (Home)', () => {

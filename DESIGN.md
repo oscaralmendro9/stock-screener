@@ -18,8 +18,9 @@ choices below override it.
 
 ## Tokens
 
-Defined in `frontend/src/styles/tailwind.css`, mirrored from `PALETTES` in
-`frontend/src/theme.js` so migrated and MUI pages match during the migration.
+Defined in `frontend/src/styles/tailwind.css`. Canvas charts that can't read CSS
+variables (`CandlestickChart`) and the browser bar colour (`THEME_COLOR` in
+`frontend/src/theme.js`) mirror the surface values; change them together.
 
 | Token | Use |
 |---|---|
@@ -64,13 +65,13 @@ focus ring uses `accent` instead of white.
 ## Migration
 
 1. New code uses Tailwind + `frontend/src/ui/*` (shadcn-style, `components.json`).
-2. Pages migrate one at a time; a migrated page imports nothing from `@mui/*`.
-3. Tailwind preflight is off until the last MUI page is gone. Instead, a
-   scoped reset applies inside elements with the `tw` class (links, buttons,
-   inputs, lists); put `tw` on the root of every migrated surface.
+2. MUI is gone (2026-11-01): `@mui/*` and `@emotion/*` are uninstalled and
+   nothing may import them again.
+3. Tailwind preflight is on. The `tw` class that once scoped a stand-in reset
+   is now inert; it can be dropped when a file is next touched.
 4. The global `*` reset in `index.css` lives in `@layer base`; unlayered it
    would override every Tailwind margin/padding utility.
-5. Never nest one primitive system's modal inside another's (Radix around
-   MUI dialogs blocks their clicks). Migrate a modal and its contents together.
+5. Dialogs, sheets and popovers are Radix only (`ui/dialog`, `ui/sheet`,
+   `ui/popover`); don't mix in another modal system.
 6. The live market selector is a native `<select>`: tests drive it with
    `selectOptions` / `selectOption`, not by clicking an option.

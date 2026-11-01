@@ -81,8 +81,8 @@ Open:
 - [x] `OpportunityEvidenceDrawer` on `ui/sheet` (tests only so far: this install has no opportunity-state evidence to open)
 - [x] More shared bits: `TickerCell`, `MarketBadge` (neutral ink instead of a colour per market, full name in a native title), `FieldAvailabilityChip` (button plus `ui/dialog`; one wrapper stops clicks reaching the row, including from the portalled dialog) and the loading skeletons (`TableSkeleton`, `PageSkeleton`). `CandlestickChart` chrome (legend, `aria-pressed` Daily/Weekly and RS toggles, refresh and error overlays) is on Tailwind; its canvas colours come from a per-mode table that mirrors the tokens. The screener page container and results section use `ui/notice` instead of MUI alerts.
 - [x] Operations: page (hash-driven ARIA tabs with arrow/Home/End keys, job console with native filters, progress bars, lease cards, queue/worker/alert tables, confirm dialogs on `ui/dialog`), `MarketCoverage`, `ThemeSourceHealth`, `InactiveMarkets` and `SchedulesSection` (per-market chips open Radix popovers, Run confirms on `ui/dialog`, tones exposed as `data-tone`/`data-variant`) on Tailwind. The Social Signals administration panel and the exposure research workspace followed (tests only: both features are off in this install)
-- [ ] The rest (none left)
-- [ ] Remove MUI and enable Tailwind preflight
+- [x] The rest: assistant, app screens, static site, Themes, Social Signals and exposure research
+- [x] MUI and Emotion uninstalled, Tailwind preflight on (2026-11-01); retired Home tabs removed
 
 ## Phase 5 — Paid data (optional)
 - [ ] Adapters for e.g. Polygon/Massive (stocks/options), Databento (futures), EODHD (global)

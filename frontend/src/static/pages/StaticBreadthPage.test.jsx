@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
 
 import StaticBreadthPage from './StaticBreadthPage';
@@ -26,13 +25,13 @@ const renderPage = (initialEntry = '/breadth') => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <MemoryRouter initialEntries={[initialEntry]}>
           <StaticMarketProvider supportedMarkets={['US', 'HK']} defaultMarket="US">
             <StaticBreadthPage />
           </StaticMarketProvider>
         </MemoryRouter>
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };

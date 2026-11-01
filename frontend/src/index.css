@@ -33,7 +33,7 @@
 }
 
 /* Painted before React mounts (index.html sets data-color-mode); matches
-   background.default in src/theme.js so the first frame doesn't flash. */
+   --background in styles/tailwind.css so the first frame doesn't flash. */
 html {
   background-color: #080808;
   color-scheme: dark;

@@ -3,14 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider, removeOldestQuery } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 
 import { STATIC_SITE_MODE } from './config/runtimeMode';
 
 import Layout from './components/Layout/Layout';
 import { BrandMark } from './components/Layout/AppNav';
 import { PageSkeleton } from './components/common/LoadingSkeletons';
-import { getDesignTokens, useColorMode } from './theme';
+import { THEME_COLOR, useColorMode } from './theme';
 import { PipelineProvider } from './contexts/PipelineContext';
 import { MarketProvider } from './contexts/MarketContext';
 import { useMarket } from './contexts/MarketContext';
@@ -172,14 +171,12 @@ function App() {
   const { mode, toggleColorMode } = useColorMode();
   const colorMode = useMemo(() => ({ mode, toggleColorMode }), [mode, toggleColorMode]);
 
-  const theme = useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
-
   // Keep the pre-React background (index.css) and the mobile browser bar in step.
   useEffect(() => {
     document.documentElement.dataset.colorMode = mode;
     document.querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme.palette.background.paper);
-  }, [mode, theme]);
+      ?.setAttribute('content', THEME_COLOR[mode]);
+  }, [mode]);
 
   const appShell = STATIC_SITE_MODE ? (
     // The static shell mounts its own chrome, so its cold start shows the same
@@ -195,10 +192,7 @@ function App() {
 
   const themedApp = (
     <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {appShell}
-      </ThemeProvider>
+      {appShell}
     </ColorModeContext.Provider>
   );
 

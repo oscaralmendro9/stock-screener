@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createTheme, ThemeProvider } from '@mui/material';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,7 +59,7 @@ function renderTab() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ThemeProvider theme={createTheme()}><SocialSignalsTab /></ThemeProvider>
+        <><SocialSignalsTab /></>
         <LocationProbe />
       </QueryClientProvider>
     </MemoryRouter>,

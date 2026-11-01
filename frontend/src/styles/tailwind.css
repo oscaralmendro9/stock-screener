@@ -1,29 +1,14 @@
-/* Tailwind runs alongside MUI while pages migrate (see DESIGN.md).
-   Preflight is left out on purpose: MUI's CssBaseline and index.css still own
-   the element reset, and preflight would restyle unmigrated MUI pages.
-   Add `@import "tailwindcss/preflight.css" layer(base);` once MUI is gone. */
+/* Tailwind with its preflight reset; MUI is gone (see DESIGN.md). */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 
-/* Scoped stand-in for preflight: only inside `.tw` containers (the shell,
-   sheets, menus), so unmigrated MUI pages keep their browser defaults. */
+/* Page colours from the tokens (preflight leaves them to the app). */
 @layer base {
-  :where(.tw a, a.tw) {
-    color: inherit;
-    text-decoration: inherit;
-  }
-  :where(.tw button, .tw input, .tw select, button.tw) {
-    font: inherit;
-    color: inherit;
-    background-color: transparent;
-    border: 0;
-  }
-  :where(.tw ul, .tw ol) {
-    list-style: none;
-  }
-  :where(.tw svg) {
-    display: block;
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
 
@@ -35,12 +20,12 @@
   }
 }
 
-/* Dark mode follows the same attribute the MUI theme and color-mode.js use. */
+/* Dark mode follows the attribute App sets from the colour mode. */
 @custom-variant dark (&:where([data-color-mode='dark'], [data-color-mode='dark'] *));
 
-/* Semantic tokens. Values mirror PALETTES in src/theme.js so migrated and
-   MUI pages read as one product; change both together. Gain/loss colors are
-   reserved for price direction and always ship with a sign or arrow. */
+/* Semantic tokens. Gain/loss colors are reserved for price direction and
+   always ship with a sign or arrow. Canvas chart chrome (CandlestickChart) and
+   THEME_COLOR in src/theme.js mirror the surface values. */
 :root,
 [data-color-mode='light'] {
   --background: #f7f7f7;

@@ -1,9 +1,5 @@
 import { render, renderHook } from '@testing-library/react';
-import { ThemeProvider, createTheme } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getDesignTokens } from '../theme';
-
-const darkTheme = createTheme(getDesignTokens('dark'));
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -19,7 +15,7 @@ function createWrapper(queryClient) {
   return function Wrapper({ children }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={darkTheme}>{children}</ThemeProvider>
+        {children}
       </QueryClientProvider>
     );
   };

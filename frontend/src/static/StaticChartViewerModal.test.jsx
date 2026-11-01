@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import StaticChartViewerModal from './StaticChartViewerModal';
@@ -37,9 +36,9 @@ const renderModal = (props) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={createTheme()}>
+      <>
         <StaticChartViewerModal {...props} />
-      </ThemeProvider>
+      </>
     </QueryClientProvider>
   );
 };

@@ -1,4 +1,3 @@
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -37,7 +36,7 @@ const detail = {
 };
 
 const renderModal = (props = {}) => render(
-  <ThemeProvider theme={createTheme()}>
+  <>
     <StaticGroupDetailModal
       group="Semiconductors"
       detail={detail}
@@ -45,7 +44,7 @@ const renderModal = (props = {}) => render(
       onClose={vi.fn()}
       {...props}
     />
-  </ThemeProvider>
+  </>
 );
 
 describe('StaticGroupDetailModal', () => {
