@@ -1,31 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Checkbox,
-  Chip,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  FormGroup,
-  InputLabel,
-  LinearProgress,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/ui/button';
+import { NativeSelect } from '@/ui/native-select';
+import { Notice } from '@/ui/notice';
+import { cn } from '@/lib/cn';
 import { useRuntimeActivity } from '../../hooks/useRuntimeActivity';
 
-const STATUS_COLOR = {
-  running: 'info',
-  queued: 'warning',
-  completed: 'success',
-  failed: 'error',
-  idle: 'default',
+// Status reads as toned text in a neutral pill.
+const STATUS_TEXT = {
+  running: 'text-foreground',
+  queued: 'text-warning',
+  completed: 'text-gain',
+  failed: 'text-loss',
 };
 
 const FALLBACK_BOOTSTRAP_STAGES = [
@@ -172,8 +157,7 @@ export default function BootstrapSetupScreen({
     ));
   };
 
-  const handlePrimaryChange = (event) => {
-    const nextPrimary = event.target.value;
+  const handlePrimaryChange = (nextPrimary) => {
     setSelectedPrimary(nextPrimary);
     setSelectedMarkets((previous) => normalizeEnabled(nextPrimary, previous));
   };
@@ -190,193 +174,143 @@ export default function BootstrapSetupScreen({
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        px: 2,
-        py: 4,
-      }}
-    >
-      <Card sx={{ width: '100%', maxWidth: 720 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Stack spacing={3}>
-            <Box>
-              <Chip size="small" color="primary" label="Local Setup" sx={{ mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                First-run market bootstrap
-              </Typography>
-              <Typography color="text.secondary">
-                Pick the primary market for startup defaults. The workspace opens after the
-                primary market finishes its first scan-backed snapshot.
-              </Typography>
-            </Box>
+    <main className="tw flex min-h-screen items-center justify-center bg-background px-4 py-8 text-foreground">
+      <div className="w-full max-w-[720px] rounded-lg border border-border bg-surface p-8">
+        <div className="flex flex-col gap-6">
+          <div>
+            <span className="mb-2 inline-flex h-6 items-center rounded-full border border-border px-2 text-[11px] font-medium text-muted-foreground">Local Setup</span>
+            <h1 className="mb-2 text-3xl font-bold">First-run market bootstrap</h1>
+            <p className="text-muted-foreground">
+              Pick the primary market for startup defaults. The workspace opens after the
+              primary market finishes its first scan-backed snapshot.
+            </p>
+          </div>
 
-            {bootstrapError && (
-              <Alert severity="error">
-                {typeof bootstrapError === 'string' ? bootstrapError : 'Failed to start bootstrap.'}
-              </Alert>
-            )}
+          {bootstrapError && (
+            <Notice tone="error">
+              {typeof bootstrapError === 'string' ? bootstrapError : 'Failed to start bootstrap.'}
+            </Notice>
+          )}
 
-            {running && (
-              <Stack spacing={2}>
-                <Alert severity="info">
-                  Initial sync is running. The workspace will open after the primary market has
-                  current data and a published scan. Additional markets continue loading in the background.
-                </Alert>
-                <Box
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: 1,
-                    borderColor: 'divider',
-                    backgroundColor: 'action.hover',
-                  }}
+          {running && (
+            <div className="flex flex-col gap-4">
+              <Notice>
+                Initial sync is running. The workspace will open after the primary market has
+                current data and a published scan. Additional markets continue loading in the background.
+              </Notice>
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-subtle p-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">{bootstrap?.current_stage || 'Preparing bootstrap'}</h2>
+                  {bootstrapProgressMode === 'determinate' && bootstrapPercent !== null && (
+                    <span className="text-sm text-muted-foreground tabular-nums">{Math.round(bootstrapPercent)}%</span>
+                  )}
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="Bootstrap progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={bootstrapProgressMode === 'determinate' && bootstrapPercent !== null ? Math.round(bootstrapPercent) : undefined}
+                  className="h-1.5 overflow-hidden rounded-full bg-border"
                 >
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="subtitle2">
-                        {bootstrap?.current_stage || 'Preparing bootstrap'}
-                      </Typography>
-                      {bootstrapProgressMode === 'determinate' && bootstrapPercent !== null && (
-                        <Typography variant="body2" color="text.secondary">
-                          {Math.round(bootstrapPercent)}%
-                        </Typography>
-                      )}
-                    </Stack>
-                    <LinearProgress
-                      variant={bootstrapProgressMode === 'determinate' ? 'determinate' : 'indeterminate'}
-                      value={bootstrapProgressMode === 'determinate' ? bootstrapPercent : undefined}
-                      aria-label="Bootstrap progress"
+                  {bootstrapProgressMode === 'determinate' && bootstrapPercent !== null ? (
+                    <div className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out motion-reduce:transition-none" style={{ width: `${bootstrapPercent}%` }} />
+                  ) : (
+                    <div className="h-full w-1/3 rounded-full bg-accent motion-safe:animate-pulse" />
+                  )}
+                </div>
+                {bootstrapProgressDetail && (
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{bootstrapProgressDetail}</p>
+                )}
+                <p className="text-sm text-muted-foreground">{bootstrapMessage}</p>
+              </div>
+              {bootstrap?.background_warning && (
+                <Notice tone="warning">{bootstrap.background_warning}</Notice>
+              )}
+              {marketActivity.length > 0 && (
+                <div>
+                  <h2 className="mb-2 text-sm font-semibold">Enabled market queue</h2>
+                  <ul className="flex flex-col gap-2">
+                    {marketActivity.map((market) => (
+                      <li
+                        key={market.activity_id ?? market.market}
+                        className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-bold">
+                            {market.market}
+                            {market.market === (bootstrap?.primary_market || primaryMarket) ? ' (primary)' : ''}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {market.stage_label || 'Queued'}{market.message ? ` · ${market.message}` : ''}
+                          </p>
+                        </div>
+                        <span className={cn('inline-flex h-6 items-center rounded-full border border-border px-2 text-[11px] font-medium', STATUS_TEXT[market.status] || 'text-muted-foreground')}>
+                          {market.status || 'idle'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <hr className="border-border" />
+
+          <NativeSelect
+            label="Primary market"
+            value={selectedPrimary}
+            onChange={handlePrimaryChange}
+            disabled={running || isStartingBootstrap}
+          >
+            {marketOptions.map((market) => (
+              <option key={market.code} value={market.code}>{market.label}</option>
+            ))}
+          </NativeSelect>
+
+          <fieldset>
+            <legend className="text-sm font-semibold">Enabled markets</legend>
+            <p className="mb-2 text-sm text-muted-foreground">
+              This deployment&apos;s ENABLED_MARKETS decides which markets are listed.
+            </p>
+            <div className="flex flex-col">
+              {marketOptions.map((market) => {
+                const disabled = running || isStartingBootstrap || market.code === selectedPrimary;
+                return (
+                  <label key={market.code} className={cn('flex min-h-11 items-center gap-2 text-sm md:min-h-9', disabled ? 'cursor-default' : 'cursor-pointer')}>
+                    <input
+                      type="checkbox"
+                      checked={normalizedSelection.includes(market.code)}
+                      disabled={disabled}
+                      onChange={() => toggleMarket(market.code)}
+                      className="size-4 cursor-pointer accent-accent disabled:cursor-default"
                     />
-                    {bootstrapProgressDetail && (
-                      <Typography variant="caption" color="text.secondary">
-                        {bootstrapProgressDetail}
-                      </Typography>
-                    )}
-                    <Typography variant="body2" color="text.secondary">
-                      {bootstrapMessage}
-                    </Typography>
-                  </Stack>
-                </Box>
-                {bootstrap?.background_warning && (
-                  <Alert severity="warning">
-                    {bootstrap.background_warning}
-                  </Alert>
-                )}
-                {marketActivity.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      Enabled market queue
-                    </Typography>
-                    <Stack spacing={1}>
-                      {marketActivity.map((market) => (
-                        <Box
-                          key={market.activity_id ?? market.market}
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 2,
-                            px: 1.5,
-                            py: 1,
-                            borderRadius: 1.5,
-                            border: 1,
-                            borderColor: 'divider',
-                          }}
-                        >
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                              {market.market}
-                              {market.market === (bootstrap?.primary_market || primaryMarket) ? ' (primary)' : ''}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {market.stage_label || 'Queued'}{market.message ? ` · ${market.message}` : ''}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            size="small"
-                            color={STATUS_COLOR[market.status] || 'default'}
-                            label={market.status || 'idle'}
-                          />
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-              </Stack>
-            )}
+                    {market.code === selectedPrimary ? `${market.label} (primary)` : market.label}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
 
-            <Divider />
+          <hr className="border-border" />
 
-            <FormControl fullWidth>
-              <InputLabel id="bootstrap-primary-market-label">Primary market</InputLabel>
-              <Select
-                labelId="bootstrap-primary-market-label"
-                value={selectedPrimary}
-                label="Primary market"
-                onChange={handlePrimaryChange}
-                disabled={running || isStartingBootstrap}
-              >
-                {marketOptions.map((market) => (
-                  <MenuItem key={market.code} value={market.code}>
-                    {market.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <div>
+            <h2 className="mb-2 text-sm font-semibold">Bootstrap order</h2>
+            {bootstrapStages.map((stage, index) => (
+              <p key={stage.key} className="text-muted-foreground">
+                {index + 1}. {stage.label}
+              </p>
+            ))}
+          </div>
 
-            <Box>
-              <Typography variant="subtitle2">
-                Enabled markets
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                This deployment&apos;s ENABLED_MARKETS decides which markets are listed.
-              </Typography>
-              <FormGroup>
-                {marketOptions.map((market) => (
-                  <FormControlLabel
-                    key={market.code}
-                    control={(
-                      <Checkbox
-                        checked={normalizedSelection.includes(market.code)}
-                        disabled={running || isStartingBootstrap || market.code === selectedPrimary}
-                        onChange={() => toggleMarket(market.code)}
-                      />
-                    )}
-                    label={market.code === selectedPrimary ? `${market.label} (primary)` : market.label}
-                  />
-                ))}
-              </FormGroup>
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Bootstrap order
-              </Typography>
-              {bootstrapStages.map((stage, index) => (
-                <Typography key={stage.key} color="text.secondary">
-                  {index + 1}. {stage.label}
-                </Typography>
-              ))}
-            </Box>
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
-                onClick={handleStart}
-                disabled={running || isStartingBootstrap}
-              >
-                {isStartingBootstrap ? 'Starting...' : 'Start bootstrap'}
-              </Button>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Box>
+          <div className="flex justify-end">
+            <Button onClick={handleStart} disabled={running || isStartingBootstrap}>
+              {isStartingBootstrap ? 'Starting...' : 'Start bootstrap'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }

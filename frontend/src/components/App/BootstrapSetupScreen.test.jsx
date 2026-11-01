@@ -598,7 +598,7 @@ describe('BootstrapSetupScreen', () => {
 
     expect(screen.getAllByText('Hong Kong').length).toBeGreaterThan(0);
     expect(screen.getByText('Hong Kong (primary)')).toBeInTheDocument();
-    expect(screen.getByText('United States')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'United States' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Start bootstrap' }));
 

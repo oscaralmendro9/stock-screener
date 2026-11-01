@@ -1,14 +1,7 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+
+import { Button } from '@/ui/button';
+import { Notice } from '@/ui/notice';
 
 function ServerLoginScreen({
   auth,
@@ -32,83 +25,53 @@ function ServerLoginScreen({
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        px: 2,
-        background:
-          'radial-gradient(circle at top, rgba(25,118,210,0.18), transparent 42%), linear-gradient(180deg, #0d1726 0%, #10151c 100%)',
-      }}
-    >
-      <Paper
-        elevation={8}
-        sx={{
-          width: '100%',
-          maxWidth: 460,
-          p: 4,
-          borderRadius: 3,
-          backgroundColor: 'rgba(15, 23, 42, 0.94)',
-          color: '#f8fafc',
-        }}
-      >
-        <Stack spacing={2.5} component="form" onSubmit={handleSubmit}>
-          <Box>
-            <Typography variant="overline" sx={{ letterSpacing: 2, color: 'rgba(148, 163, 184, 0.9)' }}>
-              Server Access
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Sign in to Stock Scanner
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(226, 232, 240, 0.85)', mt: 1 }}>
+    <main className="tw flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <div className="w-full max-w-[460px] rounded-lg border border-border bg-surface p-8 shadow-lg">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">Server Access</p>
+            <h1 className="mt-1 text-2xl font-bold">Sign in to Stock Scanner</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               Server mode now requires an authenticated browser session before protected API routes are available.
-            </Typography>
-          </Box>
+            </p>
+          </div>
 
           {!auth?.configured && (
-            <Alert severity="warning">
+            <Notice tone="warning">
               {auth?.message || 'Server authentication is required but not configured.'}
-            </Alert>
+            </Notice>
           )}
 
-          {loginError && (
-            <Alert severity="error">
-              {loginError}
-            </Alert>
-          )}
+          {loginError && <Notice tone="error">{loginError}</Notice>}
 
-          <TextField
-            label="Server password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            disabled={isLoggingIn || !auth?.configured}
-            autoComplete="current-password"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            sx={{
-              '& .MuiInputBase-root': {
-                color: '#f8fafc',
-              },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(148, 163, 184, 0.35)',
-              },
-            }}
-          />
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">Server password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={isLoggingIn || !auth?.configured}
+              autoComplete="current-password"
+              className="h-11 w-full rounded-md border border-border bg-surface px-3 font-[inherit] text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            />
+          </label>
 
           <Button
             type="submit"
-            variant="contained"
             disabled={isLoggingIn || !auth?.configured || !password.trim()}
-            sx={{ minHeight: 44, fontWeight: 700 }}
+            className="h-11"
+            aria-busy={isLoggingIn || undefined}
           >
-            {isLoggingIn ? <CircularProgress size={20} color="inherit" /> : 'Sign in'}
+            {isLoggingIn ? (
+              <>
+                <span aria-hidden="true" className="inline-block size-4 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />
+                <span className="sr-only">Signing in</span>
+              </>
+            ) : 'Sign in'}
           </Button>
-        </Stack>
-      </Paper>
-    </Box>
+        </form>
+      </div>
+    </main>
   );
 }
 

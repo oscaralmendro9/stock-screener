@@ -23,6 +23,11 @@ function CompactMultiSelect({
   // so the caption row goes and the mode toggle sits beside the input.
   inline = false,
   id,
+  // Free text: Enter on a search with no matching option adds what was typed.
+  freeSolo = false,
+  // Shown under the field (e.g. a value count); `error` tones it and the border.
+  helperText = null,
+  error = false,
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -69,7 +74,12 @@ function CompactMultiSelect({
       setActive((index) => (index + step + filtered.length) % filtered.length);
     } else if (event.key === 'Enter') {
       event.preventDefault();
+      const typed = query.trim();
       if (filtered[active] !== undefined) toggle(filtered[active]);
+      else if (freeSolo && typed && !selectedValues.includes(typed) && !selectionLimitReached) {
+        onChange([...selectedValues, typed]);
+        setQuery('');
+      }
     }
   };
 
@@ -106,7 +116,7 @@ function CompactMultiSelect({
         className={cn(
           'flex min-h-11 min-w-0 flex-wrap items-center gap-0.5 rounded-md border bg-surface p-0.5 md:min-h-7',
           inline && 'flex-1',
-          isExcludeMode && selectedValues.length > 0 ? 'border-loss/60' : 'border-border',
+          (error || (isExcludeMode && selectedValues.length > 0)) ? 'border-loss/60' : 'border-border',
         )}
       >
         {selectedValues.map((value) => (
@@ -182,11 +192,14 @@ function CompactMultiSelect({
                   </li>
                 );
               })}
-              {!filtered.length && <li className="px-2 py-2 text-xs text-muted-foreground">No matches</li>}
+              {!filtered.length && <li className="px-2 py-2 text-xs text-muted-foreground">{freeSolo && query.trim() ? `Press Enter to add “${query.trim()}”` : 'No matches'}</li>}
             </ul>
           </PopoverContent>
         </Popover>
       </div>
+      {helperText && (
+        <span className={cn('mt-0.5 block basis-full text-[11px] tabular-nums', error ? 'text-loss' : 'text-muted-foreground')}>{helperText}</span>
+      )}
       {showSelectionLimit && (!inline || selectionLimitReached) && (
         <span className={cn('mt-0.5 block basis-full text-[11px]', selectionLimitReached ? 'font-medium text-foreground' : 'text-muted-foreground')}>
           Up to {maxValues} values
