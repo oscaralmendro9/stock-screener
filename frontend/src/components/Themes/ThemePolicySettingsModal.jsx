@@ -1,24 +1,9 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  IconButton,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import RestoreIcon from '@mui/icons-material/Restore';
-import PublishIcon from '@mui/icons-material/Publish';
-import PreviewIcon from '@mui/icons-material/Preview';
-import SaveIcon from '@mui/icons-material/Save';
+import { Eye, RotateCcw, Save, Upload } from 'lucide-react';
+import { Button } from '@/ui/button';
+import { Dialog, DialogContent } from '@/ui/dialog';
+import { Notice } from '@/ui/notice';
+import { Field, Pill } from '../../features/themes/themeUi';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getThemePolicyConfig,
@@ -149,191 +134,117 @@ export function ThemePolicySettingsContent({ pipeline = 'technical' }) {
   const historyRows = useMemo(() => data?.history || [], [data?.history]);
 
   return (
-    <>
+    <div className="tw text-foreground">
       {!adminKey.trim() && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Enter admin key to load policy settings.
-        </Alert>
+        <Notice className="mb-4">Enter admin key to load policy settings.</Notice>
       )}
       {(message || error) && (
-        <Alert severity={message ? messageType : 'error'} sx={{ mb: 2 }}>
+        <Notice tone={message ? (messageType === 'error' ? 'error' : 'info') : 'error'} className="mb-4">
           {message || error?.message || 'Failed to load policy config'}
-        </Alert>
+        </Notice>
       )}
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <TextField
-          size="small"
-          label="Admin Key"
-          type="password"
-          value={adminKey}
-          onChange={(e) => setAdminKey(e.target.value)}
-          fullWidth
-        />
-        <TextField
-          size="small"
-          label="Actor"
-          value={adminActor}
-          onChange={(e) => setAdminActor(e.target.value)}
-          fullWidth
-        />
-        <TextField
-          size="small"
-          label="Change Note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          fullWidth
-        />
-      </Stack>
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Field label="Admin Key" type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} />
+        <Field label="Actor" value={adminActor} onChange={(e) => setAdminActor(e.target.value)} />
+        <Field label="Change Note" value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
 
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        <Chip label={`Pipeline: ${pipeline}`} color="primary" size="small" />
-        <Chip label={`Active Version: ${activeVersion}`} size="small" variant="outlined" />
-        {data?.staged?.version_id && <Chip label={`Staged: ${data.staged.version_id}`} color="warning" size="small" />}
-      </Box>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Pill tone="accent">{`Pipeline: ${pipeline}`}</Pill>
+        <Pill tone="muted">{`Active Version: ${activeVersion}`}</Pill>
+        {data?.staged?.version_id && <Pill tone="warning">{`Staged: ${data.staged.version_id}`}</Pill>}
+      </div>
 
-      <Divider sx={{ mb: 2 }} />
+      <hr className="mb-4 border-border" />
 
       {isLoading ? (
-        <Typography color="text.secondary">Loading policy config...</Typography>
+        <p className="text-muted-foreground">Loading policy config...</p>
       ) : (
-        <Stack spacing={2}>
-          <Typography variant="subtitle2">Matcher Thresholds</Typography>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} flexWrap="wrap">
+        <div className="flex flex-col gap-4">
+          <h3 className="text-sm font-semibold">Matcher Thresholds</h3>
+          <div className="flex flex-wrap gap-2">
             {MATCHER_FIELDS.map(([key, label]) => (
-              <TextField
+              <Field
                 key={key}
-                size="small"
                 type="number"
                 label={label}
                 value={matcherDraft[key] ?? ''}
                 onChange={(e) => setMatcherDraft((prev) => ({ ...prev, [key]: e.target.value }))}
                 placeholder={String(effective.matcher?.[key] ?? '')}
-                sx={{ minWidth: 230 }}
+                className="w-full md:w-[230px]"
               />
             ))}
-          </Stack>
+          </div>
 
-          <Typography variant="subtitle2">Lifecycle Thresholds</Typography>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} flexWrap="wrap">
+          <h3 className="text-sm font-semibold">Lifecycle Thresholds</h3>
+          <div className="flex flex-wrap gap-2">
             {LIFECYCLE_FIELDS.map(([key, label]) => (
-              <TextField
+              <Field
                 key={key}
-                size="small"
                 type="number"
                 label={label}
                 value={lifecycleDraft[key] ?? ''}
                 onChange={(e) => setLifecycleDraft((prev) => ({ ...prev, [key]: e.target.value }))}
                 placeholder={String(effective.lifecycle?.[key] ?? '')}
-                sx={{ minWidth: 250 }}
+                className="w-full md:w-[250px]"
               />
             ))}
-          </Stack>
+          </div>
 
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Tooltip title="Preview changes without writing to storage">
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<PreviewIcon />}
-                  onClick={() => updateMutation.mutate('preview')}
-                  disabled={updateMutation.isPending}
-                >
-                  Preview
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title="Stage changes for later promotion">
-              <span>
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  startIcon={<SaveIcon />}
-                  onClick={() => updateMutation.mutate('stage')}
-                  disabled={updateMutation.isPending}
-                >
-                  Stage
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title="Apply immediately and create a versioned audit record">
-              <span>
-                <Button
-                  variant="contained"
-                  startIcon={<PublishIcon />}
-                  onClick={() => updateMutation.mutate('apply')}
-                  disabled={updateMutation.isPending}
-                >
-                  Apply
-                </Button>
-              </span>
-            </Tooltip>
-            <Button
-              variant="contained"
-              color="warning"
-              startIcon={<PublishIcon />}
-              onClick={() => promoteMutation.mutate()}
-              disabled={!data?.staged?.version_id || promoteMutation.isPending}
-            >
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" title="Preview changes without writing to storage" onClick={() => updateMutation.mutate('preview')} disabled={updateMutation.isPending}>
+              <Eye aria-hidden="true" />
+              Preview
+            </Button>
+            <Button variant="secondary" size="sm" title="Stage changes for later promotion" onClick={() => updateMutation.mutate('stage')} disabled={updateMutation.isPending}>
+              <Save aria-hidden="true" />
+              Stage
+            </Button>
+            <Button size="sm" title="Apply immediately and create a versioned audit record" onClick={() => updateMutation.mutate('apply')} disabled={updateMutation.isPending}>
+              <Upload aria-hidden="true" />
+              Apply
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => promoteMutation.mutate()} disabled={!data?.staged?.version_id || promoteMutation.isPending}>
+              <Upload aria-hidden="true" />
               Promote Staged
             </Button>
-          </Box>
+          </div>
 
-          <Divider />
-          <Typography variant="subtitle2">Version History (Revert)</Typography>
-          <Stack spacing={1}>
+          <hr className="border-border" />
+          <h3 className="text-sm font-semibold">Version History (Revert)</h3>
+          <div className="flex flex-col gap-2">
             {historyRows.slice(0, 10).map((row) => (
-              <Box
-                key={row.version_id}
-                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}
-              >
-                <Box>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{row.version_id}</Typography>
-                  <Typography variant="caption" color="text.secondary">
+              <div key={row.version_id} className="flex items-center justify-between rounded-md border border-border p-2">
+                <div>
+                  <p className="font-mono text-sm">{row.version_id}</p>
+                  <p className="text-[11px] text-muted-foreground">
                     {row.updated_at} by {row.updated_by}{row.note ? ` - ${row.note}` : ''}
-                  </Typography>
-                </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="error"
-                  startIcon={<RestoreIcon />}
-                  onClick={() => revertMutation.mutate(row.version_id)}
-                  disabled={revertMutation.isPending}
-                >
+                  </p>
+                </div>
+                <Button variant="secondary" size="sm" className="text-loss" onClick={() => revertMutation.mutate(row.version_id)} disabled={revertMutation.isPending}>
+                  <RotateCcw aria-hidden="true" />
                   Revert
                 </Button>
-              </Box>
+              </div>
             ))}
             {!historyRows.length && (
-              <Typography variant="body2" color="text.secondary">
-                No policy history yet.
-              </Typography>
+              <p className="text-sm text-muted-foreground">No policy history yet.</p>
             )}
-          </Stack>
-        </Stack>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
 function ThemePolicySettingsModal({ open, onClose, pipeline = 'technical' }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography variant="h6">Theme Policy Controls</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Safe-by-default controls with preview, staged rollout, and versioned audit history.
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent title="Theme Policy Controls" size="lg">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Safe-by-default controls with preview, staged rollout, and versioned audit history.
+        </p>
         <ThemePolicySettingsContent pipeline={pipeline} />
       </DialogContent>
     </Dialog>
